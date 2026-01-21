@@ -3,68 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF 診斷模式 v5.0</title>
+    <title>正在開啟內容...</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 背景改為淡黃色，方便確認是否為新版 */
-        body { font-family: monospace; padding: 20px; background-color: #fffbe6; color: #333; word-break: break-all; }
-        .box { background: white; padding: 15px; border: 2px solid #333; border-radius: 8px; margin-bottom: 20px; }
-        h2 { margin-top: 0; color: #d63031; }
-        button { background: #02c874; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 4px; width: 100%; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #ffffff; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #status { margin-top: 15px; color: #666; font-size: 14px; }
     </style>
 </head>
 <body>
-
-    <div class="box">
-        <h2>🛠 診斷模式 v5.0</h2>
-        <p><strong>1. 讀取到的參數 (img)：</strong><br><span id="debug-param" style="color:blue">讀取中...</span></p>
-        <p><strong>2. 最終使用的圖片：</strong><br><span id="debug-final">計算中...</span></p>
-    </div>
-
-    <div id="status">正在初始化 LIFF...</div>
+    <div class="spinner"></div>
+    <div id="status">正在讀取資訊...</div>
 
     <script>
-        const MY_LIFF_ID = "2008941488-Phn5v50S"; // 請確認 ID 正確
-
-        async function main() {
-            const debugParam = document.getElementById('debug-param');
-            const debugFinal = document.getElementById('debug-final');
-            const status = document.getElementById('status');
-
+        async function startApp() {
+            const statusNode = document.getElementById('status');
             try {
-                // 1. 抓取網址參數 (最關鍵的一步)
-                const urlParams = new URLSearchParams(window.location.search);
-                const imgParam = urlParams.get('img');
+                // 1. 立即從網址抓圖 (不准等待)
+                const params = new URLSearchParams(window.location.search);
+                const imgUrl = params.get('img');
                 
-                // 顯示在螢幕上給你看
-                if (imgParam) {
-                    debugParam.innerText = "✅ 成功抓到參數！\n" + imgParam.substring(0, 30) + "...";
-                } else {
-                    debugParam.innerText = "❌ 空值 (Null)\n(代表網址後方沒有 ?img=...)";
-                    debugParam.style.color = "red";
+                // 預設圖 (如果讀不到參數就顯示這張)
+                let finalImg = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+                
+                if (imgUrl) {
+                    finalImg = decodeURIComponent(imgUrl);
+                    statusNode.innerText = "已載入圖片，啟動分享視窗...";
                 }
 
-                // 2. 決定圖片
-                let targetImg = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s"; // 預設圖
-                if (imgParam) {
-                    targetImg = decodeURIComponent(imgParam);
-                }
-                debugFinal.innerText = targetImg;
+                // 2. LIFF 初始化
+                await liff.init({ liffId: "2008941488-Phn5v50S" });
 
-                // 3. 初始化 LIFF
-                await liff.init({ liffId: MY_LIFF_ID });
-                
                 if (!liff.isLoggedIn()) {
                     liff.login();
-                    return;
-                }
-
-                status.innerText = "準備彈出分享視窗...";
-
-                // 4. 執行分享
-                if (liff.isApiAvailable('shareTargetPicker')) {
-                    // 這裡故意延遲 1 秒，讓你看清楚診斷訊息
-                    setTimeout(async () => {
+                } else {
+                    if (liff.isApiAvailable('shareTargetPicker')) {
                         await liff.shareTargetPicker([
                             {
                                 "type": "flex",
@@ -73,28 +48,26 @@
                                     "type": "bubble",
                                     "hero": {
                                         "type": "image",
-                                        "url": targetImg,
+                                        "url": finalImg,
                                         "size": "full",
                                         "aspectRatio": "20:13",
                                         "aspectMode": "cover",
                                         "action": {
                                             "type": "uri",
-                                            // 讓分享出去的連結也帶有參數
-                                            "uri": "https://liff.line.me/" + MY_LIFF_ID + "?img=" + encodeURIComponent(targetImg)
+                                            "uri": "https://liff.line.me/2008941488-Phn5v50S?img=" + encodeURIComponent(finalImg)
                                         }
                                     }
                                 }
                             }
                         ]);
                         liff.closeWindow();
-                    }, 1000); 
+                    }
                 }
-            } catch (e) {
-                status.innerText = "發生錯誤：" + e.message;
-                status.style.color = "red";
+            } catch (err) {
+                statusNode.innerText = "發生錯誤: " + err.message;
             }
         }
-        main();
+        window.onload = startApp;
     </script>
 </body>
 </html>
