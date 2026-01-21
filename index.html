@@ -1,70 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> </title>
+    <title>傳送圖片給客戶！</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: "Microsoft JhengHei", sans-serif; background-color: #f0f2f5; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 85%; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #msg { font-size: 18px; color: #333; font-weight: bold; line-height: 1.5; margin-bottom: 20px; }
+        .share-btn { background-color: #02c874; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: transform 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(2, 200, 116, 0.3); }
+        .share-btn:active { transform: scale(0.95); background-color: #02a862; }
+        #status { margin-top: 15px; font-size: 14px; color: #888; }
+    </style>
 </head>
-<body style="background:#ffffff;">
+<body>
+
+    <div class="card">
+        <div class="loader" id="loader"></div>
+        <div id="msg">點擊連結選擇希望傳送圖片的客戶</div>
+        <button id="actionBtn" class="share-btn" style="display:none;" onclick="handleShare()">立即選擇客戶並傳送</button>
+        <div id="status">正在啟動服務...</div>
+    </div>
+
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
+        const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+        let finalImageUrl = DEFAULT_IMG;
 
-        async function init() {
+        async function initLiff() {
+            const statusNode = document.getElementById('status');
+            const actionBtn = document.getElementById('actionBtn');
+            const loader = document.getElementById('loader');
+
             try {
                 await liff.init({ liffId: LIFF_ID });
-                
+
                 if (!liff.isLoggedIn()) {
                     liff.login();
                     return;
                 }
 
-                liff.ready.then(async () => {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const imgUrl = urlParams.get('i');
+                // 抓取網址中的圖片參數
+                const url = new URL(window.location.href);
+                let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
+                if (imgParam) {
+                    finalImageUrl = decodeURIComponent(imgParam);
+                }
 
-                    if (imgUrl) {
-                        const decodedImg = decodeURIComponent(imgUrl);
-                        const img = new Image();
-                        img.src = decodedImg;
+                // 初始化成功，顯示按鈕，隱藏載入圈
+                loader.style.display = 'none';
+                actionBtn.style.display = 'inline-block';
+                statusNode.innerText = "服務已就緒";
 
-                        img.onload = async () => {
-                            const ratio = `${img.width}:${img.height}`;
-                            const shareLink = `https://liff.line.me/${LIFF_ID}?i=${encodeURIComponent(decodedImg)}`;
-
-                            // 執行分享好友畫面
-                            await liff.shareTargetPicker([{
-                                "type": "flex",
-                                "altText": "您收到一張圖片",
-                                "contents": {
-                                    "type": "bubble",
-                                    "size": "giga",
-                                    "body": {
-                                        "type": "box",
-                                        "layout": "vertical",
-                                        "contents": [{
-                                            "type": "image",
-                                            "url": decodedImg,
-                                            "size": "full",
-                                            "aspectMode": "cover",
-                                            "aspectRatio": ratio,
-                                            "action": { "type": "uri", "uri": shareLink }
-                                        }],
-                                        "paddingAll": "0px"
-                                    }
-                                }
-                            }]);
-                            liff.closeWindow();
-                        };
-                    } else {
-                        liff.closeWindow();
-                    }
-                });
             } catch (e) {
-                liff.closeWindow();
+                statusNode.innerText = "載入失敗，請重啟 LINE 再試";
+                console.error(e);
             }
         }
-        init();
+
+        async function handleShare() {
+            const statusNode = document.getElementById('status');
+            
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                try {
+                    const result = await liff.shareTargetPicker([{
+                        "type": "flex",
+                        "altText": "您收到一張新圖片",
+                        "contents": {
+                            "type": "bubble",
+                            "hero": {
+                                "type": "image",
+                                "url": finalImageUrl,
+                                "size": "full",
+                                "aspectRatio": "20:13",
+                                "aspectMode": "cover",
+                                "action": {
+                                    "type": "uri",
+                                    "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(finalImageUrl)}`
+                                }
+                            }
+                        }
+                    }]);
+
+                    if (result) {
+                        statusNode.innerText = "發送成功！";
+                        setTimeout(() => liff.closeWindow(), 1000);
+                    }
+                } catch (error) {
+                    statusNode.innerText = "傳送取消或發生錯誤";
+                }
+            } else {
+                alert("您的 LINE 版本不支援分享功能");
+            }
+        }
+
+        window.onload = initLiff;
     </script>
 </body>
 </html>
