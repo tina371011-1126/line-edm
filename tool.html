@@ -3,39 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>原生最短連結產生器</title>
+    <title>最短連結產生器</title>
     <style>
         body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f2f5; margin: 0; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 90%; max-width: 360px; }
         h2 { color: #02c874; font-size: 18px; text-align: center; margin-top: 0; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
         button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; margin-top: 10px; cursor: pointer; }
-        #res { margin-top: 15px; display: none; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #eee; font-size: 13px; }
+        #res { margin-top: 15px; display: none; background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #eee; }
+        #link { word-break: break-all; font-size: 12px; color: #555; margin-bottom: 10px; line-height: 1.4; }
+        .copy-btn { background: #333; font-size: 12px; padding: 8px; margin: 0 auto; display: block; width: 80px; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2>🚀 產生最短 EDM 連結</h2>
-    <input type="text" id="u" placeholder="貼上圖片網址">
-    <button onclick="gen()">產生</button>
+    <h2>🚀 產生最短連結</h2>
+    <input type="text" id="u" placeholder="請貼上圖片網址">
+    <button onclick="gen()">產生連結</button>
     <div id="res">
         <div id="link"></div>
-        <button onclick="copy()" style="background:#333; font-size:12px; padding:8px;">複製</button>
+        <button class="copy-btn" onclick="copy()">複製連結</button>
     </div>
 </div>
 <script>
     const ID = "2008941488-Phn5v50S";
     function gen() {
         const val = document.getElementById('u').value.trim();
-        if(!val) return;
-        // 使用最短的參數名 'i' 代替 'img'
+        if(!val) return alert("請輸入網址");
+        // 確保網址編碼完整，避免被 LINE 截斷
         const url = `https://liff.line.me/${ID}?i=${encodeURIComponent(val)}`;
         document.getElementById('link').innerText = url;
         document.getElementById('res').style.display = 'block';
     }
     function copy() {
         const t = document.getElementById('link').innerText;
-        navigator.clipboard.writeText(t).then(() => alert("已複製"));
+        navigator.clipboard.writeText(t).then(() => alert("已複製！"));
     }
 </script>
 </body>
