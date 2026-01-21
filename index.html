@@ -3,26 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>傳送圖片給客戶！</title>
+    <title>傳送圖片中</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f0f2f5; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 85%; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f8f9fa; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 80%; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #msg { font-size: 18px; color: #333; font-weight: bold; margin-bottom: 20px; }
-        .share-btn { background-color: #02c874; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(2, 200, 116, 0.3); }
-        .share-btn:active { transform: scale(0.95); }
-        #status { margin-top: 15px; font-size: 14px; color: #888; }
+        #msg { font-size: 16px; color: #444; margin-bottom: 20px; }
+        .share-btn { background-color: #02c874; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <div class="loader" id="loader"></div>
-        <div id="msg">請確認圖片載入後<br>點擊下方按鈕傳送</div>
-        <button id="actionBtn" class="share-btn" style="display:none;" onclick="handleShare()">立即選擇客戶並傳送</button>
-        <div id="status">正在解析長圖尺寸...</div>
+        <div id="msg">圖片處理中...</div>
+        <button id="actionBtn" class="share-btn" style="display:none;" onclick="handleShare()">選擇客戶傳送</button>
     </div>
 
     <script>
@@ -37,27 +34,23 @@
 
                 const url = new URL(window.location.href);
                 let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "";
 
-                // --- 核心修正：偵測長圖尺寸 ---
+                if (!finalImageUrl) {
+                    document.getElementById('msg').innerText = "未提供圖片網址";
+                    return;
+                }
+
                 const img = new Image();
                 img.onload = function() {
-                    // 自動計算比例，並通知 UI 就緒
                     finalRatio = `${this.width}:${this.height}`;
                     document.getElementById('loader').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
-                    document.getElementById('status').innerText = "長圖解析成功：" + finalRatio;
-                };
-                img.onerror = () => {
-                    document.getElementById('loader').style.display = 'none';
-                    document.getElementById('actionBtn').style.display = 'inline-block';
-                    document.getElementById('status').innerText = "載入失敗，將嘗試以預設發送";
+                    document.getElementById('msg').innerText = "預覽已就緒";
                 };
                 img.src = finalImageUrl;
 
-            } catch (e) {
-                document.getElementById('status').innerText = "啟動失敗";
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function handleShare() {
@@ -65,10 +58,11 @@
                 try {
                     await liff.shareTargetPicker([{
                         "type": "flex",
-                        "altText": "您收到一張精美圖片",
+                        "altText": "您收到一張圖片",
                         "contents": {
                             "type": "bubble",
-                            "size": "giga", // 使用最大寬度，避免圖片被強制縮小
+                            // --- 關鍵修正：將尺寸改為 mega 或 large，讓它看起來像一般照片寬度 ---
+                            "size": "mega", 
                             "body": {
                                 "type": "box",
                                 "layout": "vertical",
@@ -77,15 +71,15 @@
                                         "type": "image",
                                         "url": finalImageUrl,
                                         "size": "full",
-                                        "aspectMode": "cover",
-                                        "aspectRatio": finalRatio, // 動態填入長條比例
+                                        "aspectMode": "fit", // 使用 fit 確保長圖能完整顯示不被裁切
+                                        "aspectRatio": finalRatio,
                                         "action": {
                                             "type": "uri",
                                             "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(finalImageUrl)}`
                                         }
                                     }
                                 ],
-                                "paddingAll": "0px" // 移除所有外距，達成 100% 長條原貌
+                                "paddingAll": "0px"
                             },
                             "styles": {
                                 "body": { "backgroundColor": "#FFFFFF" }
@@ -93,9 +87,7 @@
                         }
                     }]);
                     liff.closeWindow();
-                } catch (error) {
-                    console.error(error);
-                }
+                } catch (error) { console.error(error); }
             }
         }
         window.onload = initLiff;
