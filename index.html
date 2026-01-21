@@ -22,25 +22,26 @@
                 } else {
                     if (liff.isApiAvailable('shareTargetPicker')) {
                         await liff.shareTargetPicker([
-                            {
-                                "type": "flex",
-                                "altText": "您收到一張專屬圖片",
-                                "contents": {
-                                    "type": "bubble",
-                                    "hero": {
-                                        "type": "image",
-                                        "url": finalImg,
-                                        "size": "full",
-                                        "aspectRatio": "20:13",
-                                        "aspectMode": "cover",
-                                        "action": {
-                                            "type": "uri",
-                                            "uri": "https://liff.line.me/2008941488-Phn5v50S"
-                                        }
-                                    }
-                                }
-                            }
-                        ]);
+    {
+        "type": "flex",
+        "altText": "您收到一張專屬圖片",
+        "contents": {
+            "type": "bubble",
+            "hero": {
+                "type": "image",
+                "url": finalImg.trim(), // 加上 .trim() 移除可能的空白
+                "size": "full",
+                "aspectRatio": "20:13",
+                "aspectMode": "cover",
+                "action": {
+                    "type": "uri",
+                    // 這裡確保點擊圖片時，傳遞的是正確的變數
+                    "uri": "https://liff.line.me/2008941488-Phn5v50S/?img=" + encodeURIComponent(finalImg)
+                }
+            }
+        }
+    }
+]);
                     }
                     liff.closeWindow();
                 }
