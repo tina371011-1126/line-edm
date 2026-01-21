@@ -6,13 +6,13 @@
     <title>傳送圖片給客戶！</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: "Microsoft JhengHei", sans-serif; background-color: #f0f2f5; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f0f2f5; }
         .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 85%; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #msg { font-size: 18px; color: #333; font-weight: bold; line-height: 1.5; margin-bottom: 20px; }
-        .share-btn { background-color: #02c874; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: transform 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(2, 200, 116, 0.3); }
-        .share-btn:active { transform: scale(0.95); background-color: #02a862; }
+        #msg { font-size: 18px; color: #333; font-weight: bold; margin-bottom: 20px; }
+        .share-btn { background-color: #02c874; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(2, 200, 116, 0.3); }
+        .share-btn:active { transform: scale(0.95); }
         #status { margin-top: 15px; font-size: 14px; color: #888; }
     </style>
 </head>
@@ -20,70 +20,55 @@
 
     <div class="card">
         <div class="loader" id="loader"></div>
-        <div id="msg">點擊連結選擇希望傳送圖片的客戶</div>
+        <div id="msg">請確認圖片載入後<br>點擊下方按鈕傳送</div>
         <button id="actionBtn" class="share-btn" style="display:none;" onclick="handleShare()">立即選擇客戶並傳送</button>
-        <div id="status">正在啟動服務...</div>
+        <div id="status">正在解析長圖尺寸...</div>
     </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
-        let finalImageUrl = DEFAULT_IMG;
-        let finalRatio = "20:13"; // 預設值
+        let finalImageUrl = "";
+        let finalRatio = "1:1";
 
         async function initLiff() {
-            const statusNode = document.getElementById('status');
-            const actionBtn = document.getElementById('actionBtn');
-            const loader = document.getElementById('loader');
-
             try {
                 await liff.init({ liffId: LIFF_ID });
-
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
+                if (!liff.isLoggedIn()) { liff.login(); return; }
 
                 const url = new URL(window.location.href);
                 let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-                
-                if (imgParam) {
-                    finalImageUrl = decodeURIComponent(imgParam);
-                }
+                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
-                // --- 核心修正：自動偵測圖片比例 ---
+                // --- 核心修正：偵測長圖尺寸 ---
                 const img = new Image();
                 img.onload = function() {
-                    // 取得原始長寬並設定為 Flex aspectRatio
+                    // 自動計算比例，並通知 UI 就緒
                     finalRatio = `${this.width}:${this.height}`;
-                    loader.style.display = 'none';
-                    actionBtn.style.display = 'inline-block';
-                    statusNode.innerText = "服務已就緒 (已偵測圖片尺寸)";
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('actionBtn').style.display = 'inline-block';
+                    document.getElementById('status').innerText = "長圖解析成功：" + finalRatio;
                 };
-                img.onerror = function() {
-                    // 若載入失敗，仍顯示按鈕使用預設比例
-                    loader.style.display = 'none';
-                    actionBtn.style.display = 'inline-block';
-                    statusNode.innerText = "圖片連結異常，將使用預設尺寸";
+                img.onerror = () => {
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('actionBtn').style.display = 'inline-block';
+                    document.getElementById('status').innerText = "載入失敗，將嘗試以預設發送";
                 };
                 img.src = finalImageUrl;
 
             } catch (e) {
-                statusNode.innerText = "載入失敗，請重啟 LINE 再試";
-                console.error(e);
+                document.getElementById('status').innerText = "啟動失敗";
             }
         }
 
         async function handleShare() {
-            const statusNode = document.getElementById('status');
-            
             if (liff.isApiAvailable('shareTargetPicker')) {
                 try {
-                    const result = await liff.shareTargetPicker([{
+                    await liff.shareTargetPicker([{
                         "type": "flex",
-                        "altText": "您收到一張新圖片",
+                        "altText": "您收到一張精美圖片",
                         "contents": {
                             "type": "bubble",
+                            "size": "giga", // 使用最大寬度，避免圖片被強制縮小
                             "body": {
                                 "type": "box",
                                 "layout": "vertical",
@@ -92,31 +77,27 @@
                                         "type": "image",
                                         "url": finalImageUrl,
                                         "size": "full",
-                                        "aspectRatio": finalRatio, // 使用動態偵測到的比例
                                         "aspectMode": "cover",
+                                        "aspectRatio": finalRatio, // 動態填入長條比例
                                         "action": {
                                             "type": "uri",
                                             "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(finalImageUrl)}`
                                         }
                                     }
                                 ],
-                                "paddingAll": "0px" // 確保圖片滿版無白邊
+                                "paddingAll": "0px" // 移除所有外距，達成 100% 長條原貌
+                            },
+                            "styles": {
+                                "body": { "backgroundColor": "#FFFFFF" }
                             }
                         }
                     }]);
-
-                    if (result) {
-                        statusNode.innerText = "發送成功！";
-                        setTimeout(() => liff.closeWindow(), 1000);
-                    }
+                    liff.closeWindow();
                 } catch (error) {
-                    statusNode.innerText = "傳送取消或發生錯誤";
+                    console.error(error);
                 }
-            } else {
-                alert("您的 LINE 版本不支援分享功能");
             }
         }
-
         window.onload = initLiff;
     </script>
 </body>
