@@ -3,75 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> </title>
+    <title> </title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { margin: 0; background: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        .dot { width: 12px; height: 12px; background: #02c874; border-radius: 50%; animation: p 1s infinite; }
-        @keyframes p { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-    </style>
 </head>
-<body>
-    <div class="dot"></div>
-
+<body style="background:#ffffff;">
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
 
-        async function run() {
+        async function init() {
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) { liff.login(); return; }
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
 
-                // 精準抓取參數
-                const urlObj = new URL(window.location.href);
-                const i = urlObj.searchParams.get('i') || new URLSearchParams(urlObj.hash.split('?')[1]).get('i');
+                liff.ready.then(async () => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const imgUrl = urlParams.get('i');
 
-                if (i) {
-                    const imgUrl = decodeURIComponent(i);
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous";
-                    img.src = imgUrl;
+                    if (imgUrl) {
+                        const decodedImg = decodeURIComponent(imgUrl);
+                        const img = new Image();
+                        img.src = decodedImg;
 
-                    img.onload = async () => {
-                        // 修正 2：根據原圖比例動態計算 FlexAspectRatio
-                        const ratio = `${img.width}:${img.height}`;
-                        const shareLink = `https://liff.line.me/${LIFF_ID}?i=${encodeURIComponent(imgUrl)}`;
+                        img.onload = async () => {
+                            const ratio = `${img.width}:${img.height}`;
+                            const shareLink = `https://liff.line.me/${LIFF_ID}?i=${encodeURIComponent(decodedImg)}`;
 
-                        if (liff.isApiAvailable('shareTargetPicker')) {
+                            // 執行分享好友畫面
                             await liff.shareTargetPicker([{
                                 "type": "flex",
                                 "altText": "您收到一張圖片",
                                 "contents": {
                                     "type": "bubble",
-                                    "size": "giga", 
+                                    "size": "giga",
                                     "body": {
                                         "type": "box",
                                         "layout": "vertical",
-                                        "contents": [
-                                            {
-                                                "type": "image",
-                                                "url": imgUrl,
-                                                "size": "full",
-                                                "aspectMode": "cover",
-                                                "aspectRatio": ratio,
-                                                "action": {
-                                                    "type": "uri",
-                                                    "uri": shareLink // 修正 3：點擊圖片立即觸發好友清單
-                                                }
-                                            }
-                                        ],
+                                        "contents": [{
+                                            "type": "image",
+                                            "url": decodedImg,
+                                            "size": "full",
+                                            "aspectMode": "cover",
+                                            "aspectRatio": ratio,
+                                            "action": { "type": "uri", "uri": shareLink }
+                                        }],
                                         "paddingAll": "0px"
                                     }
                                 }
                             }]);
-                        }
+                            liff.closeWindow();
+                        };
+                    } else {
                         liff.closeWindow();
-                    };
-                    img.onerror = () => liff.closeWindow();
-                } else { liff.closeWindow(); }
-            } catch (e) { liff.closeWindow(); }
+                    }
+                });
+            } catch (e) {
+                liff.closeWindow();
+            }
         }
-        window.onload = run;
+        init();
     </script>
 </body>
 </html>
