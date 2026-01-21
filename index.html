@@ -3,51 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading...</title>
+    <title>偵探模式</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #ffffff; }
-        .spinner { border: 3px solid rgba(0,0,0,0.1); border-top: 3px solid #02c874; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { font-family: monospace; padding: 20px; background-color: #333; color: #fff; word-break: break-all; }
+        .box { border: 1px solid #666; padding: 10px; margin-bottom: 10px; background: #222; }
+        h3 { color: #02c874; margin-top: 0; }
+        .highlight { color: #ffeb3b; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="spinner"></div>
+
+    <h2>🔍 參數遺失診斷</h2>
+    
+    <div class="box">
+        <h3>1. 瀏覽器網址 (你的手機收到了什麼?)</h3>
+        <div id="full-url">讀取中...</div>
+    </div>
+
+    <div class="box">
+        <h3>2. 抓到的圖片參數 (img)</h3>
+        <div id="parsed-img" class="highlight">讀取中...</div>
+    </div>
+
     <script>
         async function main() {
-            try {
-                await liff.init({ liffId: "2008941488-Phn5v50S" });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                } else {
-                    if (liff.isApiAvailable('shareTargetPicker')) {
-                        await liff.shareTargetPicker([
-    {
-        "type": "flex",
-        "altText": "您收到一張專屬圖片",
-        "contents": {
-            "type": "bubble",
-            "hero": {
-                "type": "image",
-                "url": finalImg.trim(), // 加上 .trim() 移除可能的空白
-                "size": "full",
-                "aspectRatio": "20:13",
-                "aspectMode": "cover",
-                "action": {
-                    "type": "uri",
-                    // 這裡確保點擊圖片時，傳遞的是正確的變數
-                    "uri": "https://liff.line.me/2008941488-Phn5v50S/?img=" + encodeURIComponent(finalImg)
-                }
+            // 顯示完整的網址
+            document.getElementById('full-url').innerText = window.location.href;
+
+            // 嘗試抓取參數
+            const urlParams = new URLSearchParams(window.location.search);
+            const imgParam = urlParams.get('img');
+
+            const resultDiv = document.getElementById('parsed-img');
+            
+            if (imgParam) {
+                resultDiv.innerText = "✅ 成功抓到: " + imgParam.substring(0, 50) + "...";
+                resultDiv.style.color = "#02c874"; // 綠色
+            } else {
+                resultDiv.innerText = "❌ 參數遺失 (空值)";
+                resultDiv.style.color = "#ff5252"; // 紅色
             }
-        }
-    }
-]);
-                    }
-                    liff.closeWindow();
-                }
-            } catch (e) {
-                liff.closeWindow();
-            }
+
+            // 初始化 LIFF (僅做檢查)
+            await liff.init({ liffId: "2008941488-Phn5v50S" });
         }
         main();
     </script>
