@@ -3,64 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF EDM 連結產生器</title>
+    <title>Loading...</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 40px; line-height: 1.6; max-width: 600px; margin: auto; background-color: #f9f9f9; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { color: #02c874; margin-top: 0; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; }
-        input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        button { background-color: #02c874; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
-        button:hover { background-color: #02a862; }
-        #resultArea { margin-top: 25px; display: none; }
-        #finalLink { background: #e8f5e9; padding: 15px; border: 1px dashed #02c874; word-break: break-all; border-radius: 6px; font-size: 14px; color: #1b5e20; }
-        .copy-btn { background-color: #333; margin-top: 10px; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #ffffff; }
+        .spinner { border: 3px solid rgba(0,0,0,0.1); border-top: 3px solid #02c874; border-radius: 50%; width: 25px; height: 25px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div class="spinner"></div>
+    <script>
+        // 設定您的 LIFF ID
+        const MY_LIFF_ID = "2008941488-Phn5v50S";
 
-<div class="card">
-    <h2>🚀 EDM 連結產生器</h2>
-    <p style="font-size: 13px; color: #666;">輸入圖片網址，產出帶有追蹤功能且可轉傳的 LINE 連結。</p>
-    
-    <label>1. 貼上圖片網址 (URL)</label>
-    <input type="text" id="imgUrl" placeholder="https://example.com/image.jpg">
-    
-    <button onclick="generateLink()">產出連結</button>
+        async function main() {
+            try {
+                await liff.init({ liffId: MY_LIFF_ID });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
 
-    <div id="resultArea">
-        <label>2. 你的專屬 LIFF 連結：</label>
-        <div id="finalLink"></div>
-        <button class="copy-btn" onclick="copyLink()">點我複製連結</button>
-        <p style="font-size: 12px; color: #999; margin-top: 10px;">※ 將此連結發送到 LINE 即可開始擴散。</p>
-    </div>
-</div>
+                // --- 關鍵修改：從網址讀取圖片 ---
+                const urlParams = new URLSearchParams(window.location.search);
+                const imgParam = urlParams.get('img');
+                
+                // 如果網址沒帶圖片，就顯示一張預設圖 (避免空白)
+                let targetImg = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+                
+                if (imgParam) {
+                    // 如果有帶參數，就解碼並使用該圖片
+                    targetImg = decodeURIComponent(imgParam);
+                }
+                // ------------------------------
 
-<script>
-    const LIFF_BASE = "https://liff.line.me/2008941488-Phn5v50S";
+                if (liff.isApiAvailable('shareTargetPicker')) {
+                    await liff.shareTargetPicker([
+                        {
+                            "type": "flex",
+                            "altText": "您收到一張專屬圖片",
+                            "contents": {
+                                "type": "bubble",
+                                "hero": {
+                                    "type": "image",
+                                    "url": targetImg, // 這裡變成變數了，不再是死板的網址
+                                    "size": "full",
+                                    "aspectRatio": "20:13",
+                                    "aspectMode": "cover",
+                                    "action": {
+                                        "type": "uri",
+                                        // 重點：轉傳出去的連結，也要繼續帶著這張圖片的參數
+                                        "uri": "https://liff.line.me/" + MY_LIFF_ID + "?img=" + encodeURIComponent(targetImg)
+                                    }
+                                }
+                            }
+                        }
+                    ]);
+                }
+                liff.closeWindow();
 
-    function generateLink() {
-        const img = document.getElementById('imgUrl').value.trim();
-        if (!img) {
-            alert("請先輸入圖片網址");
-            return;
+            } catch (e) {
+                console.error(e);
+                liff.closeWindow();
+            }
         }
-        
-        // 進行網址編碼 (Encoding)
-        const encodedImg = encodeURIComponent(img);
-        const fullLink = `${LIFF_BASE}?img=${encodedImg}`;
-        
-        document.getElementById('finalLink').innerText = fullLink;
-        document.getElementById('resultArea').style.display = 'block';
-    }
-
-    function copyLink() {
-        const text = document.getElementById('finalLink').innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert("連結已複製！");
-        });
-    }
-</script>
-
+        main();
+    </script>
 </body>
 </html>
