@@ -1,40 +1,25 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>原生連結產生器</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; display: flex; justify-content: center; background: #f0f2f5; }
-        .card { background: white; padding: 25px; border-radius: 12px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; cursor: pointer; }
-        #res { margin-top: 20px; display: none; word-break: break-all; background: #e8f5e9; padding: 10px; border-radius: 5px; font-size: 13px; }
-    </style>
-</head>
-<body>
-<div class="card">
-    <h2>🚀 產生轉傳連結</h2>
-    <input type="text" id="u" placeholder="請貼上圖片網址">
-    <button onclick="gen()">產生連結</button>
-    <div id="res">
-        <div id="link" style="margin-bottom:10px;"></div>
-        <button onclick="copy()" style="background:#333">複製連結</button>
-    </div>
-</div>
-<script>
-    const ID = "2008941488-Phn5v50S";
-    function gen() {
-        const val = document.getElementById('u').value.trim();
-        if(!val) return alert("請輸入網址");
-        const url = `https://liff.line.me/${ID}?i=${encodeURIComponent(val)}`;
-        document.getElementById('link').innerText = url;
-        document.getElementById('res').style.display = 'block';
+async function generate() {
+    const img = document.getElementById('imgUrl').value.trim();
+    if(!img) return alert("請輸入網址");
+
+    const longLink = `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(img)}`;
+    const resultArea = document.getElementById('resultArea');
+    const linkDiv = document.getElementById('finalLink');
+    
+    linkDiv.innerText = "縮網址產生中...";
+    resultArea.style.display = 'block';
+
+    try {
+        // 使用 is.gd 免費 API 縮短網址
+        const response = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`);
+        const data = await response.json();
+        
+        if (data.shorturl) {
+            linkDiv.innerText = data.shorturl; // 顯示短網址
+        } else {
+            linkDiv.innerText = longLink; // 若縮址失敗則顯示原長網址
+        }
+    } catch (e) {
+        linkDiv.innerText = longLink; // 網路錯誤時顯示原網址
     }
-    function copy() {
-        const t = document.getElementById('link').innerText;
-        navigator.clipboard.writeText(t).then(() => alert("已複製"));
-    }
-</script>
-</body>
-</html>
+}
