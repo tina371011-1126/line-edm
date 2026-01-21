@@ -3,85 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>正在開啟內容...</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title>LIFF EDM 連結產生器</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #ffffff; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #debug { margin-top: 20px; font-size: 12px; color: #999; text-align: center; padding: 0 20px; word-break: break-all; }
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
+        h2 { color: #02c874; font-size: 20px; margin-top: 0; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
+        #resultArea { margin-top: 20px; display: none; background: #e8f5e9; padding: 15px; border-radius: 8px; border: 1px dashed #02c874; }
+        .link-text { word-break: break-all; font-size: 12px; color: #2e7d32; margin-bottom: 10px; }
+        .copy-btn { background: #333; }
     </style>
 </head>
 <body>
-    <div class="spinner"></div>
-    <div id="debug">初始化中...</div>
-
-    <script>
-        async function init() {
-            const debugNode = document.getElementById('debug');
-            try {
-                // 1. 初始化 LIFF
-                // 注意：liffId 務必確認正確
-                await liff.init({ liffId: "2008941488-Phn5v50S" });
-
-                // 2. 判斷登入
-                if (!liff.isLoggedIn()) {
-                    debugNode.innerText = "跳轉登入中...";
-                    liff.login();
-                    return;
-                }
-
-                // 3. 抓取圖片參數 (同時支援 ? 和 # 格式)
-                const urlObj = new URL(window.location.href);
-                let imgUrl = urlObj.searchParams.get('img');
-                
-                // 如果在 searchParams 找不到，嘗試從 hash 找 (LINE 有時會把參數塞在 # 後面)
-                if (!imgUrl && window.location.hash) {
-                    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-                    imgUrl = hashParams.get('img');
-                }
-
-                // 預設圖
-                let finalImg = imgUrl ? decodeURIComponent(imgUrl) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
-                
-                debugNode.innerText = "圖片讀取成功，準備分享...";
-
-                // 4. 執行分享
-                if (liff.isApiAvailable('shareTargetPicker')) {
-                    await liff.shareTargetPicker([
-                        {
-                            "type": "flex",
-                            "altText": "您收到一張專屬圖片",
-                            "contents": {
-                                "type": "bubble",
-                                "hero": {
-                                    "type": "image",
-                                    "url": finalImg,
-                                    "size": "full",
-                                    "aspectRatio": "20:13",
-                                    "aspectMode": "cover",
-                                    "action": {
-                                        "type": "uri",
-                                        "uri": "https://liff.line.me/2008941488-Phn5v50S/?img=" + encodeURIComponent(finalImg)
-                                    }
-                                }
-                            }
-                        }
-                    ]);
-                }
-                
-                // 完成後關閉
-                liff.closeWindow();
-
-            } catch (err) {
-                debugNode.style.color = "red";
-                debugNode.innerText = "錯誤: " + err.message;
-                // 如果初始化失敗，通常是因為網址不匹配，3秒後嘗試強制重開
-                setTimeout(() => { liff.closeWindow(); }, 3000);
-            }
-        }
-
-        window.onload = init;
-    </script>
+<div class="card">
+    <h2>🚀 EDM 連結產生器</h2>
+    <label>貼上圖片網址 (JPG/PNG)：</label>
+    <input type="text" id="imgUrl" placeholder="https://example.com/image.jpg">
+    <button onclick="generate()">產出連結</button>
+    <div id="resultArea">
+        <div class="link-text" id="finalLink"></div>
+        <button class="copy-btn" onclick="copy()">點我複製連結</button>
+    </div>
+</div>
+<script>
+    const LIFF_ID = "2008941488-Phn5v50S";
+    function generate() {
+        const img = document.getElementById('imgUrl').value.trim();
+        if(!img) return alert("請輸入網址");
+        // 使用 # 號傳遞參數在 LINE 中最穩定，不易被過濾
+        const fullLink = `https://liff.line.me/${LIFF_ID}#img=${encodeURIComponent(img)}`;
+        document.getElementById('finalLink').innerText = fullLink;
+        document.getElementById('resultArea').style.display = 'block';
+    }
+    function copy() {
+        const text = document.getElementById('finalLink').innerText;
+        navigator.clipboard.writeText(text).then(() => alert("已複製！"));
+    }
+</script>
 </body>
 </html>
