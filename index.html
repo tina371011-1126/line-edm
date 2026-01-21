@@ -3,56 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> </title> <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title> </title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 背景設為純白，並隱藏滾動條 */
         body { background-color: #ffffff; margin: 0; padding: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .dot { width: 8px; height: 8px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        /* 綠色閃爍點，讓使用者知道正在跑 */
+        .dot { width: 12px; height: 12px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
-    <div class="dot"></div> <script>
+    <div class="dot"></div>
+
+    <script>
         const LIFF_ID = "2008941488-Phn5v50S";
+        const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
         async function fastShare() {
             try {
+                // 1. 初始化 LIFF
                 await liff.init({ liffId: LIFF_ID });
 
+                // 2. 登入檢查
                 if (!liff.isLoggedIn()) {
                     liff.login();
                     return;
                 }
 
+                // 3. 取得圖片網址
                 const url = new URL(window.location.href);
-                // 同時支援多種參數格式
-                let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-                
-                if (imgParam && liff.isApiAvailable('shareTargetPicker')) {
-                    const targetImg = decodeURIComponent(imgParam);
-                    
-                    await liff.shareTargetPicker([{
-                        "type": "flex",
-                        "altText": "您收到一張新圖片",
-                        "contents": {
-                            "type": "bubble",
-                            "hero": {
-                                "type": "image",
-                                "url": targetImg,
-                                "size": "full",
-                                "aspectRatio": "20:13",
-                                "aspectMode": "cover"
-                            }
+                // 優先抓取 Hash 之後抓取 Search
+                let imgParam = new URLSearchParams(url.hash.substring(url.hash.indexOf('?'))).get('img') || 
+                               new URLSearchParams(window.location.search).get('img') ||
+                               new URLSearchParams(url.hash.substring(1)).get('img');
+
+                const targetImg = imgParam ? decodeURIComponent(imgParam) : DEFAULT_IMG;
+
+                // 4. 等待 SDK 完全準備好並觸發分享
+                // 加入 100ms 的緩衝，增加在 iOS LINE 上的彈出成功率
+                setTimeout(async () => {
+                    if (liff.isApiAvailable('shareTargetPicker')) {
+                        try {
+                            const result = await liff.shareTargetPicker([{
+                                "type": "flex",
+                                "altText": "您收到一張新圖片",
+                                "contents": {
+                                    "type": "bubble",
+                                    "hero": {
+                                        "type": "image",
+                                        "url": targetImg,
+                                        "size": "full",
+                                        "aspectRatio": "20:13",
+                                        "aspectMode": "cover"
+                                    }
+                                }
+                            }]);
+                            
+                            // 只要動作結束（不論是傳送成功或手動取消），就關閉視窗
+                            liff.closeWindow();
+                        } catch (error) {
+                            console.error("Picker error:", error);
+                            // 若被系統攔截，通常是因為需要使用者點擊，此時不關閉視窗，讓它留白或提示
                         }
-                    }]);
-                }
-                liff.closeWindow(); // 動作結束後自動關閉視窗
+                    } else {
+                        console.error("API not available");
+                        liff.closeWindow();
+                    }
+                }, 100);
+
             } catch (e) {
-                console.error(e);
-                liff.closeWindow();
+                console.error("Init error:", e);
+                // 為了避免無限關閉導致無法 Debug，可以先不寫 closeWindow
             }
         }
-        fastShare();
+
+        // 確保網頁載入完成才跑程式
+        window.onload = fastShare;
     </script>
 </body>
 </html>
