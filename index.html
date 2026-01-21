@@ -3,40 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>分享給客戶～</title>
+    <title>分享內容中...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f9f9f9; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #msg { margin-top: 15px; font-size: 14px; color: #666; }
+        #msg { margin-top: 20px; font-size: 16px; color: #333; text-align: center; padding: 0 20px; }
+        .btn { margin-top: 15px; padding: 12px 24px; background: #02c874; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: none; }
     </style>
 </head>
 <body>
-    <div class="loader"></div>
-    <div id="msg">點擊連結產出圖片並分享給自己</div>
+    <div class="loader" id="loader"></div>
+    <div id="msg">正在啟動 LINE 服務...</div>
+    <button id="retryBtn" class="btn" onclick="location.reload()">重新發送圖片</button>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
         const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
         async function main() {
-    const msgNode = document.getElementById('msg');
-    try {
-        await liff.init({ liffId: "2008941488-Phn5v50S" });
-        if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-        }
+            const msgNode = document.getElementById('msg');
+            const loader = document.getElementById('loader');
+            const retryBtn = document.getElementById('retryBtn');
 
-        const url = new URL(window.location.href);
-        let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-        const targetImg = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+            try {
+                // 1. 初始化 LIFF (只執行一次)
+                await liff.init({ liffId: LIFF_ID });
 
-        // 定義發送函數
-        const sendEDM = async () => {
-            if (liff.isApiAvailable('shareTargetPicker')) {
-                try {
+                // 2. 登入檢查
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 3. 抓取圖片參數
+                const url = new URL(window.location.href);
+                let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
+                const targetImg = imgParam ? decodeURIComponent(imgParam) : DEFAULT_IMG;
+
+                msgNode.innerText = "正在準備分享視窗...";
+
+                // 4. 調用分享視窗
+                if (liff.isApiAvailable('shareTargetPicker')) {
                     const result = await liff.shareTargetPicker([{
                         "type": "flex",
                         "altText": "您收到一張新圖片",
@@ -50,35 +59,34 @@
                                 "aspectMode": "cover",
                                 "action": {
                                     "type": "uri",
-                                    "uri": `https://liff.line.me/2008941488-Phn5v50S/#img=${encodeURIComponent(targetImg)}`
+                                    "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(targetImg)}`
                                 }
                             }
                         }
                     }]);
+
                     if (result) {
-                        msgNode.innerText = "傳送成功！";
-                        liff.closeWindow();
+                        msgNode.innerText = "已成功傳送！頁面即將關閉...";
+                        setTimeout(() => liff.closeWindow(), 1500);
+                    } else {
+                        // 使用者主動取消分享
+                        msgNode.innerText = "已取消分享";
+                        loader.style.display = 'none';
+                        retryBtn.style.display = 'block';
                     }
-                } catch (error) {
-                    msgNode.innerText = "分享視窗被攔截，請重試。";
+                } else {
+                    msgNode.innerText = "您的 LINE 版本過低，不支援此功能。";
                 }
-            } else {
-                msgNode.innerText = "您的 LINE 版本不支援此功能";
+
+            } catch (e) {
+                msgNode.innerText = "錯誤: " + e.message;
+                loader.style.display = 'none';
+                retryBtn.style.display = 'block';
+                console.error(e);
             }
-        };
+        }
 
-        // 嘗試自動執行
-        msgNode.innerText = "正在開啟好友清單...";
-        await sendEDM();
-
-        // 保險機制：如果沒自動彈出，顯示手動按鈕
-        msgNode.innerHTML = `<button onclick="location.reload()" style="padding:10px 20px; background:#02c874; color:white; border:none; border-radius:5px;">點此重新發送</button>`;
-
-    } catch (e) {
-        msgNode.innerText = "錯誤: " + e.message;
-    }
-}
-main();
+        // 啟動主程式
         main();
     </script>
 </body>
