@@ -3,50 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>偵探模式</title>
+    <title>正在開啟...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: monospace; padding: 20px; background-color: #333; color: #fff; word-break: break-all; }
-        .box { border: 1px solid #666; padding: 10px; margin-bottom: 10px; background: #222; }
-        h3 { color: #02c874; margin-top: 0; }
-        .highlight { color: #ffeb3b; font-weight: bold; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #msg { margin-top: 15px; font-size: 14px; color: #666; }
     </style>
 </head>
 <body>
-
-    <h2>🔍 參數遺失診斷</h2>
-    
-    <div class="box">
-        <h3>1. 瀏覽器網址 (你的手機收到了什麼?)</h3>
-        <div id="full-url">讀取中...</div>
-    </div>
-
-    <div class="box">
-        <h3>2. 抓到的圖片參數 (img)</h3>
-        <div id="parsed-img" class="highlight">讀取中...</div>
-    </div>
+    <div class="loader"></div>
+    <div id="msg">載入中，請稍候...</div>
 
     <script>
+        const LIFF_ID = "2008941488-Phn5v50S";
+        const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+
         async function main() {
-            // 顯示完整的網址
-            document.getElementById('full-url').innerText = window.location.href;
+            const msgNode = document.getElementById('msg');
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
 
-            // 嘗試抓取參數
-            const urlParams = new URLSearchParams(window.location.search);
-            const imgParam = urlParams.get('img');
+                // 優先從 Hash (#) 抓取圖片，再從 Search (?) 抓取
+                const url = new URL(window.location.href);
+                let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
+                
+                const targetImg = imgParam ? decodeURIComponent(imgParam) : DEFAULT_IMG;
 
-            const resultDiv = document.getElementById('parsed-img');
-            
-            if (imgParam) {
-                resultDiv.innerText = "✅ 成功抓到: " + imgParam.substring(0, 50) + "...";
-                resultDiv.style.color = "#02c874"; // 綠色
-            } else {
-                resultDiv.innerText = "❌ 參數遺失 (空值)";
-                resultDiv.style.color = "#ff5252"; // 紅色
+                if (liff.isApiAvailable('shareTargetPicker')) {
+                    await liff.shareTargetPicker([{
+                        "type": "flex",
+                        "altText": "您收到一張新圖片",
+                        "contents": {
+                            "type": "bubble",
+                            "hero": {
+                                "type": "image",
+                                "url": targetImg,
+                                "size": "full",
+                                "aspectRatio": "20:13",
+                                "aspectMode": "cover",
+                                "action": {
+                                    "type": "uri",
+                                    "uri": `https://liff.line.me/${LIFF_ID}#img=${encodeURIComponent(targetImg)}`
+                                }
+                            }
+                        }
+                    }]);
+                }
+                liff.closeWindow();
+            } catch (e) {
+                msgNode.innerText = "啟動失敗，請重新開啟";
+                console.error(e);
             }
-
-            // 初始化 LIFF (僅做檢查)
-            await liff.init({ liffId: "2008941488-Phn5v50S" });
         }
         main();
     </script>
