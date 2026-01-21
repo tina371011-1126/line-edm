@@ -3,36 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> </title>
+    <title> </title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { background: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .loader { width: 15px; height: 15px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+    </style>
 </head>
-<body style="background:#fff;">
+<body>
+    <div class="loader"></div>
     <script>
-        async function send() {
+        async function run() {
             try {
+                // 初始化
                 await liff.init({ liffId: "2008941488-Phn5v50S" });
-                if (!liff.isLoggedIn()) { liff.login(); return; }
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
 
                 // 抓取最短參數 i
-                const p = new URLSearchParams(window.location.search);
-                const i = p.get('i');
+                const params = new URLSearchParams(window.location.search);
+                const imgUrl = params.get('i');
 
-                if (i && liff.isApiAvailable('shareTargetPicker')) {
-                    const img = decodeURIComponent(i);
+                if (imgUrl && liff.isApiAvailable('shareTargetPicker')) {
+                    const decodedImg = decodeURIComponent(imgUrl);
                     
-                    // 使用 Image Message 格式：這保證了 100% 原圖比例與尺寸
+                    // 使用「純圖片模式」：保證 100% 原圖比例呈現
                     await liff.shareTargetPicker([
                         {
                             "type": "image",
-                            "originalContentUrl": img,
-                            "previewImageUrl": img
+                            "originalContentUrl": decodedImg,
+                            "previewImageUrl": decodedImg
                         }
                     ]);
                 }
                 liff.closeWindow();
-            } catch (e) { liff.closeWindow(); }
+            } catch (e) {
+                liff.closeWindow();
+            }
         }
-        send();
+        run();
     </script>
 </body>
 </html>
