@@ -5,38 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>原生極短連結產生器</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { color: #02c874; margin-top: 0; font-size: 20px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
+        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { color: #02c874; margin-top: 0; font-size: 22px; text-align: center; }
+        p { font-size: 13px; color: #666; text-align: center; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        button { background: #02c874; color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
         #resultArea { margin-top: 20px; display: none; background: #e8f5e9; padding: 15px; border-radius: 10px; border: 1px dashed #02c874; }
-        .link-text { word-break: break-all; font-size: 13px; color: #1b5e20; background: #fff; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .link-text { word-break: break-all; font-size: 13px; color: #1b5e20; background: #fff; padding: 12px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #c8e6c9; }
+        .copy-btn { background: #333; margin-top: 5px; }
     </style>
 </head>
 <body>
 <div class="card">
     <h2>🚀 原生極短連結產生</h2>
-    <input type="text" id="imgUrl" placeholder="貼上圖片網址 (JPG/PNG)">
+    <p>產出的連結點擊後會直接開啟好友名單</p>
+    <input type="text" id="imgUrl" placeholder="貼上 JPG/PNG 圖片網址">
     <button onclick="generate()">產出最短連結</button>
     <div id="resultArea">
         <div class="link-text" id="finalLink"></div>
-        <button style="background:#333" onclick="copy()">複製連結</button>
+        <button class="copy-btn" onclick="copy()">複製最短連結</button>
     </div>
 </div>
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
     function generate() {
         const img = document.getElementById('imgUrl').value.trim();
-        if(!img) return alert("請輸入網址");
-        // 使用最短路徑格式：LIFFID + 參數
+        if(!img) return alert("請輸入圖片網址");
+        // 產出最短原生連結格式
         const shortLiff = `https://liff.line.me/${LIFF_ID}?img=${encodeURIComponent(img)}`;
         document.getElementById('finalLink').innerText = shortLiff;
         document.getElementById('resultArea').style.display = 'block';
     }
     function copy() {
         const text = document.getElementById('finalLink').innerText;
-        navigator.clipboard.writeText(text).then(() => alert("已複製！可以直接在 LINE 貼上"));
+        navigator.clipboard.writeText(text).then(() => alert("已複製！可直接貼給客戶。"));
     }
 </script>
 </body>
