@@ -6,44 +6,22 @@
     <title>正在開啟內容...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 建立簡潔的載入畫面 */
-        body { 
-            font-family: -apple-system, sans-serif; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
-            background: #ffffff; 
-        }
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #02c874; /* LINE 綠 */
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 0.8s linear infinite;
-        }
+        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #ffffff; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 25px; height: 25px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="loader"></div>
-
     <script>
-        const liffId = "2008941488-Phn5v50S";
-
         async function main() {
             try {
-                // 初始化 LIFF
-                await liff.init({ liffId: liffId });
-
+                await liff.init({ liffId: "2008941488-Phn5v50S" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
-                    // 執行分享功能
                     if (liff.isApiAvailable('shareTargetPicker')) {
-                        const res = await liff.shareTargetPicker([
+                        await liff.shareTargetPicker([
                             {
                                 "type": "flex",
                                 "altText": "您收到一張專屬圖片",
@@ -57,28 +35,20 @@
                                         "aspectMode": "cover",
                                         "action": {
                                             "type": "uri",
-                                            "uri": "https://liff.line.me/" + liffId
+                                            "uri": "https://liff.line.me/2008941488-Phn5v50S"
                                         }
                                     }
                                 }
                             }
                         ]);
-                        
-                        // 分享完畢後關閉視窗，回到聊天室
-                        liff.closeWindow();
-                    } else {
-                        // 若不支援分享則直接關閉
-                        liff.closeWindow();
                     }
+                    liff.closeWindow();
                 }
-            } catch (error) {
-                console.error(error);
-                // 發生錯誤時也自動關閉，避免卡在空白畫面
-                setTimeout(() => liff.closeWindow(), 2000);
+            } catch (e) {
+                liff.closeWindow();
             }
         }
-
-        window.onload = main;
+        main();
     </script>
 </body>
 </html>
