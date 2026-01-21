@@ -3,68 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>正在開啟內容...</title>
+    <title>排錯模式</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
-<body>
-    <div id="app" style="text-align: center; margin-top: 50%; font-family: sans-serif;">
-        <h2 id="status_text">正在初始化 LIFF...</h2>
-        <p id="error_msg" style="color: red;"></p>
-    </div>
+<body style="background: #222; color: #0f0; padding: 20px; font-family: monospace;">
+    <h3>DEBUG 控制台</h3>
+    <div id="log">正在初始化...</div>
 
     <script>
-        async function main() {
-            const status = document.getElementById("status_text");
-            const errorDisplay = document.getElementById("error_msg");
+        function log(msg) {
+            document.getElementById('log').innerHTML += '<br>> ' + msg;
+        }
 
+        async function main() {
             try {
-                // 1. 初始化
+                log("開始 init...");
                 await liff.init({ liffId: "2008941488-Phn5v50S" });
-                status.innerText = "LIFF 已啟動，檢查登入狀態...";
+                log("init 成功！");
 
                 if (!liff.isLoggedIn()) {
+                    log("尚未登入，執行 login...");
                     liff.login();
                 } else {
-                    status.innerText = "正在準備分享視窗...";
+                    log("已登入，使用者: " + (await liff.getProfile()).displayName);
                     
-                    // 2. 檢查 shareTargetPicker 權限
-                    if (!liff.isApiAvailable('shareTargetPicker')) {
-                        throw new Error("此帳號或裝置不支援 shareTargetPicker，請檢查 Scopes 設定或使用手機開啟。");
-                    }
-
-                    // 3. 執行分享
-                    const res = await liff.shareTargetPicker([
-                        {
-                            "type": "flex",
-                            "altText": "您收到一張專屬圖片",
-                            "contents": {
-                                "type": "bubble",
-                                "hero": {
-                                    "type": "image",
-                                    "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
-                                    "size": "full",
-                                    "aspectRatio": "20:13",
-                                    "aspectMode": "cover",
-                                    "action": {
-                                        "type": "uri",
-                                        "uri": "https://liff.line.me/2008941488-Phn5v50S"
+                    if (liff.isApiAvailable('shareTargetPicker')) {
+                        log("準備跳出分享視窗...");
+                        const res = await liff.shareTargetPicker([
+                            {
+                                "type": "flex",
+                                "altText": "您收到一張專屬圖片",
+                                "contents": {
+                                    "type": "bubble",
+                                    "hero": {
+                                        "type": "image",
+                                        "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
+                                        "size": "full",
+                                        "aspectRatio": "20:13",
+                                        "aspectMode": "cover",
+                                        "action": {
+                                            "type": "uri",
+                                            "uri": "https://liff.line.me/2008941488-Phn5v50S"
+                                        }
                                     }
                                 }
                             }
+                        ]);
+                        if (res) {
+                            log("分享視窗已關閉 (成功)");
+                            liff.closeWindow();
+                        } else {
+                            log("使用者取消分享");
                         }
-                    ]);
-
-                    if (res) {
-                        status.innerText = "傳送成功！";
-                        liff.closeWindow();
                     } else {
-                        status.innerText = "使用者取消了傳送";
+                        log("錯誤: 不支援 shareTargetPicker，請確認 Scope 勾選了沒？");
                     }
                 }
-            } catch (error) {
-                console.error(error);
-                status.innerText = "運作失敗";
-                errorDisplay.innerText = error.message;
+            } catch (e) {
+                log("!!! 捕捉到錯誤 !!!");
+                log(e.message);
             }
         }
         main();
