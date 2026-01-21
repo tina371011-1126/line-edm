@@ -1,70 +1,83 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排錯模式</title>
+    <title>正在開啟 EDM...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fdfdfd; }
+        #status { font-size: 18px; color: #333; margin-bottom: 10px; }
+        #error { color: #ff4d4d; font-size: 14px; padding: 0 20px; text-align: center; }
+        .spinner { border: 4px solid rgba(0,0,0,.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #02c874; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
-<body style="background: #222; color: #0f0; padding: 20px; font-family: monospace;">
-    <h3>DEBUG 控制台</h3>
-    <div id="log">正在初始化...</div>
+<body>
+    <div class="spinner"></div>
+    <div id="status">準備中...</div>
+    <div id="error"></div>
 
     <script>
-        function log(msg) {
-            document.getElementById('log').innerHTML += '<br>> ' + msg;
-        }
+        const liffId = "2008941488-Phn5v50S";
 
-        async function main() {
+        async function initializeApp() {
+            const statusNode = document.getElementById("status");
+            const errorNode = document.getElementById("error");
+
             try {
-                log("開始 init...");
-                await liff.init({ liffId: "2008941488-Phn5v50S" });
-                log("init 成功！");
+                statusNode.innerText = "連線至 LINE...";
+                await liff.init({ liffId: liffId });
 
                 if (!liff.isLoggedIn()) {
-                    log("尚未登入，執行 login...");
+                    statusNode.innerText = "引導登入中...";
                     liff.login();
-                } else {
-                    log("已登入，使用者: " + (await liff.getProfile()).displayName);
-                    
-                    if (liff.isApiAvailable('shareTargetPicker')) {
-                        log("準備跳出分享視窗...");
-                        const res = await liff.shareTargetPicker([
-                            {
-                                "type": "flex",
-                                "altText": "您收到一張專屬圖片",
-                                "contents": {
-                                    "type": "bubble",
-                                    "hero": {
-                                        "type": "image",
-                                        "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
-                                        "size": "full",
-                                        "aspectRatio": "20:13",
-                                        "aspectMode": "cover",
-                                        "action": {
-                                            "type": "uri",
-                                            "uri": "https://liff.line.me/2008941488-Phn5v50S"
-                                        }
-                                    }
+                    return;
+                }
+
+                statusNode.innerText = "驗證權限...";
+                if (!liff.isApiAvailable('shareTargetPicker')) {
+                    throw new Error("請先至 LINE 後台勾選 shareTargetPicker 權限並發布 (Published)");
+                }
+
+                statusNode.innerText = "正在開啟好友清單...";
+                const result = await liff.shareTargetPicker([
+                    {
+                        "type": "flex",
+                        "altText": "這是一張可以轉傳的專屬 EDM",
+                        "contents": {
+                            "type": "bubble",
+                            "hero": {
+                                "type": "image",
+                                "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
+                                "size": "full",
+                                "aspectRatio": "20:13",
+                                "aspectMode": "cover",
+                                "action": {
+                                    "type": "uri",
+                                    "uri": "https://liff.line.me/" + liffId
                                 }
                             }
-                        ]);
-                        if (res) {
-                            log("分享視窗已關閉 (成功)");
-                            liff.closeWindow();
-                        } else {
-                            log("使用者取消分享");
                         }
-                    } else {
-                        log("錯誤: 不支援 shareTargetPicker，請確認 Scope 勾選了沒？");
                     }
+                ]);
+
+                if (result) {
+                    statusNode.innerText = "發送成功！";
+                    setTimeout(() => liff.closeWindow(), 1000);
+                } else {
+                    statusNode.innerText = "已取消發送";
+                    setTimeout(() => liff.closeWindow(), 1500);
                 }
-            } catch (e) {
-                log("!!! 捕捉到錯誤 !!!");
-                log(e.message);
+
+            } catch (err) {
+                statusNode.innerText = "發生錯誤";
+                errorNode.innerText = err.message;
+                console.error(err);
             }
         }
-        main();
+
+        window.onload = initializeApp;
     </script>
 </body>
 </html>
