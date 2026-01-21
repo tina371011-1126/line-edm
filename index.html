@@ -6,91 +6,71 @@
     <title> </title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { margin:0; background:#ffffff; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; }
-        .loading { width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #02c874; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        body { margin: 0; background: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .dot { width: 12px; height: 12px; background: #02c874; border-radius: 50%; animation: p 1s infinite; }
+        @keyframes p { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
     </style>
 </head>
 <body>
-    <div class="loading"></div>
+    <div class="dot"></div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
 
         async function run() {
             try {
-                // 1. 初始化
                 await liff.init({ liffId: LIFF_ID });
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
+                if (!liff.isLoggedIn()) { liff.login(); return; }
 
-                // 2. 精準抓取參數 (同時支援 ? 與 # 格式)
+                // 精準抓取參數
                 const urlObj = new URL(window.location.href);
-                let imgUrl = urlObj.searchParams.get('i') || 
-                             new URLSearchParams(urlObj.hash.split('?')[1]).get('i');
+                const i = urlObj.searchParams.get('i') || new URLSearchParams(urlObj.hash.split('?')[1]).get('i');
 
-                if (imgUrl) {
-                    const decodedImg = decodeURIComponent(imgUrl);
-                    
-                    // 3. 獲取圖片尺寸以 100% 還原 EDM 比例
+                if (i) {
+                    const imgUrl = decodeURIComponent(i);
                     const img = new Image();
-                    img.crossOrigin = "Anonymous"; // 避免跨域讀取尺寸失敗
-                    img.src = decodedImg;
+                    img.crossOrigin = "Anonymous";
+                    img.src = imgUrl;
 
                     img.onload = async () => {
+                        // 修正 2：根據原圖比例動態計算 FlexAspectRatio
                         const ratio = `${img.width}:${img.height}`;
-                        // 這是關鍵：點擊圖片後會再次跳轉回這個 LIFF，實現「無限轉傳」
-                        const shareLink = `https://liff.line.me/${LIFF_ID}?i=${encodeURIComponent(decodedImg)}`;
+                        const shareLink = `https://liff.line.me/${LIFF_ID}?i=${encodeURIComponent(imgUrl)}`;
 
                         if (liff.isApiAvailable('shareTargetPicker')) {
                             await liff.shareTargetPicker([{
                                 "type": "flex",
-                                "altText": "您收到一張精美圖片",
+                                "altText": "您收到一張圖片",
                                 "contents": {
                                     "type": "bubble",
-                                    "size": "giga", // 使用最大容器
+                                    "size": "giga", 
                                     "body": {
                                         "type": "box",
                                         "layout": "vertical",
                                         "contents": [
                                             {
                                                 "type": "image",
-                                                "url": decodedImg,
+                                                "url": imgUrl,
                                                 "size": "full",
                                                 "aspectMode": "cover",
                                                 "aspectRatio": ratio,
                                                 "action": {
                                                     "type": "uri",
-                                                    "label": "轉傳給好友",
-                                                    "uri": shareLink
+                                                    "uri": shareLink // 修正 3：點擊圖片立即觸發好友清單
                                                 }
                                             }
                                         ],
-                                        "paddingAll": "0px" // 移除所有內縮邊距，達成 100% 滿版
-                                    },
-                                    "styles": {
-                                        "body": { "backgroundColor": "#ffffff" }
+                                        "paddingAll": "0px"
                                     }
                                 }
                             }]);
                         }
                         liff.closeWindow();
                     };
-                    
-                    // 防呆：如果圖片載入失敗，3秒後自動關閉
-                    img.onerror = () => setTimeout(() => liff.closeWindow(), 3000);
-                } else {
-                    liff.closeWindow();
-                }
-            } catch (e) {
-                console.error(e);
-                // 不立即關閉以便 Debug
-            }
+                    img.onerror = () => liff.closeWindow();
+                } else { liff.closeWindow(); }
+            } catch (e) { liff.closeWindow(); }
         }
-
         window.onload = run;
     </script>
 </body>
