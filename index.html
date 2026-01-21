@@ -29,6 +29,7 @@
         const LIFF_ID = "2008941488-Phn5v50S";
         const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
         let finalImageUrl = DEFAULT_IMG;
+        let finalRatio = "20:13"; // 預設值
 
         async function initLiff() {
             const statusNode = document.getElementById('status');
@@ -43,17 +44,29 @@
                     return;
                 }
 
-                // 抓取網址中的圖片參數
                 const url = new URL(window.location.href);
                 let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
+                
                 if (imgParam) {
                     finalImageUrl = decodeURIComponent(imgParam);
                 }
 
-                // 初始化成功，顯示按鈕，隱藏載入圈
-                loader.style.display = 'none';
-                actionBtn.style.display = 'inline-block';
-                statusNode.innerText = "服務已就緒";
+                // --- 核心修正：自動偵測圖片比例 ---
+                const img = new Image();
+                img.onload = function() {
+                    // 取得原始長寬並設定為 Flex aspectRatio
+                    finalRatio = `${this.width}:${this.height}`;
+                    loader.style.display = 'none';
+                    actionBtn.style.display = 'inline-block';
+                    statusNode.innerText = "服務已就緒 (已偵測圖片尺寸)";
+                };
+                img.onerror = function() {
+                    // 若載入失敗，仍顯示按鈕使用預設比例
+                    loader.style.display = 'none';
+                    actionBtn.style.display = 'inline-block';
+                    statusNode.innerText = "圖片連結異常，將使用預設尺寸";
+                };
+                img.src = finalImageUrl;
 
             } catch (e) {
                 statusNode.innerText = "載入失敗，請重啟 LINE 再試";
@@ -71,16 +84,23 @@
                         "altText": "您收到一張新圖片",
                         "contents": {
                             "type": "bubble",
-                            "hero": {
-                                "type": "image",
-                                "url": finalImageUrl,
-                                "size": "full",
-                                "aspectRatio": "20:13",
-                                "aspectMode": "cover",
-                                "action": {
-                                    "type": "uri",
-                                    "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(finalImageUrl)}`
-                                }
+                            "body": {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {
+                                        "type": "image",
+                                        "url": finalImageUrl,
+                                        "size": "full",
+                                        "aspectRatio": finalRatio, // 使用動態偵測到的比例
+                                        "aspectMode": "cover",
+                                        "action": {
+                                            "type": "uri",
+                                            "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(finalImageUrl)}`
+                                        }
+                                    }
+                                ],
+                                "paddingAll": "0px" // 確保圖片滿版無白邊
                             }
                         }
                     }]);
