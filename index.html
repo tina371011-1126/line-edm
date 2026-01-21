@@ -3,61 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> </title>
+    <title> </title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { background-color: #ffffff; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        .dot { width: 10px; height: 10px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+        .loader { width: 10px; height: 10px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1.2); } 50% { opacity: 0.2; transform: scale(0.8); } }
     </style>
 </head>
 <body>
-    <div class="dot"></div>
+    <div class="loader"></div>
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
 
-        async function fastShare() {
+        async function main() {
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) { liff.login(); return; }
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
 
+                // 抓取網址參數
                 const urlParams = new URLSearchParams(window.location.search);
                 const imgUrl = urlParams.get('img');
 
                 if (imgUrl && liff.isApiAvailable('shareTargetPicker')) {
                     const targetImg = decodeURIComponent(imgUrl);
 
-                    // --- 修正點 2：自動計算圖片比例 ---
-                    const img = new Image();
-                    img.src = targetImg;
-                    img.onload = async () => {
-                        const ratio = `${img.width}:${img.height}`; // 取得原始尺寸比例
+                    // 關鍵步驟：獲取圖片原始尺寸以達成同樣 size 的 EDM
+                    const imgObj = new Image();
+                    imgObj.src = targetImg;
+                    imgObj.onload = async () => {
+                        const ratio = `${imgObj.width}:${imgObj.height}`;
                         
                         await liff.shareTargetPicker([{
                             "type": "flex",
-                            "altText": "您收到一張圖片",
+                            "altText": "您收到一張精美圖片",
                             "contents": {
                                 "type": "bubble",
-                                "body": {
-                                    "type": "box",
-                                    "layout": "vertical",
-                                    "contents": [
-                                        {
-                                            "type": "image",
-                                            "url": targetImg,
-                                            "size": "full",
-                                            "aspectMode": "cover",
-                                            "aspectRatio": ratio, // 動態套用原圖比例
-                                            "action": { "type": "uri", "uri": targetImg }
-                                        }
-                                    ],
-                                    "paddingAll": "0px"
-                                }
+                                "header": { "type": "box", "layout": "vertical", "contents": [], "paddingAll": "0px" }, // 移除預設間距
+                                "hero": {
+                                    "type": "image",
+                                    "url": targetImg,
+                                    "size": "full",
+                                    "aspectRatio": ratio,
+                                    "aspectMode": "cover",
+                                    "action": { "type": "uri", "uri": targetImg }
+                                },
+                                "styles": { "hero": { "backgroundColor": "#ffffff" } }
                             }
                         }]);
                         liff.closeWindow();
                     };
-                    img.onerror = () => liff.closeWindow();
+                    imgObj.onerror = () => liff.closeWindow();
                 } else {
                     liff.closeWindow();
                 }
@@ -65,7 +64,7 @@
                 liff.closeWindow();
             }
         }
-        window.onload = fastShare;
+        window.onload = main;
     </script>
 </body>
 </html>
