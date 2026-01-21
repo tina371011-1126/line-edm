@@ -33,13 +33,10 @@
                 if (!liff.isLoggedIn()) { liff.login(); return; }
 
                 const url = new URL(window.location.href);
-                let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "";
-
-                if (!finalImageUrl) {
-                    document.getElementById('msg').innerText = "未提供圖片網址";
-                    return;
-                }
+                // 統一解析 img 參數（不論是在 search 還是 hash）
+                let imgParam = url.searchParams.get('img') || new URLSearchParams(url.hash.substring(1)).get('img');
+                
+                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
                 const img = new Image();
                 img.onload = function() {
@@ -56,35 +53,39 @@
         async function handleShare() {
             if (liff.isApiAvailable('shareTargetPicker')) {
                 try {
+                    // 這裡定義的結構，必須跟點擊圖片後觸發的連結邏輯完全一致
+                    // 統一使用 mega 尺寸與 0 padding
+                    const flexContent = {
+                        "type": "bubble",
+                        "size": "mega", 
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "image",
+                                    "url": finalImageUrl,
+                                    "size": "full",
+                                    "aspectMode": "fit", 
+                                    "aspectRatio": finalRatio,
+                                    "action": {
+                                        "type": "uri",
+                                        // 轉傳連結也統一格式，確保第二次點開時抓到的參數一樣
+                                        "uri": `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}`
+                                    }
+                                }
+                            ],
+                            "paddingAll": "0px"
+                        },
+                        "styles": {
+                            "body": { "backgroundColor": "#FFFFFF" }
+                        }
+                    };
+
                     await liff.shareTargetPicker([{
                         "type": "flex",
                         "altText": "您收到一張圖片",
-                        "contents": {
-                            "type": "bubble",
-                            // --- 關鍵修正：將尺寸改為 mega 或 large，讓它看起來像一般照片寬度 ---
-                            "size": "mega", 
-                            "body": {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [
-                                    {
-                                        "type": "image",
-                                        "url": finalImageUrl,
-                                        "size": "full",
-                                        "aspectMode": "fit", // 使用 fit 確保長圖能完整顯示不被裁切
-                                        "aspectRatio": finalRatio,
-                                        "action": {
-                                            "type": "uri",
-                                            "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(finalImageUrl)}`
-                                        }
-                                    }
-                                ],
-                                "paddingAll": "0px"
-                            },
-                            "styles": {
-                                "body": { "backgroundColor": "#FFFFFF" }
-                            }
-                        }
+                        "contents": flexContent
                     }]);
                     liff.closeWindow();
                 } catch (error) { console.error(error); }
