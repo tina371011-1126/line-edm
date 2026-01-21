@@ -5,45 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> </title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { background: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .loader { width: 15px; height: 15px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
-    </style>
 </head>
-<body>
-    <div class="loader"></div>
+<body style="margin:0; background:#fff;">
     <script>
+        const LIFF_ID = "2008941488-Phn5v50S";
         async function run() {
             try {
-                // 初始化
-                await liff.init({ liffId: "2008941488-Phn5v50S" });
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) { liff.login(); return; }
 
-                // 抓取最短參數 i
-                const params = new URLSearchParams(window.location.search);
-                const imgUrl = params.get('i');
+                const p = new URLSearchParams(window.location.search);
+                const i = p.get('i');
 
-                if (imgUrl && liff.isApiAvailable('shareTargetPicker')) {
-                    const decodedImg = decodeURIComponent(imgUrl);
-                    
-                    // 使用「純圖片模式」：保證 100% 原圖比例呈現
-                    await liff.shareTargetPicker([
-                        {
-                            "type": "image",
-                            "originalContentUrl": decodedImg,
-                            "previewImageUrl": decodedImg
-                        }
-                    ]);
-                }
-                liff.closeWindow();
-            } catch (e) {
-                liff.closeWindow();
-            }
+                if (i && liff.isApiAvailable('shareTargetPicker')) {
+                    const imgUrl = decodeURIComponent(i);
+                    const img = new Image();
+                    img.src = imgUrl;
+
+                    img.onload = async () => {
+                        const ratio = `${img.width}:${img.height}`;
+                        // 建立點擊可轉傳的連結
+                        const shareLink = `https://liff.line.me/${LIFF_ID}?i=${encodeURIComponent(imgUrl)}`;
+
+                        await liff.shareTargetPicker([{
+                            "type": "flex",
+                            "altText": "您收到一張精美圖片",
+                            "contents": {
+                                "type": "bubble",
+                                "body": {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                        {
+                                            "type": "image",
+                                            "url": imgUrl,
+                                            "size": "full",
+                                            "aspectMode": "cover",
+                                            "aspectRatio": ratio,
+                                            "action": { "type": "uri", "uri": shareLink }
+                                        }
+                                    ],
+                                    "paddingAll": "0px"
+                                }
+                            }
+                        }]);
+                        liff.closeWindow();
+                    };
+                } else { liff.closeWindow(); }
+            } catch (e) { liff.closeWindow(); }
         }
         run();
     </script>
