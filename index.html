@@ -1,70 +1,38 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title> </title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { background-color: #ffffff; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        .loader { width: 10px; height: 10px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1.2); } 50% { opacity: 0.2; transform: scale(0.8); } }
-    </style>
 </head>
-<body>
-    <div class="loader"></div>
+<body style="background:#fff;">
     <script>
-        const LIFF_ID = "2008941488-Phn5v50S";
-
-        async function main() {
+        async function send() {
             try {
-                await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
+                await liff.init({ liffId: "2008941488-Phn5v50S" });
+                if (!liff.isLoggedIn()) { liff.login(); return; }
+
+                // 抓取最短參數 i
+                const p = new URLSearchParams(window.location.search);
+                const i = p.get('i');
+
+                if (i && liff.isApiAvailable('shareTargetPicker')) {
+                    const img = decodeURIComponent(i);
+                    
+                    // 使用 Image Message 格式：這保證了 100% 原圖比例與尺寸
+                    await liff.shareTargetPicker([
+                        {
+                            "type": "image",
+                            "originalContentUrl": img,
+                            "previewImageUrl": img
+                        }
+                    ]);
                 }
-
-                // 抓取網址參數
-                const urlParams = new URLSearchParams(window.location.search);
-                const imgUrl = urlParams.get('img');
-
-                if (imgUrl && liff.isApiAvailable('shareTargetPicker')) {
-                    const targetImg = decodeURIComponent(imgUrl);
-
-                    // 關鍵步驟：獲取圖片原始尺寸以達成同樣 size 的 EDM
-                    const imgObj = new Image();
-                    imgObj.src = targetImg;
-                    imgObj.onload = async () => {
-                        const ratio = `${imgObj.width}:${imgObj.height}`;
-                        
-                        await liff.shareTargetPicker([{
-                            "type": "flex",
-                            "altText": "您收到一張精美圖片",
-                            "contents": {
-                                "type": "bubble",
-                                "header": { "type": "box", "layout": "vertical", "contents": [], "paddingAll": "0px" }, // 移除預設間距
-                                "hero": {
-                                    "type": "image",
-                                    "url": targetImg,
-                                    "size": "full",
-                                    "aspectRatio": ratio,
-                                    "aspectMode": "cover",
-                                    "action": { "type": "uri", "uri": targetImg }
-                                },
-                                "styles": { "hero": { "backgroundColor": "#ffffff" } }
-                            }
-                        }]);
-                        liff.closeWindow();
-                    };
-                    imgObj.onerror = () => liff.closeWindow();
-                } else {
-                    liff.closeWindow();
-                }
-            } catch (e) {
                 liff.closeWindow();
-            }
+            } catch (e) { liff.closeWindow(); }
         }
-        window.onload = main;
+        send();
     </script>
 </body>
 </html>
