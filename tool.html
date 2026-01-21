@@ -3,67 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>原生最短連結產生器</title>
+    <title>原生連結產生器</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 360px; text-align: center; }
-        h2 { color: #02c874; font-size: 18px; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; font-size: 14px; }
-        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
-        button:active { transform: scale(0.98); }
-        #res { margin-top: 20px; display: none; background: #e8f5e9; padding: 15px; border-radius: 8px; border: 1px dashed #02c874; }
-        .link { word-break: break-all; font-size: 12px; color: #1b5e20; background: #fff; padding: 10px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #eee; text-align: left; }
+        body { font-family: sans-serif; padding: 20px; display: flex; justify-content: center; background: #f0f2f5; }
+        .card { background: white; padding: 25px; border-radius: 12px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; cursor: pointer; }
+        #res { margin-top: 20px; display: none; word-break: break-all; background: #e8f5e9; padding: 10px; border-radius: 5px; font-size: 13px; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2>🚀 產生最強轉傳連結</h2>
-    <input type="text" id="u" placeholder="請貼上 JPG/PNG 圖片網址">
-    <button onclick="gen()">產生最短連結</button>
+    <h2>🚀 產生轉傳連結</h2>
+    <input type="text" id="u" placeholder="請貼上圖片網址">
+    <button onclick="gen()">產生連結</button>
     <div id="res">
-        <div class="link" id="final"></div>
-        <button id="copyBtn" style="background:#333" onclick="copy()">複製連結</button>
+        <div id="link" style="margin-bottom:10px;"></div>
+        <button onclick="copy()" style="background:#333">複製連結</button>
     </div>
 </div>
 <script>
     const ID = "2008941488-Phn5v50S";
     function gen() {
-        const input = document.getElementById('u');
-        const val = input.value.trim();
-        if(!val) return alert("請貼上圖片網址");
-        
-        // 確保網址開頭正確
-        if(!val.startsWith('http')) return alert("網址格式錯誤");
-
-        // 產生最短原生連結路徑
-        const shortUrl = `https://liff.line.me/${ID}?i=${encodeURIComponent(val)}`;
-        document.getElementById('final').innerText = shortUrl;
+        const val = document.getElementById('u').value.trim();
+        if(!val) return alert("請輸入網址");
+        const url = `https://liff.line.me/${ID}?i=${encodeURIComponent(val)}`;
+        document.getElementById('link').innerText = url;
         document.getElementById('res').style.display = 'block';
     }
-
     function copy() {
-        const text = document.getElementById('final').innerText;
-        // 增強型複製邏輯，確保在手機 WebView 也能運作
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(text).then(done);
-        } else {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try { document.execCommand('copy'); done(); } catch (err) { alert('複製失敗，請手動全選複製'); }
-            document.body.removeChild(textArea);
-        }
-    }
-
-    function done() {
-        const btn = document.getElementById('copyBtn');
-        btn.innerText = "✅ 已複製";
-        btn.style.background = "#02c874";
-        setTimeout(() => {
-            btn.innerText = "複製連結";
-            btn.style.background = "#333";
-        }, 2000);
+        const t = document.getElementById('link').innerText;
+        navigator.clipboard.writeText(t).then(() => alert("已複製"));
     }
 </script>
 </body>
