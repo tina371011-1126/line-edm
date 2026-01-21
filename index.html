@@ -3,44 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>傳送圖片給客戶！</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title> </title> <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: "Microsoft JhengHei", sans-serif; background-color: #ffffff; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #msg { margin-top: 20px; font-size: 16px; color: #666; }
+        /* 背景設為純白，並隱藏滾動條 */
+        body { background-color: #ffffff; margin: 0; padding: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .dot { width: 8px; height: 8px; background: #02c874; border-radius: 50%; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
-
-    <div class="loader"></div>
-    <div id="msg">點擊連結選擇希望傳送圖片的客戶</div>
-
-    <script>
+    <div class="dot"></div> <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
-        async function main() {
-            const msgNode = document.getElementById('msg');
+        async function fastShare() {
             try {
-                // 1. 初始化 LIFF
                 await liff.init({ liffId: LIFF_ID });
 
-                // 2. 登入檢查
                 if (!liff.isLoggedIn()) {
                     liff.login();
                     return;
                 }
 
-                // 3. 取得圖片網址
                 const url = new URL(window.location.href);
+                // 同時支援多種參數格式
                 let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-                const targetImg = imgParam ? decodeURIComponent(imgParam) : DEFAULT_IMG;
-
-                // 4. 直接觸發分享視窗 (不經過按鈕)
-                if (liff.isApiAvailable('shareTargetPicker')) {
-                    const result = await liff.shareTargetPicker([{
+                
+                if (imgParam && liff.isApiAvailable('shareTargetPicker')) {
+                    const targetImg = decodeURIComponent(imgParam);
+                    
+                    await liff.shareTargetPicker([{
                         "type": "flex",
                         "altText": "您收到一張新圖片",
                         "contents": {
@@ -50,38 +41,18 @@
                                 "url": targetImg,
                                 "size": "full",
                                 "aspectRatio": "20:13",
-                                "aspectMode": "cover",
-                                "action": {
-                                    "type": "uri",
-                                    "uri": `https://liff.line.me/${LIFF_ID}/#img=${encodeURIComponent(targetImg)}`
-                                }
+                                "aspectMode": "cover"
                             }
                         }
                     }]);
-
-                    if (result) {
-                        // 發送成功後關閉視窗
-                        liff.closeWindow();
-                    } else {
-                        // 使用者取消分享時，也關閉視窗或留在原位
-                        liff.closeWindow();
-                    }
-                } else {
-                    msgNode.innerText = "您的 LINE 版本不支援分享功能";
                 }
-
+                liff.closeWindow(); // 動作結束後自動關閉視窗
             } catch (e) {
                 console.error(e);
-                msgNode.innerText = "服務啟動中，請稍候...";
-                // 針對部分手機環境，若自動觸發失敗，3秒後嘗試重整或顯示錯誤
-                if(e.message.includes('user gesture')) {
-                    msgNode.innerHTML = "請點擊螢幕任何地方以開啟好友清單";
-                    document.body.onclick = () => location.reload();
-                }
+                liff.closeWindow();
             }
         }
-
-        window.onload = main;
+        fastShare();
     </script>
 </body>
 </html>
