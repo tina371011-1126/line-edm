@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF EDM 連結產生器</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; line-height: 1.6; max-width: 600px; margin: auto; background-color: #f9f9f9; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #02c874; margin-top: 0; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        button { background-color: #02c874; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+        button:hover { background-color: #02a862; }
+        #resultArea { margin-top: 25px; display: none; }
+        #finalLink { background: #e8f5e9; padding: 15px; border: 1px dashed #02c874; word-break: break-all; border-radius: 6px; font-size: 14px; color: #1b5e20; }
+        .copy-btn { background-color: #333; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🚀 EDM 連結產生器</h2>
+    <p style="font-size: 13px; color: #666;">輸入圖片網址，產出帶有追蹤功能且可轉傳的 LINE 連結。</p>
+    
+    <label>1. 貼上圖片網址 (URL)</label>
+    <input type="text" id="imgUrl" placeholder="https://example.com/image.jpg">
+    
+    <button onclick="generateLink()">產出連結</button>
+
+    <div id="resultArea">
+        <label>2. 你的專屬 LIFF 連結：</label>
+        <div id="finalLink"></div>
+        <button class="copy-btn" onclick="copyLink()">點我複製連結</button>
+        <p style="font-size: 12px; color: #999; margin-top: 10px;">※ 將此連結發送到 LINE 即可開始擴散。</p>
+    </div>
+</div>
+
+<script>
+    const LIFF_BASE = "https://liff.line.me/2008941488-Phn5v50S";
+
+    function generateLink() {
+        const img = document.getElementById('imgUrl').value.trim();
+        if (!img) {
+            alert("請先輸入圖片網址");
+            return;
+        }
+        
+        // 進行網址編碼 (Encoding)
+        const encodedImg = encodeURIComponent(img);
+        const fullLink = `${LIFF_BASE}?img=${encodedImg}`;
+        
+        document.getElementById('finalLink').innerText = fullLink;
+        document.getElementById('resultArea').style.display = 'block';
+    }
+
+    function copyLink() {
+        const text = document.getElementById('finalLink').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("連結已複製！");
+        });
+    }
+</script>
+
+</body>
+</html>
