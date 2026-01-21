@@ -21,22 +21,23 @@
         const DEFAULT_IMG = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
         async function main() {
-            const msgNode = document.getElementById('msg');
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
+    const msgNode = document.getElementById('msg');
+    try {
+        await liff.init({ liffId: "2008941488-Phn5v50S" });
+        if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+        }
 
-                // 優先從 Hash (#) 抓取圖片，再從 Search (?) 抓取
-                const url = new URL(window.location.href);
-                let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
-                
-                const targetImg = imgParam ? decodeURIComponent(imgParam) : DEFAULT_IMG;
+        const url = new URL(window.location.href);
+        let imgParam = new URLSearchParams(url.hash.substring(1)).get('img') || url.searchParams.get('img');
+        const targetImg = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
-                if (liff.isApiAvailable('shareTargetPicker')) {
-                    await liff.shareTargetPicker([{
+        // 定義發送函數
+        const sendEDM = async () => {
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                try {
+                    const result = await liff.shareTargetPicker([{
                         "type": "flex",
                         "altText": "您收到一張新圖片",
                         "contents": {
@@ -49,18 +50,35 @@
                                 "aspectMode": "cover",
                                 "action": {
                                     "type": "uri",
-                                    "uri": `https://liff.line.me/${LIFF_ID}#img=${encodeURIComponent(targetImg)}`
+                                    "uri": `https://liff.line.me/2008941488-Phn5v50S/#img=${encodeURIComponent(targetImg)}`
                                 }
                             }
                         }
                     }]);
+                    if (result) {
+                        msgNode.innerText = "傳送成功！";
+                        liff.closeWindow();
+                    }
+                } catch (error) {
+                    msgNode.innerText = "分享視窗被攔截，請重試。";
                 }
-                liff.closeWindow();
-            } catch (e) {
-                msgNode.innerText = "啟動失敗，請重新開啟";
-                console.error(e);
+            } else {
+                msgNode.innerText = "您的 LINE 版本不支援此功能";
             }
-        }
+        };
+
+        // 嘗試自動執行
+        msgNode.innerText = "正在開啟好友清單...";
+        await sendEDM();
+
+        // 保險機制：如果沒自動彈出，顯示手動按鈕
+        msgNode.innerHTML = `<button onclick="location.reload()" style="padding:10px 20px; background:#02c874; color:white; border:none; border-radius:5px;">點此重新發送</button>`;
+
+    } catch (e) {
+        msgNode.innerText = "錯誤: " + e.message;
+    }
+}
+main();
         main();
     </script>
 </body>
