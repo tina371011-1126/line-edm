@@ -6,43 +6,59 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
+    <h2 id="msg" style="text-align: center; margin-top: 50%; font-family: sans-serif; color: #333;">正在讀取資訊...</h2>
     <script>
         async function main() {
-            await liff.init({ liffId: "2008941488-Phn5v50S" });
-            if (!liff.isLoggedIn()) {
-                liff.login();
-            } else {
-                // --- 追蹤邏輯 ---
-                const profile = await liff.getProfile();
-                // 這裡可以發送數據到你的後台，或者簡單用 Google Analytics
-                console.log("訪問者:", profile.displayName);
-
-                // --- 觸發轉傳 ---
-                if (liff.isApiAvailable('shareTargetPicker')) {
-                    liff.shareTargetPicker([
-                        {
-                            "type": "flex",
-                            "altText": "您收到一張專屬圖片",
-                            "contents": {
-  "type": "bubble",
-  "hero": {
-    "type": "image",
-    "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
-    "size": "full",
-    "aspectRatio": "20:13",
-    "aspectMode": "cover",
-    "action": {
-      "type": "uri",
-      "uri": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s"
-    }
-  }
-}
-     
-                        }
-                    ]).then(() => {
-                        liff.closeWindow(); // 分享完自動關閉
-                    });
+            try {
+                // 1. 初始化 LIFF
+                await liff.init({ liffId: "2008941488-Phn5v50S" });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    // --- 追蹤與分享邏輯 ---
+                    if (liff.isApiAvailable('shareTargetPicker')) {
+                        const res = await liff.shareTargetPicker([
+                            {
+                                "type": "flex",
+                                "altText": "您收到一張專屬圖片",
+                                "contents": {
+                                    "type": "bubble",
+                                    "hero": {
+                                        "type": "image",
+                                        "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
+                                        "size": "full",
+                                        "aspectRatio": "20:13",
+                                        "aspectMode": "cover",
+                                        "action": {
+                                            "type": "uri",
+                                            "label": "分享圖片",
+                                            // 關鍵點：點圖片會再次觸發 LIFF
+                                            "uri": "https://liff.line.me/2008941488-Phn5v50S" 
+                                        }
+                                    },
+                                    "body": {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "點擊上方圖片即可分享給好友",
+                                                "align": "center",
+                                                "color": "#aaaaaa",
+                                                "size": "xs"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]);
+                        if (res) { console.log("分享視窗已關閉"); }
+                    }
+                    liff.closeWindow(); 
                 }
+            } catch (error) {
+                document.getElementById("msg").innerText = "發生錯誤：" + error.message;
             }
         }
         main();
