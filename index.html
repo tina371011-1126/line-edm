@@ -1,70 +1,72 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>正在開啟內容...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f4f4; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #02c874; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
 </head>
 <body>
-    <div id="app">
-        <div class="loader"></div>
+    <div id="app" style="text-align: center; margin-top: 50%; font-family: sans-serif;">
+        <h2 id="status_text">正在初始化 LIFF...</h2>
+        <p id="error_msg" style="color: red;"></p>
     </div>
 
     <script>
         async function main() {
+            const status = document.getElementById("status_text");
+            const errorDisplay = document.getElementById("error_msg");
+
             try {
-                // 1. 初始化 LIFF (使用您的 LIFF ID)
+                // 1. 初始化
                 await liff.init({ liffId: "2008941488-Phn5v50S" });
-                
-                // 2. 判斷是否登入
+                status.innerText = "LIFF 已啟動，檢查登入狀態...";
+
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
-                    // --- 此處可加入數據追蹤代碼 (如 GA4) ---
-                    const profile = await liff.getProfile();
-                    console.log("訪問者:", profile.displayName);
+                    status.innerText = "正在準備分享視窗...";
+                    
+                    // 2. 檢查 shareTargetPicker 權限
+                    if (!liff.isApiAvailable('shareTargetPicker')) {
+                        throw new Error("此帳號或裝置不支援 shareTargetPicker，請檢查 Scopes 設定或使用手機開啟。");
+                    }
 
-                    // 3. 檢查分享功能是否可用
-                    if (liff.isApiAvailable('shareTargetPicker')) {
-                        await liff.shareTargetPicker([
-                            {
-                                "type": "flex",
-                                "altText": "您收到一張專屬圖片",
-                                "contents": {
-                                    "type": "bubble",
-                                    "hero": {
-                                        "type": "image",
-                                        "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
-                                        "size": "full",
-                                        "aspectRatio": "20:13",
-                                        "aspectMode": "cover",
-                                        "action": {
-                                            "type": "uri",
-                                            "uri": "https://liff.line.me/2008941488-Phn5v50S"
-                                        }
+                    // 3. 執行分享
+                    const res = await liff.shareTargetPicker([
+                        {
+                            "type": "flex",
+                            "altText": "您收到一張專屬圖片",
+                            "contents": {
+                                "type": "bubble",
+                                "hero": {
+                                    "type": "image",
+                                    "url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s",
+                                    "size": "full",
+                                    "aspectRatio": "20:13",
+                                    "aspectMode": "cover",
+                                    "action": {
+                                        "type": "uri",
+                                        "uri": "https://liff.line.me/2008941488-Phn5v50S"
                                     }
                                 }
                             }
-                        ]);
-                        // 分享動作完成後，自動關閉視窗回到對話框
+                        }
+                    ]);
+
+                    if (res) {
+                        status.innerText = "傳送成功！";
                         liff.closeWindow();
                     } else {
-                        alert("您的裝置不支援分享功能，請更新 LINE 版本。");
-                        liff.closeWindow();
+                        status.innerText = "使用者取消了傳送";
                     }
                 }
             } catch (error) {
-                console.error("LIFF 初始化失敗", error);
-                document.getElementById("app").innerHTML = "發生錯誤：" + error.message;
+                console.error(error);
+                status.innerText = "運作失敗";
+                errorDisplay.innerText = error.message;
             }
         }
-
         main();
     </script>
 </body>
