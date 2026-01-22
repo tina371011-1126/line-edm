@@ -27,7 +27,7 @@
 
     <div class="card">
         <div class="loader" id="loader"></div>
-        <div id="msg">點擊傳送圖片</div>
+        <div id="msg">載入中...</div>
         <button id="actionBtn" class="share-btn" onclick="handleShare()">選擇朋友傳送</button>
     </div>
 
@@ -39,48 +39,66 @@
         async function initLiff() {
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) { liff.login(); return; }
+                
+                // 1. 如果沒登入，執行登入程序
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
 
                 const url = new URL(window.location.href);
-                // 讀取所有可能存在參數的地方
+                // 2. 雙重讀取機制 (Search Params + Hash) 避免轉址後參數遺失
                 const params = url.searchParams;
-                const hashParams = new URLSearchParams(url.hash.substring(1));
+                const hashParams = new URLSearchParams(url.hash.substring(1)); // 支援 #img=...
                 
                 const imgParam = params.get('img') || hashParams.get('img');
                 const w = params.get('w') || hashParams.get('w');
                 const h = params.get('h') || hashParams.get('h');
 
-                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+                // 預設圖片 (防呆)
+                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://via.placeholder.com/600x600.png?text=No+Image";
 
-                // --- 高速路徑：如果網址已有寬高，直接顯示按鈕 ---
+                // 3. 高速路徑：如果產生器有給寬高，直接顯示
                 if (w && h) {
                     finalRatio = `${w}:${h}`;
                     renderReady();
                 } else {
-                    // 備援路徑：如果網址沒帶尺寸，才下載圖片偵測
+                    // 備援路徑：下載圖片偵測
                     const img = new Image();
                     img.onload = function() {
                         finalRatio = `${this.width}:${this.height}`;
                         renderReady();
                     };
+                    img.onerror = function() {
+                        // 圖片讀取失敗時至少顯示按鈕，避免卡死
+                        renderReady(); 
+                    };
                     img.src = finalImageUrl;
                 }
 
-                // 發送開啟事件
                 gtag('event', 'liff_open', { 'image_url': finalImageUrl });
 
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error("LIFF Init Error:", e);
+                document.getElementById('msg').innerText = "系統忙碌中，請重新整理";
+            }
         }
 
         function renderReady() {
             document.getElementById('loader').style.display = 'none';
-            document.getElementById('msg').innerText = "分享給好友吧！";
+            document.getElementById('msg').innerText = "點擊下方按鈕分享";
             document.getElementById('actionBtn').style.display = 'inline-block';
         }
 
         async function handleShare() {
             if (liff.isApiAvailable('shareTargetPicker')) {
                 try {
+                    // 確保寬高參數也帶入分享出去的連結，達成病毒式擴散且保持高速
+                    const wVal = finalRatio.split(':')[0];
+                    const hVal = finalRatio.split(':')[1];
+                    // 使用長連結以確保 100% 在 LINE 內開啟
+                    const shareUrl = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${wVal}&h=${hVal}`;
+
                     const result = await liff.shareTargetPicker([{
                         "type": "flex",
                         "altText": "您收到一張圖片",
@@ -98,7 +116,7 @@
                                     "aspectRatio": finalRatio,
                                     "action": {
                                         "type": "uri",
-                                        "uri": `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${finalRatio.split(':')[0]}&h=${finalRatio.split(':')[1]}`
+                                        "uri": shareUrl
                                     }
                                 }],
                                 "paddingAll": "0px"
@@ -110,9 +128,15 @@
                         gtag('event', 'edm_share_success', { 'image_url': finalImageUrl });
                         liff.closeWindow();
                     }
-                } catch (error) { console.error(error); }
+                } catch (error) {
+                    console.error("Share Error:", error);
+                    alert("傳送失敗，請確認 LINE 版本為最新");
+                }
+            } else {
+                alert("您的 LINE 版本不支援此功能，請更新後再試");
             }
         }
+        
         window.onload = initLiff;
     </script>
 </body>
