@@ -35,7 +35,9 @@
     <div class="card">
         <div class="loader" id="loader"></div>
         <div id="msg">正在啟動 LINE...</div>
+        
         <button id="actionBtn" class="btn share-btn" onclick="handleShare()">選擇朋友傳送</button>
+        
         <button id="recallBtn" class="btn recall-btn" onclick="forceOpenLine()">點此回到 LINE 開啟</button>
     </div>
 
@@ -47,10 +49,9 @@
 
         async function initLiff() {
             try {
-                // 解析網址參數
+                // 1. 解析網址參數
                 const url = new URL(window.location.href);
                 const params = url.searchParams;
-                // 為了兼容 hash 模式 (#)
                 const hashParams = new URLSearchParams(url.hash.substring(1)); 
                 
                 const imgParam = params.get('img') || hashParams.get('img');
@@ -59,29 +60,32 @@
 
                 finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "";
                 
-                // 重建完整 LIFF 連結，用於喚回
+                // 重建完整 LIFF 連結
+                // 注意：這裡使用 https://liff.line.me/... 是為了觸發 Universal Link
                 currentLongLink = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${w}&h=${h}`;
 
-                // 初始化 LIFF
+                // 2. 初始化 LIFF
                 await liff.init({ liffId: LIFF_ID });
 
-                // ★★★ 關鍵修改：防跳轉邏輯 ★★★
+                // ★★★ 防跳轉邏輯 (Debug 重點) ★★★
                 if (!liff.isInClient()) {
                     // 偵測到在外部瀏覽器 (Chrome/Safari)
-                    // 1. 隱藏 Loading
+                    
                     document.getElementById('loader').style.display = 'none';
-                    // 2. 修改訊息，絕對不呼叫 liff.login()，避免出現帳密框
+                    // 明確告知使用者
                     document.getElementById('msg').innerText = "請回到 LINE 內開啟";
-                    // 3. 顯示喚回按鈕
+                    // 顯示按鈕讓使用者手動點擊
                     document.getElementById('recallBtn').style.display = 'block';
                     
-                    // 4. 嘗試自動跳轉回 App (使用 URL Scheme)
-                    // 這行代碼會嘗試直接喚醒 LINE App
-                    window.location.href = currentLongLink;
-                    return; // 停止後續執行
+                    // 自動嘗試喚回 (延遲 500ms 避免瀏覽器卡死)
+                    setTimeout(() => {
+                        window.location.href = currentLongLink;
+                    }, 500);
+                    
+                    return; // 停止執行，避免呼叫 liff.login()
                 }
 
-                // --- 以下是正常的 LINE 內部邏輯 ---
+                // --- 正常的 LINE 內部邏輯 ---
                 
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -107,8 +111,9 @@
                 gtag('event', 'liff_open', { 'image_url': finalImageUrl });
 
             } catch (e) {
-                console.error(e);
-                document.getElementById('msg').innerText = "系統忙碌中，請稍後再試";
+                console.error("LIFF Error:", e);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('msg').innerText = "系統忙碌中，請重新整理";
             }
         }
 
@@ -128,7 +133,6 @@
                 try {
                     const wVal = finalRatio.split(':')[0] || "1";
                     const hVal = finalRatio.split(':')[1] || "1";
-                    // 轉傳出去的連結同樣帶有參數
                     const shareUrl = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${wVal}&h=${hVal}`;
 
                     const result = await liff.shareTargetPicker([{
@@ -161,7 +165,8 @@
                         liff.closeWindow();
                     }
                 } catch (error) {
-                    console.error(error);
+                    console.error("Share Error:", error);
+                    alert("傳送失敗，請確認網路或 LINE 版本");
                 }
             }
         }
