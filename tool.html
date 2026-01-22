@@ -8,26 +8,30 @@
         body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
         h2 { color: #02c874; margin-top: 0; font-size: 20px; text-align: center; }
-        p { font-size: 14px; color: #666; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; outline: none; }
-        input:focus { border-color: #02c874; }
-        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        p { font-size: 13px; color: #777; text-align: center; line-height: 1.5; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; outline: none; font-size: 14px; }
+        input:focus { border-color: #02c874; box-shadow: 0 0 0 2px rgba(2,200,116,0.1); }
+        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 16px; }
         button:hover { background: #02a862; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         #resultArea { margin-top: 20px; display: none; background: #e8f5e9; padding: 15px; border-radius: 10px; border: 1px dashed #02c874; }
-        .link-text { word-break: break-all; font-size: 13px; color: #1b5e20; background: #fff; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #c8e6c9; min-height: 40px; }
+        .link-text { word-break: break-all; font-size: 13px; color: #1b5e20; background: #fff; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #c8e6c9; min-height: 20px; font-family: monospace; }
         .btn-group { display: flex; gap: 10px; }
         .copy-btn { background: #333; flex: 1; }
+        .copy-btn:active { background: #000; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h2>🚀 圖片分享連結產生器</h2>
-    <p>輸入網址，自動優化傳送速度</p>
-    <input type="text" id="imgUrl" placeholder="請貼上圖片網址 (JPG/PNG/GIF)">
+    <p>貼上圖片網址，系統會自動偵測尺寸<br>讓傳送預覽不再轉圈等待</p>
+    
+    <input type="url" id="imgUrl" placeholder="請貼上圖片網址 (JPG/PNG/GIF)" inputmode="url">
     <button id="genBtn" onclick="generate()">產生分享連結</button>
 
     <div id="resultArea">
+        <p style="text-align:left; color:#1b5e20; font-weight:bold; margin-bottom:5px;">✅ 產生成功：</p>
         <div class="link-text" id="finalLink"></div>
         <div class="btn-group">
             <button class="copy-btn" onclick="copyText()">複製連結</button>
@@ -46,56 +50,90 @@
         const linkDiv = document.getElementById('finalLink');
 
         if(!imgUrl) return alert("請輸入圖片網址");
+        if(!imgUrl.startsWith('http')) return alert("請輸入正確的網址格式 (需以 http 開頭)");
         
         genBtn.disabled = true;
-        genBtn.innerText = "正在分析圖片...";
+        genBtn.innerText = "正在分析圖片尺寸...";
         resultArea.style.display = 'block';
-        linkDiv.innerText = "⏳ 讀取圖片尺寸中...";
+        linkDiv.innerText = "⏳ 讀取中...";
 
-        // 預載圖片以取得寬高
+        // 優化：建立 Image 物件偵測尺寸
         const img = new Image();
-        img.src = imgUrl;
+        
+        // 設定超時處理
+        const timeout = setTimeout(() => {
+            img.onload = null;
+            img.onerror = null;
+            alert("圖片載入過慢，將以預設比例產生");
+            createLink(imgUrl, 800, 800); // 預設 1:1
+        }, 8000);
 
-        img.onload = async function() {
-            const w = this.width;
-            const h = this.height;
-            // 建立帶有尺寸參數的長連結
-            const longLink = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}`;
-            
-            linkDiv.innerText = "⚡ 正在縮短網址...";
-
-            try {
-                // 使用 is.gd API 縮短網址
-                const response = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`);
-                const data = await response.json();
-                
-                linkDiv.innerText = data.shorturl || longLink;
-            } catch (e) {
-                console.warn("縮址失敗，使用原始連結");
-                linkDiv.innerText = longLink;
-            } finally {
-                genBtn.disabled = false;
-                genBtn.innerText = "產生分享連結";
-            }
+        img.onload = function() {
+            clearTimeout(timeout);
+            createLink(imgUrl, this.width, this.height);
         };
 
         img.onerror = function() {
-            alert("圖片網址無效或該來源拒絕存取，請換一張圖片試試。");
+            clearTimeout(timeout);
+            alert("無法讀取此圖片尺寸（可能受到來源網站限制），將使用預設比例。");
+            createLink(imgUrl, 800, 800);
+        };
+
+        img.src = imgUrl;
+    }
+
+    async function createLink(url, w, h) {
+        const genBtn = document.getElementById('genBtn');
+        const linkDiv = document.getElementById('finalLink');
+        
+        // 建立帶有尺寸參數的長連結
+        const longLink = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(url)}&w=${w}&h=${h}`;
+        
+        linkDiv.innerText = "⚡ 正在優化縮網址...";
+
+        try {
+            // 嘗試使用 is.gd
+            const response = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`);
+            if (!response.ok) throw new Error('API 無回應');
+            const data = await response.json();
+            
+            linkDiv.innerText = data.shorturl || longLink;
+        } catch (e) {
+            console.warn("縮址 API 暫時不可用，改用長連結");
+            linkDiv.innerText = longLink;
+        } finally {
             genBtn.disabled = false;
             genBtn.innerText = "產生分享連結";
-            resultArea.style.display = 'none';
-        };
+        }
     }
 
     function copyText() {
         const text = document.getElementById('finalLink').innerText;
+        
+        // 現代化複製 API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert("連結已複製！");
+            }).catch(err => {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
         const tempInput = document.createElement("textarea");
         tempInput.value = text;
         document.body.appendChild(tempInput);
         tempInput.select();
-        document.execCommand("copy");
+        try {
+            document.execCommand("copy");
+            alert("連結已複製！");
+        } catch (err) {
+            alert("複製失敗，請手動全選複製");
+        }
         document.body.removeChild(tempInput);
-        alert("連結已複製！現在可以去 LINE 貼上傳送了。");
     }
 </script>
 
