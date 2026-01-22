@@ -25,13 +25,13 @@
 
 <div class="card">
     <h2>🚀 圖片分享連結產生器</h2>
-    <p>貼上圖片網址，系統會自動偵測尺寸<br>讓傳送預覽不再轉圈等待</p>
+    <p>貼上圖片網址，自動產生「縮短後」的傳送連結<br>已優化防跳轉機制</p>
     
     <input type="url" id="imgUrl" placeholder="請貼上圖片網址 (JPG/PNG/GIF)" inputmode="url">
     <button id="genBtn" onclick="generate()">產生分享連結</button>
 
     <div id="resultArea">
-        <p style="text-align:left; color:#1b5e20; font-weight:bold; margin-bottom:5px;">✅ 產生成功：</p>
+        <p style="text-align:left; color:#1b5e20; font-weight:bold; margin-bottom:5px;">✅ 縮網址已產生：</p>
         <div class="link-text" id="finalLink"></div>
         <div class="btn-group">
             <button class="copy-btn" onclick="copyText()">複製連結</button>
@@ -40,7 +40,7 @@
 </div>
 
 <script>
-    const LIFF_ID = "2008941488-Phn5v50S"; // 您的 LIFF ID
+    const LIFF_ID = "2008941488-Phn5v50S";
 
     async function generate() {
         const imgInput = document.getElementById('imgUrl');
@@ -53,54 +53,67 @@
         if(!imgUrl.startsWith('http')) return alert("請輸入正確的網址格式 (需以 http 開頭)");
         
         genBtn.disabled = true;
-        genBtn.innerText = "正在分析圖片尺寸...";
+        genBtn.innerText = "正在分析與縮網址...";
         resultArea.style.display = 'block';
-        linkDiv.innerText = "⏳ 讀取中...";
+        linkDiv.innerText = "⏳ 處理中...";
 
-        // 優化：建立 Image 物件偵測尺寸
+        // 1. 先抓取圖片尺寸
         const img = new Image();
         
-        // 設定超時處理
+        // 設定超時防止卡死
         const timeout = setTimeout(() => {
             img.onload = null;
-            img.onerror = null;
-            alert("圖片載入過慢，將以預設比例產生");
-            createLink(imgUrl, 800, 800); // 預設 1:1
+            // 超時則使用預設值
+            createShortLink(imgUrl, 800, 800);
         }, 8000);
 
         img.onload = function() {
             clearTimeout(timeout);
-            createLink(imgUrl, this.width, this.height);
+            createShortLink(imgUrl, this.width, this.height);
         };
 
         img.onerror = function() {
             clearTimeout(timeout);
-            alert("無法讀取此圖片尺寸（可能受到來源網站限制），將使用預設比例。");
-            createLink(imgUrl, 800, 800);
+            alert("無法讀取此圖片尺寸，將使用預設比例。");
+            createShortLink(imgUrl, 800, 800);
         };
-
+        // 設定跨域，部分圖床需要此設定
+        img.crossOrigin = "Anonymous"; 
         img.src = imgUrl;
     }
 
-    async function createLink(url, w, h) {
+    async function createShortLink(url, w, h) {
         const genBtn = document.getElementById('genBtn');
         const linkDiv = document.getElementById('finalLink');
         
-        // 建立帶有尺寸參數的長連結
+        // 原始長網址 (保險起見，結構要正確)
         const longLink = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(url)}&w=${w}&h=${h}`;
         
-        linkDiv.innerText = "⚡ 正在優化縮網址...";
+        linkDiv.innerText = "⚡ 正在呼叫縮網址 API...";
 
         try {
-            // 嘗試使用 is.gd
-            const response = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`);
-            if (!response.ok) throw new Error('API 無回應');
+            // ★★★ 關鍵修正：加入 CORS Proxy 避免 GitHub Pages 報錯 ★★★
+            // 使用 corsproxy.io 繞過 is.gd 的跨域限制
+            const proxyUrl = 'https://corsproxy.io/?';
+            const targetUrl = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`;
+            
+            const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
+            
+            if (!response.ok) throw new Error('Proxy 或 API 錯誤');
+            
             const data = await response.json();
             
-            linkDiv.innerText = data.shorturl || longLink;
+            if (data.shorturl) {
+                linkDiv.innerText = data.shorturl;
+            } else {
+                throw new Error('無縮網址回應');
+            }
+
         } catch (e) {
-            console.warn("縮址 API 暫時不可用，改用長連結");
+            console.warn("縮址失敗:", e);
+            // 如果縮網址失敗，顯示長網址作為備案 (總比沒東西好)
             linkDiv.innerText = longLink;
+            alert("縮網址服務暫時忙碌，已改為顯示原始連結");
         } finally {
             genBtn.disabled = false;
             genBtn.innerText = "產生分享連結";
@@ -110,10 +123,10 @@
     function copyText() {
         const text = document.getElementById('finalLink').innerText;
         
-        // 現代化複製 API
+        // 優先使用新版 API
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
-                alert("連結已複製！");
+                alert("連結已複製！請傳送給好友測試。");
             }).catch(err => {
                 fallbackCopy(text);
             });
