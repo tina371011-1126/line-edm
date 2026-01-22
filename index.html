@@ -1,51 +1,84 @@
-<script>
-    const LIFF_ID = "2008941488-Phn5v50S";
-    let finalImageUrl = "";
-    let finalRatio = "1:1";
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>傳送圖片中</title>
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-5M3C56BV75'); 
+    </script>
 
-    async function initLiff() {
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (!liff.isLoggedIn()) { liff.login(); return; }
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f8f9fa; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 80%; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #msg { font-size: 16px; color: #444; margin-bottom: 20px; }
+        .share-btn { background-color: #02c874; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; display: none; }
+    </style>
+</head>
+<body>
 
-            const url = new URL(window.location.href);
-            const params = url.searchParams;
-            const hashParams = new URLSearchParams(url.hash.substring(1));
-            
-            // 優先從參數讀取圖片、寬、高
-            const imgParam = params.get('img') || hashParams.get('img');
-            const w = params.get('w') || hashParams.get('w');
-            const h = params.get('h') || hashParams.get('h');
+    <div class="card">
+        <div class="loader" id="loader"></div>
+        <div id="msg">圖片處理中...</div>
+        <button id="actionBtn" class="share-btn" onclick="handleShare()">選擇朋友傳送</button>
+    </div>
 
-            finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
+    <script>
+        const LIFF_ID = "2008941488-Phn5v50S";
+        let finalImageUrl = "";
+        let finalRatio = "1:1";
 
-            // --- 優化核心：如果網址已有寬高，直接顯示按鈕，不等待下載 ---
-            if (w && h) {
-                finalRatio = `${w}:${h}`;
-                showActionBtn("預覽已就緒");
-            } else {
-                // 備援方案：若網址無寬高參數，才走舊的下載偵測邏輯
-                const img = new Image();
-                img.onload = () => {
-                    finalRatio = `${img.width}:${img.height}`;
-                    showActionBtn("預覽已就緒");
-                };
-                img.src = finalImageUrl;
-            }
+        async function initLiff() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) { liff.login(); return; }
 
-            // 非同步執行 GA 追蹤，不阻礙 UI
-            gtag('event', 'liff_open', { 'image_url': finalImageUrl });
+                const url = new URL(window.location.href);
+                // 讀取所有可能存在參數的地方
+                const params = url.searchParams;
+                const hashParams = new URLSearchParams(url.hash.substring(1));
+                
+                const imgParam = params.get('img') || hashParams.get('img');
+                const w = params.get('w') || hashParams.get('w');
+                const h = params.get('h') || hashParams.get('h');
 
-        } catch (e) { console.error(e); }
-    }
+                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wEmp9REFby6o2cCIVgnzgnQP8OLqNMwEpg&s";
 
-    function showActionBtn(msg) {
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('actionBtn').style.display = 'inline-block';
-        document.getElementById('msg').innerText = msg;
-    }
+                // --- 高速路徑：如果網址已有寬高，直接顯示按鈕 ---
+                if (w && h) {
+                    finalRatio = `${w}:${h}`;
+                    renderReady();
+                } else {
+                    // 備援路徑：如果網址沒帶尺寸，才下載圖片偵測
+                    const img = new Image();
+                    img.onload = function() {
+                        finalRatio = `${this.width}:${this.height}`;
+                        renderReady();
+                    };
+                    img.src = finalImageUrl;
+                }
 
-    // async function handleShare() {
+                // 發送開啟事件
+                gtag('event', 'liff_open', { 'image_url': finalImageUrl });
+
+            } catch (e) { console.error(e); }
+        }
+
+        function renderReady() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('msg').innerText = "預覽已就緒";
+            document.getElementById('actionBtn').style.display = 'inline-block';
+        }
+
+        async function handleShare() {
             if (liff.isApiAvailable('shareTargetPicker')) {
                 try {
                     const result = await liff.shareTargetPicker([{
@@ -65,7 +98,7 @@
                                     "aspectRatio": finalRatio,
                                     "action": {
                                         "type": "uri",
-                                        "uri": `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}`
+                                        "uri": `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${finalRatio.split(':')[0]}&h=${finalRatio.split(':')[1]}`
                                     }
                                 }],
                                 "paddingAll": "0px"
@@ -74,16 +107,13 @@
                     }]);
 
                     if (result) {
-                        // 2. 核心追蹤：當使用者按下發送並成功關閉視窗時觸發
-                        gtag('event', 'edm_share_success', {
-                            'method': 'shareTargetPicker',
-                            'image_url': finalImageUrl
-                        });
-                        
-                        document.getElementById('msg').innerText = "發送成功！";
-                        setTimeout(() => liff.closeWindow(), 800);
+                        gtag('event', 'edm_share_success', { 'image_url': finalImageUrl });
+                        liff.closeWindow();
                     }
                 } catch (error) { console.error(error); }
             }
         }
-</script>
+        window.onload = initLiff;
+    </script>
+</body>
+</html>
