@@ -30,5 +30,19 @@
         img.onerror = () => alert("圖片網址無效或不支援跨域讀取");
         img.src = imgUrlInput;
     }
-    // copyText 函數保持不變...
+    // function copyText() {
+        const text = document.getElementById('finalLink').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("連結已複製！");
+        }).catch(err => {
+            // 備用複製方案
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert("連結已複製！");
+        });
+     }
 </script>
