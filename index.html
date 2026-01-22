@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>傳送圖片中</title>
+    <title>傳送圖片給好友</title>
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
     <script>
@@ -27,7 +27,7 @@
 
     <div class="card">
         <div class="loader" id="loader"></div>
-        <div id="msg">圖片處理中...</div>
+        <div id="msg">點擊傳送圖片</div>
         <button id="actionBtn" class="share-btn" onclick="handleShare()">選擇朋友傳送</button>
     </div>
 
@@ -74,7 +74,7 @@
 
         function renderReady() {
             document.getElementById('loader').style.display = 'none';
-            document.getElementById('msg').innerText = "預覽已就緒";
+            document.getElementById('msg').innerText = "分享給好友吧！";
             document.getElementById('actionBtn').style.display = 'inline-block';
         }
 
