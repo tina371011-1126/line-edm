@@ -45,5 +45,45 @@
         document.getElementById('msg').innerText = msg;
     }
 
-    // handleShare 函數保持不變...
+    // async function handleShare() {
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                try {
+                    const result = await liff.shareTargetPicker([{
+                        "type": "flex",
+                        "altText": "您收到一張圖片",
+                        "contents": {
+                            "type": "bubble",
+                            "size": "mega", 
+                            "body": {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [{
+                                    "type": "image",
+                                    "url": finalImageUrl,
+                                    "size": "full",
+                                    "aspectMode": "fit", 
+                                    "aspectRatio": finalRatio,
+                                    "action": {
+                                        "type": "uri",
+                                        "uri": `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}`
+                                    }
+                                }],
+                                "paddingAll": "0px"
+                            }
+                        }
+                    }]);
+
+                    if (result) {
+                        // 2. 核心追蹤：當使用者按下發送並成功關閉視窗時觸發
+                        gtag('event', 'edm_share_success', {
+                            'method': 'shareTargetPicker',
+                            'image_url': finalImageUrl
+                        });
+                        
+                        document.getElementById('msg').innerText = "發送成功！";
+                        setTimeout(() => liff.closeWindow(), 800);
+                    }
+                } catch (error) { console.error(error); }
+            }
+        }
 </script>
