@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>分享圖片</title>
+    <title>EDM 預覽</title>
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
     <script>
@@ -17,23 +17,23 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, sans-serif; }
         
-        /* 滿版圖片樣式 */
+        /* 滿版圖片 */
         #previewImg { 
             width: 100vw; 
             height: 100vh; 
-            object-fit: contain; /* 確保圖片不被裁切且滿版 */
+            object-fit: contain; 
             display: none; 
             background-color: #000;
         }
 
-        /* 下方按鈕區塊浮動 */
+        /* 按鈕區塊浮動 */
         .ui-overlay { 
             position: fixed; 
             bottom: 0; 
             left: 0; 
             width: 100%; 
-            padding: 40px 20px 30px; 
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 50px 20px 40px; 
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
             box-sizing: border-box; 
             text-align: center;
             z-index: 10;
@@ -41,60 +41,55 @@
 
         .btn { 
             border: none; 
-            padding: 16px; 
-            font-size: 16px; 
+            padding: 18px; 
+            font-size: 17px; 
             border-radius: 50px; 
             font-weight: bold; 
             cursor: pointer; 
             width: 100%; 
-            max-width: 320px;
-            transition: 0.2s; 
+            max-width: 300px;
+            transition: 0.3s; 
             text-decoration: none; 
-            display: none; /* 初始隱藏，直到 LIFF 準備好 */
+            display: none; 
             box-sizing: border-box; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
 
-        .share-btn { background: #02c874; color: white; border: 2px solid rgba(255,255,255,0.2); }
+        .share-btn { background: #02c874; color: white; border: 1px solid rgba(255,255,255,0.2); }
         .recall-btn { background-color: #06c755; color: white; }
         
-        #msg { color: white; font-size: 14px; margin-bottom: 10px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        #msg { color: white; font-size: 14px; margin-bottom: 5px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); font-weight: 500; }
         
-        /* 極簡載入動畫 */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid #02c874; 
-            border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; 
+            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #02c874; 
+            border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; 
             z-index: 5;
         }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-        
-        .sharer-name { color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="loader" class="loader"></div>
-    
     <img id="previewImg" src="" alt="EDM Preview">
 
     <div class="ui-overlay">
-        <div id="msg">正在確認分享權限...</div>
-        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">傳送給朋友～</button>
+        <div id="msg">正在準備分享連結...</div>
+        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
         <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
-        <div id="sharerName" class="sharer-name"></div>
-    </div>
+        </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", ratio = "1:1", userName = "未知";
+        let imgUrl = "", ratio = "1:1", userName = "隱身分享者"; // 預設名稱
 
         function getParam(name) {
             const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 核心改動：立即解析並顯示圖片，不等待 LIFF
+        // 極速預覽：優先執行
         function fastPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
@@ -104,13 +99,15 @@
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
-            // 萬一圖片載入太慢，2秒內強制顯示
-            setTimeout(() => { pImg.style.display = 'block'; document.getElementById('loader').style.display = 'none'; }, 2000);
+            setTimeout(() => { 
+                pImg.style.display = 'block'; 
+                document.getElementById('loader').style.display = 'none'; 
+            }, 1500);
         }
 
         async function initLIFF() {
             try {
-                const from = getParam('f') || '直接開啟';
+                const from = getParam('f') || '直接點擊';
                 gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
 
                 if (!/Line/i.test(navigator.userAgent)) {
@@ -124,13 +121,15 @@
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
+                    // 背景抓取身分，但不顯示在畫面上
                     const profile = await liff.getProfile();
                     userName = profile.displayName; 
+                    
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "環境異常，請重新整理";
+                document.getElementById('msg').innerText = "連線失敗，請重試";
             }
         }
 
@@ -141,12 +140,14 @@
         async function handleShare() {
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
+            
+            // 追蹤網址依然會帶入 userName，達成神級追蹤
             const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
 
             try {
                 const res = await liff.shareTargetPicker([{
                     "type": "flex",
-                    "altText": userName + " 分享了圖片給您",
+                    "altText": "您收到一張精美圖片",
                     "contents": {
                         "type": "bubble", "size": "mega",
                         "body": {
@@ -166,7 +167,6 @@
             } catch (error) { console.error(error); }
         }
 
-        // 立即執行預覽，同步啟動 LIFF
         fastPreview();
         initLIFF();
     </script>
