@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>正在開啟...</title>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-5M3C56BV75');
+    </script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; background-color: #f8f9fa; }
@@ -31,33 +38,33 @@
 
         async function init() {
             try {
-                // 1. 解析參數 (相容 Search 與 Hash)
                 const url = new URL(window.location.href);
                 const urlParams = new URLSearchParams(url.search || url.hash.split('?')[1]);
                 
                 const i = urlParams.get('i');
                 const w = urlParams.get('w');
                 const h = urlParams.get('h');
+                const from = urlParams.get('f') || 'direct'; // 偵測來源
 
                 imgUrl = i ? decodeURIComponent(i) : "https://via.placeholder.com/600x600?text=No+Image";
                 if (w && h) ratio = `${w}:${h}`;
 
-                // 2. 建立兩種連結：標準連結 (分享用) 與 強制連結 (喚回用)
-                liffLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w || ''}&h=${h || ''}`;
-                deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w || ''}&h=${h || ''}`;
+                // 建立標準與強制連結 (分享出的連結標記 f=s 代表來自 share)
+                liffLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w||''}&h=${h||''}&f=s`;
+                deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w||''}&h=${h||''}&f=s`;
 
-                // 3. 環境判斷：如果在外部瀏覽器，直接嘗試強制跳轉
+                // 1. GA4 追蹤開啟事件
+                gtag('event', 'edm_open', { 'img': imgUrl, 'from': from });
+
+                // 2. 環境判斷
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('loader').style.display = 'none';
                     document.getElementById('msg').innerText = "請回到 LINE 內開啟";
                     document.getElementById('recallBtn').style.display = 'block';
-                    
-                    // 嘗試自動喚起 LINE App
                     window.location.href = deepLink;
                     return; 
                 }
 
-                // 4. 在 LINE 內部，執行正常初始化
                 await liff.init({ liffId: LIFF_ID });
 
                 if (!liff.isLoggedIn()) {
@@ -68,23 +75,17 @@
                     document.getElementById('actionBtn').style.display = 'block';
                 }
             } catch (e) {
-                console.error(e);
-                document.getElementById('loader').style.display = 'none';
                 document.getElementById('msg').innerText = "系統忙碌中，請重新開啟";
             }
         }
 
-        // 強制喚回函式
         function forceOpen() { 
+            gtag('event', 'edm_recall_click');
             window.location.href = deepLink; 
         }
 
-        // 分享函式
         async function handleShare() {
-            if (!liff.isApiAvailable('shareTargetPicker')) {
-                alert("您的 LINE 版本不支援分享功能");
-                return;
-            }
+            if (!liff.isApiAvailable('shareTargetPicker')) return;
             try {
                 const res = await liff.shareTargetPicker([{
                     "type": "flex",
@@ -93,29 +94,23 @@
                         "type": "bubble",
                         "size": "mega",
                         "body": {
-                            "type": "box", 
-                            "layout": "vertical", 
-                            "paddingAll": "0px",
+                            "type": "box", "layout": "vertical", "paddingAll": "0px",
                             "contents": [{
-                                "type": "image", 
-                                "url": imgUrl, 
-                                "size": "full", 
-                                "aspectMode": "fit", 
-                                "aspectRatio": ratio,
-                                "action": { 
-                                    "type": "uri", 
-                                    "uri": liffLink // 分享出去的連結使用標準格式以確保相容性
-                                }
+                                "type": "image", "url": imgUrl, "size": "full", 
+                                "aspectMode": "fit", "aspectRatio": ratio,
+                                "action": { "type": "uri", "uri": liffLink }
                             }]
                         }
                     }
                 }]);
-                if (res) liff.closeWindow();
+                if (res) {
+                    gtag('event', 'edm_share_success', { 'img': imgUrl });
+                    liff.closeWindow();
+                }
             } catch (error) {
-                console.error("分享失敗", error);
+                gtag('event', 'edm_share_error');
             }
         }
-
         window.onload = init;
     </script>
 </body>
