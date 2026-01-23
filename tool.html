@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>分享 EDM 連結產生器 v4</title>
+    <title>EDM 連結產生器 v5</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
@@ -14,78 +14,50 @@
         .result-area { margin-top: 20px; display: none; }
         .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 15px; display: block; }
         .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; position: relative; margin-top: 5px; line-height: 1.5; }
-        .copy-btn { background: #444; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; }
+        .copy-btn { background: #333; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; }
         .preview-text { color: #02c874; font-weight: bold; }
     </style>
 </head>
 <body>
-
 <div class="card">
-    <h2>🚀 EDM 分享連結產生器</h2>
-    <p>貼上圖片網址產出可分享EDM連結</p>
-    
+    <h2>🚀 EDM 連結產生器</h2>
+    <p>產出已包含轉傳追蹤與自動換行</p>
     <input type="url" id="imgUrl" placeholder="請貼上圖片網址">
     <button id="genBtn" onclick="generate()">產生連結</button>
-
     <div id="resultArea" class="result-area">
-        <span class="link-label">1. LINE 專用 (點擊最順暢):</span>
+        <span class="link-label">1. LINE 專用 (強制喚回):</span>
         <div class="link-box">
             <button class="copy-btn" onclick="copyText('deepLink')">複製內容</button>
-            <div id="deepLink_display">
-                <span class="preview-text">🔔打開EDM連結：</span><br>
-                <span id="deepLink">---</span>
-            </div>
+            <span class="preview-text">🔔打開EDM連結：</span><br>
+            <span id="deepLink">---</span>
         </div>
-
-        <span class="link-label">2. 萬用網頁短網址 (適合外部轉貼):</span>
+        <span class="link-label">2. 萬用短網址 (外部使用):</span>
         <div class="link-box">
             <button class="copy-btn" onclick="copyText('shortLink')">複製內容</button>
-            <div id="shortLink_display">
-                <span class="preview-text">🔔打開EDM連結：</span><br>
-                <span id="shortLink">---</span>
-            </div>
+            <span class="preview-text">🔔打開EDM連結：</span><br>
+            <span id="shortLink">---</span>
         </div>
     </div>
 </div>
-
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
     const PROXY = 'https://corsproxy.io/?';
-
     async function generate() {
         const rawImgUrl = document.getElementById('imgUrl').value.trim();
-        if(!rawImgUrl) return alert("請輸入圖片網址");
-
+        if(!rawImgUrl) return alert("請輸入網址");
         const btn = document.getElementById('genBtn');
-        btn.disabled = true;
-        btn.innerText = "正在極速縮短中...";
-
+        btn.disabled = true; btn.innerText = "極速縮短中...";
         try {
-            // 1. 先縮短圖片網址
             const shortImgUrl = await getShortUrl(rawImgUrl);
-            
-            // 2. 獲取圖片尺寸
             const dims = await getImageDimensions(rawImgUrl);
-
-            // 3. 組合連結
-            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}`;
-            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}`;
-
-            // 4. 再縮短一次 LIFF 網址
+            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=d`;
+            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=d`;
             const finalShort = await getShortUrl(liffBase);
-
             document.getElementById('deepLink').innerText = deepLink;
             document.getElementById('shortLink').innerText = finalShort;
             document.getElementById('resultArea').style.display = 'block';
-
-        } catch (e) {
-            alert("產生失敗，請稍後再試");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "產生並優化連結";
-        }
+        } catch (e) { alert("產生失敗"); } finally { btn.disabled = false; btn.innerText = "產生連結"; }
     }
-
     async function getShortUrl(longUrl) {
         try {
             const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
@@ -94,7 +66,6 @@
             return data.shorturl || longUrl;
         } catch (e) { return longUrl; }
     }
-
     function getImageDimensions(url) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -103,23 +74,10 @@
             img.src = url;
         });
     }
-
     function copyText(id) {
         const url = document.getElementById(id).innerText;
-        const fullText = `🔔打開EDM連結：\n${url}`; // 加上前綴與換行
-        
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(fullText).then(() => alert("內容已複製，可直接貼往 LINE 分享"));
-        } else {
-            // 備份複製方案
-            const el = document.createElement('textarea');
-            el.value = fullText;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            alert("內容已複製");
-        }
+        const fullText = `🔔打開EDM連結：\n${url}`;
+        navigator.clipboard.writeText(fullText).then(() => alert("已複製！"));
     }
 </script>
 </body>
