@@ -3,113 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF 連結產生器 v3</title>
+    <title>極短連結產生器</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { color: #02c874; text-align: center; margin-bottom: 10px; font-size: 22px; }
-        p { font-size: 13px; color: #666; line-height: 1.6; }
-        .input-group { margin-top: 20px; }
-        input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 14px; outline: none; transition: 0.3s; }
-        input:focus { border-color: #02c874; box-shadow: 0 0 0 3px rgba(2,200,116,0.1); }
-        button { background: #02c874; color: white; border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 16px; }
-        button:active { transform: scale(0.98); }
-        .result-area { margin-top: 25px; display: none; animation: fadeIn 0.5s; }
-        .link-label { font-size: 12px; font-weight: bold; color: #333; margin-bottom: 5px; display: block; }
-        .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; margin-bottom: 10px; position: relative; }
-        .copy-btn { background: #333; color: white; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; border: none; width: auto; margin-top: 0; margin-left: 5px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
+        h2 { color: #02c874; text-align: center; font-size: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .result-area { margin-top: 20px; display: none; }
+        .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 10px; display: block; }
+        .link-box { background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; word-break: break-all; font-size: 12px; font-family: monospace; position: relative; margin-bottom: 5px; }
+        .copy-btn { background: #444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; float: right; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>📸 分享連結產生器</h2>
-    <p>輸入圖片網址，產出能「強制開啟 LINE」的分享連結。建議使用縮網址版以保持訊息整潔。</p>
-
-    <div class="input-group">
-        <input type="url" id="imgUrl" placeholder="請貼上圖片網址 (https://...)" inputmode="url">
-        <button id="genBtn" onclick="generate()">產生連結</button>
-    </div>
+    <h2>🚀 極短分享產生器</h2>
+    <input type="url" id="imgUrl" placeholder="貼上圖片網址">
+    <button id="genBtn" onclick="generate()">產生極短連結</button>
 
     <div id="resultArea" class="result-area">
-        <span class="link-label">✨ 縮網址版 (推薦，自動喚起 LINE):</span>
+        <span class="link-label">1. 極短 LINE 協議 (line://):</span>
         <div class="link-box">
-            <span id="shortLink">⏳ 處理中...</span>
-            <button class="copy-btn" onclick="copyText('shortLink')">複製</button>
+            <button class="copy-btn" onclick="copyText('deepLink')">複製</button>
+            <span id="deepLink">---</span>
         </div>
 
-        <span class="link-label">🔗 強制協議版 (line:// 格式):</span>
+        <span class="link-label">2. 外部萬用短網址 (https://):</span>
         <div class="link-box">
-            <span id="deepLink">---</span>
-            <button class="copy-btn" onclick="copyText('deepLink')">複製</button>
+            <button class="copy-btn" onclick="copyText('shortLink')">複製</button>
+            <span id="shortLink">---</span>
         </div>
     </div>
 </div>
 
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
+    const PROXY = 'https://corsproxy.io/?';
 
     async function generate() {
-        const url = document.getElementById('imgUrl').value.trim();
-        if(!url) return alert("請輸入網址");
+        const rawImgUrl = document.getElementById('imgUrl').value.trim();
+        if(!rawImgUrl) return;
 
         const btn = document.getElementById('genBtn');
-        const resArea = document.getElementById('resultArea');
         btn.disabled = true;
-        btn.innerText = "分析圖片中...";
-        resArea.style.display = 'block';
-
-        // 預設寬高
-        let w = 800, h = 800;
-
-        // 嘗試抓取圖片寬高
-        const img = new Image();
-        img.onload = async function() {
-            w = this.width;
-            h = this.height;
-            await buildLinks(url, w, h);
-        };
-        img.onerror = async function() {
-            await buildLinks(url, w, h);
-        };
-        img.src = url;
-    }
-
-    async function buildLinks(url, w, h) {
-        const encodedUrl = encodeURIComponent(url);
-        // 標準 LIFF 網址 (縮短參數名)
-        const liffLink = `https://liff.line.me/${LIFF_ID}/?i=${encodedUrl}&w=${w}&h=${h}`;
-        // 強制喚回網址
-        const lineLink = `line://app/${LIFF_ID}/?i=${encodedUrl}&w=${w}&h=${h}`;
-
-        document.getElementById('deepLink').innerText = lineLink;
-        document.getElementById('shortLink').innerText = "正在縮短...";
+        btn.innerText = "正在極限縮短...";
 
         try {
-            // 使用 is.gd 縮網址
-            const proxy = 'https://corsproxy.io/?';
-            const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(liffLink)}`;
-            const response = await fetch(proxy + encodeURIComponent(api));
-            const data = await response.json();
+            // 第一步：先把「圖片網址」縮短 (這是關鍵！)
+            const shortImgUrl = await getShortUrl(rawImgUrl);
             
-            document.getElementById('shortLink').innerText = data.shorturl || liffLink;
+            // 第二步：獲取圖片尺寸 (預設 800)
+            let w = 800, h = 800;
+            const dims = await getImageDimensions(rawImgUrl);
+            w = dims.w; h = dims.h;
+
+            // 第三步：產出最終網址
+            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${w}&h=${h}`;
+            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${w}&h=${h}`;
+
+            // 第四步：再把「LIFF 網址」縮短一遍
+            const finalShort = await getShortUrl(liffBase);
+
+            document.getElementById('deepLink').innerText = deepLink;
+            document.getElementById('shortLink').innerText = finalShort;
+            document.getElementById('resultArea').style.display = 'block';
+
         } catch (e) {
-            document.getElementById('shortLink').innerText = liffLink;
+            alert("縮短失敗，請檢查網址");
         } finally {
-            const btn = document.getElementById('genBtn');
             btn.disabled = false;
-            btn.innerText = "產生連結";
+            btn.innerText = "產生極短連結";
         }
+    }
+
+    // 縮網址共用函式
+    async function getShortUrl(longUrl) {
+        try {
+            const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
+            const response = await fetch(PROXY + encodeURIComponent(api));
+            const data = await response.json();
+            return data.shorturl || longUrl;
+        } catch (e) {
+            return longUrl;
+        }
+    }
+
+    function getImageDimensions(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({w: img.width, h: img.height});
+            img.onerror = () => resolve({w: 800, h: 800});
+            img.src = url;
+        });
     }
 
     function copyText(id) {
         const text = document.getElementById(id).innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert("已複製到剪貼簿！");
-        });
+        navigator.clipboard.writeText(text).then(() => alert("已複製！"));
     }
 </script>
-
 </body>
 </html>
