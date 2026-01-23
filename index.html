@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EDM 預覽</title>
+    <title>分享圖片</title>
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
     <script>
@@ -80,7 +80,7 @@
 
     <div class="ui-overlay">
         <div id="msg">正在確認分享權限...</div>
-        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">傳送給朋友</button>
+        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">傳送給朋友～</button>
         <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
         <div id="sharerName" class="sharer-name"></div>
     </div>
@@ -147,7 +147,7 @@
             try {
                 const res = await liff.shareTargetPicker([{
                     "type": "flex",
-                    "altText": userName + " 分享了 EDM 給您",
+                    "altText": userName + " 分享了圖片給您",
                     "contents": {
                         "type": "bubble", "size": "mega",
                         "body": {
