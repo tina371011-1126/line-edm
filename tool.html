@@ -3,51 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>連結產生器</title>
+    <title>LINE 強制開啟產生器</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; }
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; display: flex; justify-content: center; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
+        h3 { color: #00b900; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; }
-        #res { margin-top: 15px; display: none; word-break: break-all; background: #e8f5e9; padding: 10px; border-radius: 6px; font-size: 13px; border: 1px solid #c8e6c9; }
+        button { background: #00b900; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; font-size: 16px; }
+        #resArea { margin-top: 15px; display: none; }
+        .link-box { word-break: break-all; background: #e8f5e9; padding: 12px; border-radius: 6px; font-size: 13px; border: 1px solid #c8e6c9; font-family: monospace; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h3>🖼️ 圖片分享產生器</h3>
-    <input type="url" id="imgUrl" placeholder="貼上圖片網址">
-    <button id="btn" onclick="generate()">產生短連結</button>
-    <div id="res"></div>
+    <h3>🚀 LINE 強制跳轉產生器</h3>
+    <p style="font-size: 12px; color: #666;">產出的連結將強制喚起 LINE，不經過瀏覽器。</p>
+    <input type="url" id="imgUrl" placeholder="請貼上圖片網址">
+    <button id="btn" onclick="generate()">產生強制連結</button>
+    
+    <div id="resArea">
+        <div class="link-box" id="resLink"></div>
+        <button style="background: #333;" onclick="copyLink()">複製連結</button>
+    </div>
 </div>
 
 <script>
+    const LIFF_ID = "2008941488-Phn5v50S";
+
     async function generate() {
         const input = document.getElementById('imgUrl').value.trim();
-        const resDiv = document.getElementById('res');
+        const resArea = document.getElementById('resArea');
+        const resLink = document.getElementById('resLink');
         const btn = document.getElementById('btn');
-        if(!input) return;
+        if(!input) return alert("請輸入網址");
 
         btn.disabled = true;
-        resDiv.style.display = 'block';
-        resDiv.innerText = "處理中...";
+        btn.innerText = "分析圖片中...";
 
         const img = new Image();
-        img.onload = async function() {
-            // 使用縮寫參數 i, w, h
-            const longLink = `https://liff.line.me/2008941488-Phn5v50S/?i=${encodeURIComponent(input)}&w=${this.width}&h=${this.height}`;
-            
-            try {
-                const proxy = 'https://corsproxy.io/?';
-                const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`;
-                const response = await fetch(proxy + encodeURIComponent(api));
-                const data = await response.json();
-                resDiv.innerText = data.shorturl || longLink;
-            } catch (e) {
-                resDiv.innerText = longLink;
-            }
+        img.onload = function() {
+            // 產出 line:// 格式，這會強制手機開啟 LINE
+            const lineLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(input)}&w=${this.width}&h=${this.height}`;
+            resLink.innerText = lineLink;
+            resArea.style.display = 'block';
             btn.disabled = false;
+            btn.innerText = "產生強制連結";
+        };
+        img.onerror = function() {
+            const lineLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(input)}&w=800&h=800`;
+            resLink.innerText = lineLink;
+            resArea.style.display = 'block';
+            btn.disabled = false;
+            btn.innerText = "產生強制連結";
         };
         img.src = input;
+    }
+
+    function copyLink() {
+        const text = document.getElementById('resLink').innerText;
+        navigator.clipboard.writeText(text).then(() => alert("已複製連結！可直接在 LINE 貼上"));
     }
 </script>
 </body>
