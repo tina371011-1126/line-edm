@@ -3,137 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>正在開啟 EDM...</title>
+    <title>EDM 預覽與分享</title>
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'G-5M3C56BV75', { 'send_page_view': true });
+        gtag('config', 'G-5M3C56BV75');
     </script>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; background-color: #f8f9fa; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 85%; max-width: 350px; }
-        #msg { font-size: 16px; color: #444; font-weight: bold; margin-bottom: 20px; line-height: 1.4; }
-        .btn { border: none; padding: 14px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: inline-block; box-sizing: border-box; }
-        .share-btn { background-color: #02c874; color: white; display: none; }
-        .recall-btn { background-color: #06c755; color: white; display: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); }
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: -apple-system, sans-serif; background-color: #f4f6f9; padding: 20px; box-sizing: border-box; }
+        .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 380px; transition: 0.3s; }
+        #msg { font-size: 18px; color: #222; font-weight: 800; margin-bottom: 10px; }
+        
+        /* 預覽區域樣式 */
+        #previewContainer { display: none; width: 100%; margin: 15px 0; animation: fadeIn 0.5s ease-in; }
+        .preview-label { font-size: 12px; color: #999; letter-spacing: 2px; margin-bottom: 10px; display: block; }
+        #previewImg { width: 100%; border-radius: 15px; border: 1px solid #f0f0f0; object-fit: contain; max-height: 450px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+
+        .btn { border: none; padding: 16px; font-size: 16px; border-radius: 14px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: inline-block; box-sizing: border-box; }
+        .share-btn { background: linear-gradient(135deg, #02c874, #00b965); color: white; display: none; margin-top: 10px; box-shadow: 0 5px 15px rgba(2, 200, 116, 0.3); }
+        .recall-btn { background-color: #06c755; color: white; display: none; }
+        
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .sharer-tag { font-size: 11px; color: #aaa; margin-top: 15px; background: #f9f9f9; padding: 5px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <div id="loader" class="loader"></div>
-        <div id="msg">讀取環境中...</div>
-        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">選擇朋友傳送 EDM</button>
-        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此啟動 LINE 應用程式</button>
+        <div id="msg">讀取 EDM 內容...</div>
+        
+        <div id="previewContainer">
+            <span class="preview-label">IMAGE PREVIEW</span>
+            <img id="previewImg" src="" alt="EDM">
+        </div>
+
+        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
+        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
+        
+        <div id="sharerName" class="sharer-tag"></div>
     </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", ratio = "1:1", liffLink = "", deepLink = "";
+        let imgUrl = "", ratio = "1:1", userName = "未知分享者";
 
-        // 強健的參數解析器
         function getParam(name) {
-            const url = window.location.href;
-            const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(url);
+            const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
 
         async function init() {
             try {
-                // 1. 解析參數
                 const i = getParam('i');
                 const w = getParam('w');
                 const h = getParam('h');
-                const from = getParam('f') || 'direct';
+                const from = getParam('f') || '直接開啟'; // 誰分享給我的
 
                 imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
                 if (w && h) ratio = `${w}:${h}`;
 
-                // 2. 預備連結 (f=s 代表來自 Share)
-                const baseUrl = window.location.origin + window.location.pathname;
-                liffLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w||''}&h=${h||''}&f=s`;
-                deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w||''}&h=${h||''}&f=s`;
+                // 更新預覽畫面
+                document.getElementById('previewImg').src = imgUrl;
 
-                // 3. GA4 事件：開啟頁面
-                gtag('event', 'edm_page_view', { 'img_url': imgUrl, 'source_type': from });
+                // [GA4 追蹤] 誰點開了誰分享的連結
+                gtag('event', 'edm_view', { 
+                    'target_img': imgUrl, 
+                    'referrer_name': from 
+                });
 
-                // 4. 環境判斷：是否在 LINE 內
-                const isLine = /Line/i.test(navigator.userAgent);
-
-                if (!isLine) {
+                if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('loader').style.display = 'none';
-                    document.getElementById('msg').innerText = "請透過 LINE 開啟此連結以進行分享";
+                    document.getElementById('msg').innerText = "請在 LINE App 中開啟";
                     document.getElementById('recallBtn').style.display = 'block';
-                    
-                    // 嘗試自動喚起
-                    setTimeout(() => { window.location.href = deepLink; }, 500);
                     return; 
                 }
 
-                // 5. LINE 內初始化
                 await liff.init({ liffId: LIFF_ID });
 
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
+                    // [神級追蹤] 獲取當前分享者的名字
+                    const profile = await liff.getProfile();
+                    userName = profile.displayName; 
+                    
                     document.getElementById('loader').style.display = 'none';
-                    document.getElementById('msg').innerText = "EDM 已準備就緒";
+                    document.getElementById('msg').innerText = "內容已就緒";
+                    document.getElementById('previewContainer').style.display = 'block';
                     document.getElementById('actionBtn').style.display = 'block';
+                    document.getElementById('sharerName').innerText = "目前身分：" + userName;
                 }
             } catch (e) {
-                console.error("LIFF Init Error:", e);
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('msg').innerText = "連線逾時，請重新整理頁面";
+                document.getElementById('msg').innerText = "連線逾時，請重試";
             }
         }
 
         function forceOpen() { 
-            gtag('event', 'edm_recall_click', { 'img_url': imgUrl });
-            window.location.href = deepLink; 
+            window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&f=recall`; 
         }
 
         async function handleShare() {
-            if (!liff.isApiAvailable('shareTargetPicker')) {
-                alert("請更新 LINE 版本以使用分享功能");
-                return;
-            }
+            if (!liff.isApiAvailable('shareTargetPicker')) return;
+
+            // [神級追蹤] 分享出去的網址動態加上「我的名字」
+            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${getParam('w')||''}&h=${getParam('h')||''}&f=${encodeURIComponent(userName)}`;
+
             try {
                 const res = await liff.shareTargetPicker([{
                     "type": "flex",
-                    "altText": "您收到一份 EDM 邀請",
+                    "altText": userName + " 分享了 EDM 給您",
                     "contents": {
                         "type": "bubble",
                         "size": "mega",
                         "body": {
                             "type": "box", "layout": "vertical", "paddingAll": "0px",
                             "contents": [{
-                                "type": "image", 
-                                "url": imgUrl, 
-                                "size": "full", 
-                                "aspectMode": "fit", 
-                                "aspectRatio": ratio,
-                                "action": { "type": "uri", "uri": liffLink }
+                                "type": "image", "url": imgUrl, "size": "full", 
+                                "aspectMode": "fit", "aspectRatio": ratio,
+                                "action": { "type": "uri", "uri": myShareLink }
                             }]
                         }
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 'img_url': imgUrl });
+                    gtag('event', 'edm_share_success', { 'sharer_name': userName });
                     liff.closeWindow();
                 }
-            } catch (error) {
-                console.error("Share Error:", error);
-                gtag('event', 'edm_share_error');
-            }
+            } catch (error) { console.error(error); }
         }
-
         window.onload = init;
     </script>
 </body>
