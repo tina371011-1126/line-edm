@@ -3,175 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>開啟圖片中...</title>
-    
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-5M3C56BV75'); 
-    </script>
-
+    <title>正在開啟...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8f9fa; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 85%; max-width: 400px; }
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #msg { font-size: 16px; color: #444; margin-bottom: 20px; font-weight: bold; }
-        
-        /* 按鈕樣式 */
-        .btn { border: none; padding: 12px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.2s; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f8f9fa; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 80%; max-width: 350px; }
+        #msg { font-size: 16px; color: #444; font-weight: bold; margin-bottom: 20px; }
+        .btn { border: none; padding: 12px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: inline-block; }
         .share-btn { background-color: #02c874; color: white; display: none; }
-        .share-btn:hover { background-color: #02a862; }
-        
-        /* 喚回按鈕 (只在錯誤環境顯示) */
-        .recall-btn { background-color: #06c755; color: white; display: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); }
+        .recall-btn { background-color: #06c755; color: white; display: none; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div class="loader" id="loader"></div>
-        <div id="msg">正在啟動 LINE...</div>
-        
+        <div id="loader" class="loader"></div>
+        <div id="msg">讀取中...</div>
         <button id="actionBtn" class="btn share-btn" onclick="handleShare()">選擇朋友傳送</button>
-        
-        <button id="recallBtn" class="btn recall-btn" onclick="forceOpenLine()">點此回到 LINE 開啟</button>
+        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">回到 LINE 開啟</button>
     </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let finalImageUrl = "";
-        let finalRatio = "1:1";
-        let currentLongLink = "";
+        let imgUrl = "", ratio = "1:1", rawLink = "";
 
-        async function initLiff() {
+        async function init() {
             try {
-                // 1. 解析網址參數
-                const url = new URL(window.location.href);
-                const params = url.searchParams;
-                const hashParams = new URLSearchParams(url.hash.substring(1)); 
-                
-                const imgParam = params.get('img') || hashParams.get('img');
-                const w = params.get('w') || hashParams.get('w');
-                const h = params.get('h') || hashParams.get('h');
+                const urlParams = new URLSearchParams(window.location.search || window.location.hash.split('?')[1]);
+                // 縮短參數：i = image, w = width, h = height
+                imgUrl = urlParams.get('i') ? decodeURIComponent(urlParams.get('i')) : "";
+                const w = urlParams.get('w'), h = urlParams.get('h');
+                if (w && h) ratio = `${w}:${h}`;
 
-                finalImageUrl = imgParam ? decodeURIComponent(imgParam) : "";
-                
-                // 重建完整 LIFF 連結
-                // 注意：這裡使用 https://liff.line.me/... 是為了觸發 Universal Link
-                currentLongLink = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${w}&h=${h}`;
+                rawLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}`;
 
-                // 2. 初始化 LIFF
                 await liff.init({ liffId: LIFF_ID });
 
-                // ★★★ 防跳轉邏輯 (Debug 重點) ★★★
                 if (!liff.isInClient()) {
-                    // 偵測到在外部瀏覽器 (Chrome/Safari)
-                    
+                    // 外部瀏覽器：顯示引導，不登入
                     document.getElementById('loader').style.display = 'none';
-                    // 明確告知使用者
-                    document.getElementById('msg').innerText = "請回到 LINE 內開啟";
-                    // 顯示按鈕讓使用者手動點擊
+                    document.getElementById('msg').innerText = "請使用 LINE 開啟此連結";
                     document.getElementById('recallBtn').style.display = 'block';
-                    
-                    // 自動嘗試喚回 (延遲 500ms 避免瀏覽器卡死)
-                    setTimeout(() => {
-                        window.location.href = currentLongLink;
-                    }, 500);
-                    
-                    return; // 停止執行，避免呼叫 liff.login()
-                }
-
-                // --- 正常的 LINE 內部邏輯 ---
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login();
                     return;
                 }
 
-                // 圖片與尺寸處理
-                if (!finalImageUrl) finalImageUrl = "https://via.placeholder.com/600x600?text=No+Image";
-
-                if (w && h) {
-                    finalRatio = `${w}:${h}`;
-                    renderReady();
+                if (!liff.isLoggedIn()) {
+                    liff.login();
                 } else {
-                    const img = new Image();
-                    img.onload = function() {
-                        finalRatio = `${this.width}:${this.height}`;
-                        renderReady();
-                    };
-                    img.onerror = renderReady;
-                    img.src = finalImageUrl;
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('msg').innerText = "圖片已就緒";
+                    document.getElementById('actionBtn').style.display = 'block';
                 }
-
-                gtag('event', 'liff_open', { 'image_url': finalImageUrl });
-
             } catch (e) {
-                console.error("LIFF Error:", e);
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('msg').innerText = "系統忙碌中，請重新整理";
+                document.getElementById('msg').innerText = "請重新整理頁面";
             }
         }
 
-        function forceOpenLine() {
-            // 手動點擊喚回
-            window.location.href = currentLongLink;
-        }
-
-        function renderReady() {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('msg').innerText = "預覽已就緒";
-            document.getElementById('actionBtn').style.display = 'inline-block';
-        }
+        function forceOpen() { window.location.href = rawLink; }
 
         async function handleShare() {
-            if (liff.isApiAvailable('shareTargetPicker')) {
-                try {
-                    const wVal = finalRatio.split(':')[0] || "1";
-                    const hVal = finalRatio.split(':')[1] || "1";
-                    const shareUrl = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(finalImageUrl)}&w=${wVal}&h=${hVal}`;
-
-                    const result = await liff.shareTargetPicker([{
-                        "type": "flex",
-                        "altText": "您收到一張圖片",
-                        "contents": {
-                            "type": "bubble",
-                            "size": "mega", 
-                            "body": {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [{
-                                    "type": "image",
-                                    "url": finalImageUrl,
-                                    "size": "full",
-                                    "aspectMode": "fit", 
-                                    "aspectRatio": finalRatio,
-                                    "action": {
-                                        "type": "uri",
-                                        "uri": shareUrl
-                                    }
-                                }],
-                                "paddingAll": "0px"
-                            }
-                        }
-                    }]);
-
-                    if (result) {
-                        gtag('event', 'edm_share_success', { 'image_url': finalImageUrl });
-                        liff.closeWindow();
+            if (!liff.isApiAvailable('shareTargetPicker')) return;
+            const res = await liff.shareTargetPicker([{
+                "type": "flex",
+                "altText": "分享圖片",
+                "contents": {
+                    "type": "bubble",
+                    "size": "mega",
+                    "body": {
+                        "type": "box", "layout": "vertical", "paddingAll": "0px",
+                        "contents": [{
+                            "type": "image", "url": imgUrl, "size": "full", 
+                            "aspectMode": "fit", "aspectRatio": ratio,
+                            "action": { "type": "uri", "uri": rawLink }
+                        }]
                     }
-                } catch (error) {
-                    console.error("Share Error:", error);
-                    alert("傳送失敗，請確認網路或 LINE 版本");
                 }
-            }
+            }]);
+            if (res) liff.closeWindow();
         }
-        
-        window.onload = initLiff;
+        window.onload = init;
     </script>
 </body>
 </html>
