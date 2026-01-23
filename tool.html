@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極短連結產生器 v4</title>
+    <title>分享 EDM 連結產生器 v4</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
@@ -21,18 +21,18 @@
 <body>
 
 <div class="card">
-    <h2>🚀 EDM 極短連結產生器</h2>
-    <p>產出內容已包含「打開EDM連結：」前綴</p>
+    <h2>🚀 EDM 分享連結產生器</h2>
+    <p>貼上圖片網址產出可分享EDM連結</p>
     
     <input type="url" id="imgUrl" placeholder="請貼上圖片網址">
-    <button id="genBtn" onclick="generate()">產生並優化連結</button>
+    <button id="genBtn" onclick="generate()">產生連結</button>
 
     <div id="resultArea" class="result-area">
-        <span class="link-label">1. LINE 專用協議 (點擊最順暢):</span>
+        <span class="link-label">1. LINE 專用 (點擊最順暢):</span>
         <div class="link-box">
             <button class="copy-btn" onclick="copyText('deepLink')">複製內容</button>
             <div id="deepLink_display">
-                <span class="preview-text">打開EDM連結：</span><br>
+                <span class="preview-text">🔔打開EDM連結：</span><br>
                 <span id="deepLink">---</span>
             </div>
         </div>
@@ -41,7 +41,7 @@
         <div class="link-box">
             <button class="copy-btn" onclick="copyText('shortLink')">複製內容</button>
             <div id="shortLink_display">
-                <span class="preview-text">打開EDM連結：</span><br>
+                <span class="preview-text">🔔打開EDM連結：</span><br>
                 <span id="shortLink">---</span>
             </div>
         </div>
@@ -106,10 +106,10 @@
 
     function copyText(id) {
         const url = document.getElementById(id).innerText;
-        const fullText = `打開EDM連結：\n${url}`; // 加上前綴與換行
+        const fullText = `🔔打開EDM連結：\n${url}`; // 加上前綴與換行
         
         if (navigator.clipboard) {
-            navigator.clipboard.writeText(fullText).then(() => alert("內容已複製，可直接貼往 LINE"));
+            navigator.clipboard.writeText(fullText).then(() => alert("內容已複製，可直接貼往 LINE 分享"));
         } else {
             // 備份複製方案
             const el = document.createElement('textarea');
