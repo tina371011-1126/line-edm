@@ -3,130 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF 連結產生器</title>
+    <title>連結產生器</title>
     <style>
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { color: #02c874; margin-top: 0; font-size: 20px; text-align: center; }
-        p { font-size: 13px; color: #777; text-align: center; line-height: 1.5; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; outline: none; font-size: 14px; }
-        input:focus { border-color: #02c874; box-shadow: 0 0 0 2px rgba(2,200,116,0.1); }
-        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 16px; }
-        button:hover { background: #02a862; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #resultArea { margin-top: 20px; display: none; background: #e8f5e9; padding: 15px; border-radius: 10px; border: 1px dashed #02c874; }
-        .link-text { word-break: break-all; font-size: 13px; color: #1b5e20; background: #fff; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #c8e6c9; min-height: 20px; font-family: monospace; }
-        .btn-group { display: flex; gap: 10px; }
-        .copy-btn { background: #333; flex: 1; }
-        .copy-btn:active { background: #000; }
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; display: flex; justify-content: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { background: #02c874; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; }
+        #res { margin-top: 15px; display: none; word-break: break-all; background: #e8f5e9; padding: 10px; border-radius: 6px; font-size: 13px; border: 1px solid #c8e6c9; }
     </style>
 </head>
 <body>
-
 <div class="card">
-    <h2>🚀 圖片分享連結產生器</h2>
-    <p>貼上圖片網址，自動產生縮短連結<br>已優化：避免在瀏覽器要求登入</p>
-    
-    <input type="url" id="imgUrl" placeholder="請貼上圖片網址 (JPG/PNG/GIF)" inputmode="url">
-    <button id="genBtn" onclick="generate()">產生分享連結</button>
-
-    <div id="resultArea">
-        <p style="text-align:left; color:#1b5e20; font-weight:bold; margin-bottom:5px;">✅ 產生成功：</p>
-        <div class="link-text" id="finalLink"></div>
-        <div class="btn-group">
-            <button class="copy-btn" onclick="copyText()">複製連結</button>
-        </div>
-    </div>
+    <h3>🖼️ 圖片分享產生器</h3>
+    <input type="url" id="imgUrl" placeholder="貼上圖片網址">
+    <button id="btn" onclick="generate()">產生短連結</button>
+    <div id="res"></div>
 </div>
 
 <script>
-    const LIFF_ID = "2008941488-Phn5v50S";
-
     async function generate() {
-        const imgInput = document.getElementById('imgUrl');
-        const imgUrl = imgInput.value.trim();
-        const genBtn = document.getElementById('genBtn');
-        const resultArea = document.getElementById('resultArea');
-        const linkDiv = document.getElementById('finalLink');
+        const input = document.getElementById('imgUrl').value.trim();
+        const resDiv = document.getElementById('res');
+        const btn = document.getElementById('btn');
+        if(!input) return;
 
-        if(!imgUrl) return alert("請輸入圖片網址");
-        if(!imgUrl.startsWith('http')) return alert("請輸入正確的網址格式 (需以 http 開頭)");
-        
-        genBtn.disabled = true;
-        genBtn.innerText = "正在分析...";
-        resultArea.style.display = 'block';
-        linkDiv.innerText = "⏳ 處理中...";
+        btn.disabled = true;
+        resDiv.style.display = 'block';
+        resDiv.innerText = "處理中...";
 
         const img = new Image();
-        const timeout = setTimeout(() => {
-            img.onload = null;
-            createShortLink(imgUrl, 800, 800); // 超時預設值
-        }, 8000);
-
-        img.onload = function() {
-            clearTimeout(timeout);
-            createShortLink(imgUrl, this.width, this.height);
-        };
-
-        img.onerror = function() {
-            clearTimeout(timeout);
-            createShortLink(imgUrl, 800, 800);
-        };
-        img.crossOrigin = "Anonymous";
-        img.src = imgUrl;
-    }
-
-    async function createShortLink(url, w, h) {
-        const genBtn = document.getElementById('genBtn');
-        const linkDiv = document.getElementById('finalLink');
-        
-        // 原始 LIFF 連結
-        const longLink = `https://liff.line.me/${LIFF_ID}/?img=${encodeURIComponent(url)}&w=${w}&h=${h}`;
-        
-        linkDiv.innerText = "⚡ 正在縮網址...";
-
-        try {
-            // 使用 corsproxy 解決 GitHub Pages 呼叫 is.gd 的限制
-            const proxyUrl = 'https://corsproxy.io/?';
-            const targetUrl = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`;
+        img.onload = async function() {
+            // 使用縮寫參數 i, w, h
+            const longLink = `https://liff.line.me/2008941488-Phn5v50S/?i=${encodeURIComponent(input)}&w=${this.width}&h=${this.height}`;
             
-            const response = await fetch(proxyUrl + encodeURIComponent(targetUrl));
-            if (!response.ok) throw new Error('Proxy Error');
-            const data = await response.json();
-            
-            if (data.shorturl) {
-                linkDiv.innerText = data.shorturl;
-            } else {
-                throw new Error('No shorturl');
+            try {
+                const proxy = 'https://corsproxy.io/?';
+                const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longLink)}`;
+                const response = await fetch(proxy + encodeURIComponent(api));
+                const data = await response.json();
+                resDiv.innerText = data.shorturl || longLink;
+            } catch (e) {
+                resDiv.innerText = longLink;
             }
-        } catch (e) {
-            console.warn("縮址失敗，回退至長連結", e);
-            linkDiv.innerText = longLink;
-        } finally {
-            genBtn.disabled = false;
-            genBtn.innerText = "產生分享連結";
-        }
-    }
-
-    function copyText() {
-        const text = document.getElementById('finalLink').innerText;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => alert("連結已複製！")).catch(() => fallbackCopy(text));
-        } else {
-            fallbackCopy(text);
-        }
-    }
-
-    function fallbackCopy(text) {
-        const temp = document.createElement("textarea");
-        temp.value = text;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand("copy");
-        document.body.removeChild(temp);
-        alert("連結已複製！");
+            btn.disabled = false;
+        };
+        img.src = input;
     }
 </script>
-
 </body>
 </html>
