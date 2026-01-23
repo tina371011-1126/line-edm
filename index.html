@@ -6,12 +6,12 @@
     <title>正在開啟...</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; background-color: #f8f9fa; }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: -apple-system, sans-serif; background-color: #f8f9fa; }
         .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; width: 80%; max-width: 350px; }
         #msg { font-size: 16px; color: #444; font-weight: bold; margin-bottom: 20px; }
-        .btn { border: none; padding: 12px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: inline-block; }
+        .btn { border: none; padding: 12px 25px; font-size: 16px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; text-decoration: none; display: inline-block; box-sizing: border-box; }
         .share-btn { background-color: #02c874; color: white; display: none; }
-        .recall-btn { background-color: #06c755; color: white; display: none; }
+        .recall-btn { background-color: #06c755; color: white; display: none; box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3); }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #02c874; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -20,69 +20,102 @@
 
     <div class="card">
         <div id="loader" class="loader"></div>
-        <div id="msg">讀取中...</div>
+        <div id="msg">正在啟動 LINE...</div>
         <button id="actionBtn" class="btn share-btn" onclick="handleShare()">選擇朋友傳送</button>
-        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">回到 LINE 開啟</button>
+        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 開啟</button>
     </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", ratio = "1:1", rawLink = "";
+        let imgUrl = "", ratio = "1:1", liffLink = "", deepLink = "";
 
         async function init() {
             try {
-                const urlParams = new URLSearchParams(window.location.search || window.location.hash.split('?')[1]);
-                // 縮短參數：i = image, w = width, h = height
-                imgUrl = urlParams.get('i') ? decodeURIComponent(urlParams.get('i')) : "";
-                const w = urlParams.get('w'), h = urlParams.get('h');
+                // 1. 解析參數 (相容 Search 與 Hash)
+                const url = new URL(window.location.href);
+                const urlParams = new URLSearchParams(url.search || url.hash.split('?')[1]);
+                
+                const i = urlParams.get('i');
+                const w = urlParams.get('w');
+                const h = urlParams.get('h');
+
+                imgUrl = i ? decodeURIComponent(i) : "https://via.placeholder.com/600x600?text=No+Image";
                 if (w && h) ratio = `${w}:${h}`;
 
-                rawLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}`;
+                // 2. 建立兩種連結：標準連結 (分享用) 與 強制連結 (喚回用)
+                liffLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w || ''}&h=${h || ''}`;
+                deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w || ''}&h=${h || ''}`;
 
-                await liff.init({ liffId: LIFF_ID });
-
-                if (!liff.isInClient()) {
-                    // 外部瀏覽器：顯示引導，不登入
+                // 3. 環境判斷：如果在外部瀏覽器，直接嘗試強制跳轉
+                if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('loader').style.display = 'none';
-                    document.getElementById('msg').innerText = "請使用 LINE 開啟此連結";
+                    document.getElementById('msg').innerText = "請回到 LINE 內開啟";
                     document.getElementById('recallBtn').style.display = 'block';
-                    return;
+                    
+                    // 嘗試自動喚起 LINE App
+                    window.location.href = deepLink;
+                    return; 
                 }
+
+                // 4. 在 LINE 內部，執行正常初始化
+                await liff.init({ liffId: LIFF_ID });
 
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
                     document.getElementById('loader').style.display = 'none';
-                    document.getElementById('msg').innerText = "圖片已就緒";
+                    document.getElementById('msg').innerText = "預覽已就緒";
                     document.getElementById('actionBtn').style.display = 'block';
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "請重新整理頁面";
+                console.error(e);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('msg').innerText = "系統忙碌中，請重新開啟";
             }
         }
 
-        function forceOpen() { window.location.href = rawLink; }
-
-        async function handleShare() {
-            if (!liff.isApiAvailable('shareTargetPicker')) return;
-            const res = await liff.shareTargetPicker([{
-                "type": "flex",
-                "altText": "分享圖片",
-                "contents": {
-                    "type": "bubble",
-                    "size": "mega",
-                    "body": {
-                        "type": "box", "layout": "vertical", "paddingAll": "0px",
-                        "contents": [{
-                            "type": "image", "url": imgUrl, "size": "full", 
-                            "aspectMode": "fit", "aspectRatio": ratio,
-                            "action": { "type": "uri", "uri": rawLink }
-                        }]
-                    }
-                }
-            }]);
-            if (res) liff.closeWindow();
+        // 強制喚回函式
+        function forceOpen() { 
+            window.location.href = deepLink; 
         }
+
+        // 分享函式
+        async function handleShare() {
+            if (!liff.isApiAvailable('shareTargetPicker')) {
+                alert("您的 LINE 版本不支援分享功能");
+                return;
+            }
+            try {
+                const res = await liff.shareTargetPicker([{
+                    "type": "flex",
+                    "altText": "您收到一張圖片",
+                    "contents": {
+                        "type": "bubble",
+                        "size": "mega",
+                        "body": {
+                            "type": "box", 
+                            "layout": "vertical", 
+                            "paddingAll": "0px",
+                            "contents": [{
+                                "type": "image", 
+                                "url": imgUrl, 
+                                "size": "full", 
+                                "aspectMode": "fit", 
+                                "aspectRatio": ratio,
+                                "action": { 
+                                    "type": "uri", 
+                                    "uri": liffLink // 分享出去的連結使用標準格式以確保相容性
+                                }
+                            }]
+                        }
+                    }
+                }]);
+                if (res) liff.closeWindow();
+            } catch (error) {
+                console.error("分享失敗", error);
+            }
+        }
+
         window.onload = init;
     </script>
 </body>
