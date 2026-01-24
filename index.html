@@ -78,40 +78,43 @@
         <div id="msg">正在準備分享連結...</div>
         <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
         <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
-        </div>
+    </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", ratio = "1:1", userName = "隱身分享者"; // 預設名稱
+        let imgUrl = "", ratio = "1:1", userName = "隱身分享者";
 
         function getParam(name) {
             const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 極速預覽：優先執行
+        // 修改點：立即執行預覽，不等待 LIFF
         function fastPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
             const pImg = document.getElementById('previewImg');
             pImg.src = imgUrl;
+            
+            // 圖片一旦下載完成立即顯示，通常低於 1 秒
             pImg.onload = () => {
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
+            
+            // 防呆：1.2秒內若圖片沒跑完也強制嘗試顯示
             setTimeout(() => { 
                 pImg.style.display = 'block'; 
                 document.getElementById('loader').style.display = 'none'; 
-            }, 1500);
+            }, 1200);
         }
 
         async function initLIFF() {
             try {
+                // 發送瀏覽事件
                 const from = getParam('f') || '直接點擊';
-                gtag('event', 'edm_share_success', { 
-    'sharer_name': userName,
-    'target_img': imgUrl 
-});
+                gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
+
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
@@ -123,7 +126,6 @@
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
-                    // 背景抓取身分，但不顯示在畫面上
                     const profile = await liff.getProfile();
                     userName = profile.displayName; 
                     
@@ -131,7 +133,7 @@
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "連線失敗，請重試";
+                document.getElementById('msg').innerText = "連線失敗，請重新整理";
             }
         }
 
@@ -142,8 +144,6 @@
         async function handleShare() {
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
-            
-            // 追蹤網址依然會帶入 userName，達成神級追蹤
             const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
 
             try {
@@ -163,13 +163,17 @@
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 'sharer_name': userName });
+                    gtag('event', 'edm_share_success', { 
+                        'sharer_name': userName,
+                        'target_img': imgUrl 
+                    });
                     liff.closeWindow();
                 }
             } catch (error) { console.error(error); }
         }
 
-        fastPreview();
+        // 核心啟動順序優化
+        fastPreview(); 
         initLIFF();
     </script>
 </body>
