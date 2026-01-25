@@ -15,30 +15,42 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, sans-serif; }
+        /* 修改點 1: 改用 Flex 佈局，讓圖片與按鈕上下排列，不重疊 */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: #000; 
+            font-family: -apple-system, sans-serif; 
+            display: flex;
+            flex-direction: column; /* 上下排列 */
+        }
         
-        /* 滿版圖片 */
+        /* 修改點 2: 圖片區塊自動填滿剩餘空間，但不溢出 */
         #previewImg { 
-            width: 100vw; 
-            height: 100vh; 
-            object-fit: contain; 
+            width: 100%; 
+            height: 100%; 
+            flex: 1;           /* 佔據剩餘空間 */
+            min-height: 0;     /* 防止 flex 子元素溢出 */
+            object-fit: contain; /* 保持比例完整顯示 */
             display: none; 
             background-color: #000;
         }
 
-        /* 按鈕區塊浮動 */
+        /* 修改點 3: 按鈕區塊不再浮動覆蓋，而是固定在下方 */
         .ui-overlay { 
-            position: fixed; 
-            bottom: 0; 
-            left: 0; 
+            position: relative; /* 改回相對定位 */
             width: 100%; 
-            padding: 50px 20px 40px; 
-            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+            padding: 20px 20px 40px; /* 調整間距 */
+            background: #000; /* 背景純黑 */
             box-sizing: border-box; 
             text-align: center;
+            flex-shrink: 0; /* 空間不足時不壓縮此區塊 */
             z-index: 10;
         }
 
+        /* 修改點 4: 所有按鈕套用指定漸層色 (黃綠 -> 藍) */
         .btn { 
             border: none; 
             padding: 18px; 
@@ -52,17 +64,28 @@
             text-decoration: none; 
             display: none; 
             box-sizing: border-box; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            color: white;
+            /* 漸層背景：模擬附圖樣式 */
+            background: linear-gradient(90deg, #d4c84a 0%, #3672d9 100%);
+            box-shadow: 0 4px 15px rgba(54, 114, 217, 0.4); /* 配合藍色系的陰影 */
         }
 
-        .share-btn { background: #02c874; color: white; border: 1px solid rgba(255,255,255,0.2); }
-        .recall-btn { background-color: #06c755; color: white; }
+        /* 按鈕 hover 效果 (稍微變亮) */
+        .btn:active {
+            opacity: 0.9;
+            transform: scale(0.98);
+        }
+
+        /* 移除原本的個別顏色設定，統一用漸層 */
+        .share-btn { border: none; }
+        .recall-btn { border: none; }
         
-        #msg { color: white; font-size: 14px; margin-bottom: 5px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); font-weight: 500; }
+        #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
+        /* Loader 顏色微調配合新主色 */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #02c874; 
+            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #d4c84a; 
             border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; 
             z-index: 5;
         }
@@ -89,20 +112,18 @@
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 修改點：立即執行預覽，不等待 LIFF
+        // 核心邏輯不變：極速預覽
         function fastPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
             const pImg = document.getElementById('previewImg');
             pImg.src = imgUrl;
             
-            // 圖片一旦下載完成立即顯示，通常低於 1 秒
             pImg.onload = () => {
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
             
-            // 防呆：1.2秒內若圖片沒跑完也強制嘗試顯示
             setTimeout(() => { 
                 pImg.style.display = 'block'; 
                 document.getElementById('loader').style.display = 'none'; 
@@ -111,12 +132,9 @@
 
         async function initLIFF() {
             try {
-                // 發送瀏覽事件
                 const from = getParam('f') || '直接點擊';
-                gtag('event', 'edm_share_success', { 
-        'sharer_name': userName,
-        'target_img': imgUrl // 如果這裡在 imgUrl 抓到前就觸發，就會變 (not set)
-    });
+                gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
+
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
@@ -174,7 +192,6 @@
             } catch (error) { console.error(error); }
         }
 
-        // 核心啟動順序優化
         fastPreview(); 
         initLIFF();
     </script>
