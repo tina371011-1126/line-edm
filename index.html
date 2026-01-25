@@ -1,7 +1,5 @@
 <!DOCTYPE html>
-
 <html lang="zh-Hant">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -13,97 +11,35 @@
         gtag('js', new Date());
         gtag('config', 'G-5M3C56BV75');
     </script>
-
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background-color: #000; 
-            font-family: -apple-system, sans-serif; 
-            display: flex; flex-direction: column; 
-        }
-
-        #previewImg { 
-
-            width: 100%; height: 100%; flex: 1;
-
-            min-height: 0; object-fit: contain; 
-
-            display: none; background-color: #000;
-        }
-
-        .ui-overlay { 
-            position: relative; width: 100%; 
-            padding: 30px 20px 45px; 
-            background: #000; box-sizing: border-box; 
-            text-align: center; flex-shrink: 0; z-index: 10;
-        }
-
-
-
-        /* --- 核心修改：均分 1/3 的漸層比例 --- */
-
-        .btn { 
-
-            border: none; padding: 18px; font-size: 17px; 
-            border-radius: 50px; font-weight: bold; 
-            cursor: pointer; width: 100%; max-width: 320px;
-            transition: 0.3s; text-decoration: none; 
-            display: none; box-sizing: border-box; color: white;
-          
-
-            /* 調整為均分比例：0-33% 黃綠過渡, 33-50% 綠色核心, 50-100% 綠藍過渡 */
-
-            background: linear-gradient(90deg, 
-                #d4c84a 0%,    /* 黃色起始點 */
-                #62be36 25%,   /* 1/3 處進入綠色 */
-                #62be36 50%,   /* 2/3 處維持綠色 */
-                #3672d9 100%   /* 最後 1/3 進入藍色 */
-            );
-
-            box-shadow: 0 4px 18px rgba(98, 190, 54, 0.3); 
-        }
-
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; }
+        #previewImg { width: 100%; height: 100%; flex: 1; min-height: 0; object-fit: contain; display: none; background-color: #000; }
+        .ui-overlay { position: relative; width: 100%; padding: 30px 20px 45px; background: #000; box-sizing: border-box; text-align: center; flex-shrink: 0; z-index: 10; }
+        .btn { border: none; padding: 18px; font-size: 17px; border-radius: 50px; font-weight: bold; cursor: pointer; width: 100%; max-width: 320px; transition: 0.3s; text-decoration: none; display: none; box-sizing: border-box; color: white; background: linear-gradient(90deg, #d4c84a 0%, #62be36 25%, #62be36 50%, #3672d9 100%); box-shadow: 0 4px 18px rgba(98, 190, 54, 0.3); }
         .btn:active { opacity: 0.9; transform: scale(0.97); }
-
         #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
-
-        .loader { 
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #62be36; 
-            border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; 
-            z-index: 5;
-        }
-
+        .loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #62be36; border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; z-index: 5; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
     </style>
-
 </head>
-
 <body>
-
     <div id="loader" class="loader"></div>
     <img id="previewImg" src="" alt="EDM Preview">
-
     <div class="ui-overlay">
         <div id="msg">正在準備分享連結...</div>
         <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
         <button id="recallBtn" class="btn" onclick="forceOpen()">點此回到 LINE 分享</button>
-
     </div>
-
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", userName = "隱身分享者";
+        let imgUrl = "", userName = "匿名用戶"; // 預設排除隱身分享者字樣
 
         function getParam(name) {
             const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
-
-
 
         function fastPreview() {
             const i = getParam('i');
@@ -114,7 +50,6 @@
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
-
             setTimeout(() => { 
                 pImg.style.display = 'block'; 
                 document.getElementById('loader').style.display = 'none'; 
@@ -128,30 +63,42 @@
                     document.getElementById('recallBtn').style.display = 'inline-block';
                     return; 
                 }
-
                 await liff.init({ liffId: LIFF_ID });
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
                     const profile = await liff.getProfile();
-                    userName = profile.displayName; 
+                    userName = profile.displayName || "匿名用戶";
+                    
+                    // 進站紀錄追蹤，預防 (not set)
+                    gtag('event', 'edm_view', { 
+                        'sharer_name': userName,
+                        'target_img': getParam('i') || "empty" 
+                    });
+
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
-
-            } catch (e) {
-                document.getElementById('msg').innerText = "連線失敗";
-            }
+            } catch (e) { document.getElementById('msg').innerText = "連線失敗"; }
         }
 
         function forceOpen() { 
-            window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&f=recall`; 
+            const i = getParam('i') || "";
+            window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(i)}&f=recall`; 
         }
 
         async function handleShare() {
+            // 分享瞬間強制再次同步 LINE 使用者名稱
+            let currentName = "匿名用戶";
+            try {
+                const profile = await liff.getProfile();
+                currentName = profile.displayName || "匿名用戶";
+            } catch (e) { console.error(e); }
+
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
-            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
+            const i = getParam('i') || "no_image";
+            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(i)}&w=${w}&h=${h}&f=${encodeURIComponent(currentName)}`;
 
             try {
                 const res = await liff.shareTargetPicker([{
@@ -162,7 +109,7 @@
                         "body": {
                             "type": "box", "layout": "vertical", "paddingAll": "0px",
                             "contents": [{
-                                "type": "image", "url": imgUrl, "size": "full", 
+                                "type": "image", "url": i, "size": "full", 
                                 "aspectMode": "fit", "aspectRatio": `${w}:${h}`,
                                 "action": { "type": "uri", "uri": myShareLink }
                             }]
@@ -171,18 +118,15 @@
                 }]);
                 if (res) {
                     gtag('event', 'edm_share_success', { 
-                        'sharer_name': userName,
-                        'target_img': imgUrl 
+                        'sharer_name': currentName,
+                        'target_img': i 
                     });
                     liff.closeWindow();
                 }
             } catch (error) { console.error(error); }
         }
-
         fastPreview(); 
         initLIFF();
     </script>
-
 </body>
-
 </html>
