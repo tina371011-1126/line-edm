@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDM 連結產生器 v5.1</title>
+    <title>EDM 連結產生器 v5</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
         
-        /* 標題顏色配合新漸層的藍色端 */
+        /* 標題顏色微調 */
         h2 { color: #3672d9; text-align: center; font-size: 20px; margin-bottom: 5px; }
         
         p { font-size: 12px; color: #777; text-align: center; margin-bottom: 20px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
-        /* 修改點：主要按鈕套用新的鮮豔漸層 */
+        /* 修改點：主要按鈕改成漸層 */
         button { 
-            background: linear-gradient(90deg, #addd35 0%, #3672d9 100%);
+            background: linear-gradient(90deg, #d4c84a 0%, #3672d9 100%);
             color: white; 
             border: none; 
             padding: 14px; 
@@ -27,28 +27,27 @@
             margin-top: 5px; 
             font-size: 16px; 
             box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3);
-            transition: opacity 0.3s, transform 0.1s;
+            transition: opacity 0.3s;
         }
         button:hover { opacity: 0.9; }
-        button:active { transform: scale(0.98); }
         button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
 
         .result-area { margin-top: 20px; display: none; }
         .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 15px; display: block; }
         .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; position: relative; margin-top: 5px; line-height: 1.5; }
         
-        /* 修改點：複製小按鈕也同步套用漸層 */
+        /* 修改點：複製小按鈕也改為漸層 */
         .copy-btn { 
-            background: linear-gradient(90deg, #addd35 0%, #3672d9 100%);
+            background: linear-gradient(90deg, #d4c84a 0%, #3672d9 100%);
             color: white; 
             border: none; 
-            padding: 5px 12px;
+            padding: 5px 12px; /* 稍微加寬 */
             border-radius: 20px; 
             font-size: 11px; 
             cursor: pointer; 
             float: right; 
             margin-bottom: 5px; 
-            width: auto; 
+            width: auto; /* 覆寫上面的 width: 100% */
             margin-top: 0;
             box-shadow: none;
         }
@@ -83,88 +82,39 @@
     async function generate() {
         const rawImgUrl = document.getElementById('imgUrl').value.trim();
         if(!rawImgUrl) return alert("請輸入網址");
-        
-        // 簡單驗證網址格式
-        if (!rawImgUrl.startsWith('http')) return alert("請輸入有效的 http/https 網址");
-
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "處理中...";
+        btn.disabled = true; btn.innerText = "極速縮短中...";
         try {
-            // 1. 嘗試獲取圖片尺寸 (這也會順便驗證圖片是否可存取)
-            const dims = await getImageDimensions(rawImgUrl);
-            
-            // 2. 縮短原始圖片網址
-            btn.innerText = "縮短網址中...";
             const shortImgUrl = await getShortUrl(rawImgUrl);
-            
-            // 3. 組合 LIFF 連結
+            const dims = await getImageDimensions(rawImgUrl);
             const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=d`;
             const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=d`;
-            
-            // 4. 縮短最終 LIFF 連結
             const finalShort = await getShortUrl(liffBase);
-            
             document.getElementById('deepLink').innerText = deepLink;
             document.getElementById('shortLink').innerText = finalShort;
             document.getElementById('resultArea').style.display = 'block';
-        } catch (e) { 
-            console.error(e);
-            alert("產生失敗，請確認網址是否正確且可公開存取。"); 
-        } finally { 
-            btn.disabled = false; btn.innerText = "產生連結"; 
-        }
+        } catch (e) { alert("產生失敗"); } finally { btn.disabled = false; btn.innerText = "產生連結"; }
     }
     async function getShortUrl(longUrl) {
         try {
             const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
             const response = await fetch(PROXY + encodeURIComponent(api));
-            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             return data.shorturl || longUrl;
-        } catch (e) { 
-            console.warn("Shorten failed, using long URL", e);
-            return longUrl; 
-        }
+        } catch (e) { return longUrl; }
     }
     function getImageDimensions(url) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => resolve({w: img.width, h: img.height});
-            img.onerror = () => {
-                // 圖片讀取失敗時，給予提示並使用預設比例
-                alert("警告：無法讀取圖片尺寸，可能導致預覽比例不正確。\n建議確認圖片網址是否允許跨域存取(CORS)。");
-                resolve({w: 800, h: 800}); // 使用正方形作為 fallback
-            };
-            // 設定 crossOrigin 以嘗試解決跨域問題
-            img.crossOrigin = "Anonymous";
+            img.onerror = () => resolve({w: 800, h: 800});
             img.src = url;
         });
     }
     function copyText(id) {
         const url = document.getElementById(id).innerText;
         const fullText = `🔔打開EDM連結：\n${url}`;
-        
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-             navigator.clipboard.writeText(fullText)
-                .then(() => alert("已複製！"))
-                .catch(err => fallbackCopy(fullText));
-        } else {
-            fallbackCopy(fullText);
-        }
-    }
-    
-    function fallbackCopy(text) {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            alert("已複製！(使用備用剪貼簿)");
-        } catch (err) {
-            alert("複製失敗，請手動複製。");
-        }
-        document.body.removeChild(textArea);
+        navigator.clipboard.writeText(fullText).then(() => alert("已複製！"));
     }
 </script>
 </body>
