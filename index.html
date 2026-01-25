@@ -15,7 +15,6 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 佈局維持不變 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; font-family: -apple-system, sans-serif; 
@@ -33,34 +32,30 @@
         }
 
         .ui-overlay { 
-            width: 100%; padding: 20px 20px 40px; 
+            width: 100%; padding: 20px 20px 45px; 
             background: #000; box-sizing: border-box; text-align: center;
             flex-shrink: 0; z-index: 10;
         }
 
-        /* --- 修改重點：按鈕顏色 --- */
+        /* --- 核心修改：極大化綠色佔比的漸層 --- */
         .btn { 
             border: none; padding: 18px; font-size: 17px; border-radius: 50px; 
             font-weight: bold; cursor: pointer; width: 100%; max-width: 300px;
             transition: 0.3s; text-decoration: none; display: none; color: white;
             
-            /* 新的漸層：大幅增加中間綠色的比例，參考附圖 */
+            /* 模擬附圖：黃色與藍色僅在邊緣 10% 以內，中間 80% 全綠 */
             background: linear-gradient(90deg, 
-                #e6d657 0%,    /* 左側黃色 */
-                #70c945 20%,   /* 快速進入綠色 */
-                #70c945 75%,   /* 綠色一直保持到 75% */
-                #3672d9 100%   /* 最後轉為藍色 */
+                #e6d657 0%,    /* 起始點黃色 */
+                #70c945 10%,   /* 10% 就進入純綠色 */
+                #70c945 90%,   /* 一直綠到 90% */
+                #3672d9 100%   /* 最後 10% 才轉藍色 */
             );
             
-            /* 配合新綠色的發光陰影 */
-            box-shadow: 0 4px 15px rgba(112, 201, 69, 0.4);
+            box-shadow: 0 4px 15px rgba(112, 201, 69, 0.5);
         }
 
-        .btn:active { opacity: 0.8; transform: scale(0.96); }
+        .btn:active { opacity: 0.85; transform: scale(0.97); }
         
-        .share-btn { border: none; }
-        .recall-btn { border: none; }
-
         #msg { color: #888; font-size: 14px; margin-bottom: 15px; }
         
         .loader { 
@@ -82,12 +77,12 @@
 
     <div class="ui-overlay">
         <div id="msg">載入中...</div>
-        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
-        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
+        <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
+        <button id="recallBtn" class="btn" onclick="forceOpen()">點此回到 LINE 分享</button>
     </div>
 
     <script>
-        // --- JavaScript 功能完全維持不變 ---
+        // --- 功能邏輯維持不變 ---
         const LIFF_ID = "2008941488-Phn5v50S";
         let imgUrl = "", userName = "隱身分享者";
         let autoW = 800, autoH = 800;
@@ -102,20 +97,18 @@
             imgUrl = i ? i : "https://via.placeholder.com/800x800?text=No+Image";
             const pImg = document.getElementById('previewImg');
             pImg.src = imgUrl;
-            
             pImg.onload = () => {
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
                 autoW = pImg.naturalWidth;
                 autoH = pImg.naturalHeight;
             };
-            
             setTimeout(() => { 
                 if(pImg.style.display !== 'block') {
                     pImg.style.display = 'block'; 
                     document.getElementById('loader').style.display = 'none'; 
                 }
-            }, 1500);
+            }, 1200);
         }
 
         async function initLIFF() {
@@ -125,25 +118,18 @@
                     document.getElementById('recallBtn').style.display = 'inline-block';
                     return; 
                 }
-
                 await liff.init({ liffId: LIFF_ID });
-
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
                     const profile = await liff.getProfile();
                     userName = profile.displayName; 
-                    
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
-
-                    gtag('event', 'edm_view', { 
-                        'sharer_name': userName,
-                        'target_img': imgUrl 
-                    });
+                    gtag('event', 'edm_view', { 'sharer_name': userName, 'target_img': imgUrl });
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "連線失敗，請重新整理";
+                document.getElementById('msg').innerText = "連線失敗";
             }
         }
 
@@ -155,11 +141,9 @@
             const w = getParam('w') || autoW;
             const h = getParam('h') || autoH;
             const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
-
             try {
                 const res = await liff.shareTargetPicker([{
-                    "type": "flex",
-                    "altText": "您收到一張精美圖片",
+                    "type": "flex", "altText": "您收到一張精美圖片",
                     "contents": {
                         "type": "bubble", "size": "mega",
                         "body": {
@@ -173,10 +157,7 @@
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 
-                        'sharer_name': userName,
-                        'target_img': imgUrl 
-                    });
+                    gtag('event', 'edm_share_success', { 'sharer_name': userName, 'target_img': imgUrl });
                     liff.closeWindow();
                 }
             } catch (error) { console.error(error); }
