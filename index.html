@@ -16,42 +16,35 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <style>
-        /* 全域設定 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; font-family: -apple-system, sans-serif; 
             display: flex; flex-direction: column; overflow: hidden; 
         }
         
-        /* 圖片區塊 */
         #previewImg { 
             width: 100%; height: 100%; flex: 1; min-height: 0; 
             object-fit: contain; display: none; background-color: #000;
-            transition: opacity 0.3s ease-in;
         }
 
-        /* 下方按鈕區 */
         .ui-overlay { 
             position: relative; width: 100%; padding: 20px 20px 40px; 
             background: #000; box-sizing: border-box; text-align: center;
             flex-shrink: 0; z-index: 10;
         }
 
-        /* 強化綠色漸層按鈕 */
         .btn { 
             border: none; padding: 18px; font-size: 17px; border-radius: 50px; 
             font-weight: bold; cursor: pointer; width: 100%; max-width: 300px;
             transition: 0.2s; text-decoration: none; display: none; 
             box-sizing: border-box; color: white;
-            /* 調整比例：讓綠色 (#addd35) 更有感 */
-            background: linear-gradient(90deg, #addd35 15%, #3672d9 100%);
-            box-shadow: 0 4px 15px rgba(173, 221, 53, 0.3); 
+            background: linear-gradient(90deg, #addd35 0%, #3672d9 100%);
+            box-shadow: 0 4px 15px rgba(173, 221, 53, 0.4); 
         }
 
         .btn:active { opacity: 0.9; transform: scale(0.97); }
         #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
-        /* 讀取動畫 */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #addd35; 
@@ -75,13 +68,14 @@
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
         let imgUrl = "", userName = "隱身分享者";
+        let imgW = 800, imgH = 800; // 預設比例
 
         function getParam(name) {
             const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 核心 Debug：強化圖片預覽與跨域處理
+        // 修改點：不管什麼大小都自動偵測尺寸
         function fastPreview() {
             const i = getParam('i');
             const targetUrl = i ? i : "https://via.placeholder.com/600x800?text=No+Image";
@@ -89,12 +83,15 @@
             const loader = document.getElementById('loader');
 
             const tempImg = new Image();
-            tempImg.crossOrigin = "Anonymous"; // 嘗試處理跨域
+            tempImg.crossOrigin = "anonymous"; // 修正跨域讀取問題
 
             tempImg.onload = () => {
+                imgW = tempImg.naturalWidth; // 自動抓取寬度
+                imgH = tempImg.naturalHeight; // 自動抓取高度
                 pImg.src = targetUrl;
                 pImg.style.display = 'block';
                 loader.style.display = 'none';
+                console.log(`Detected Size: ${imgW}x${imgH}`);
             };
 
             tempImg.onerror = () => {
@@ -105,15 +102,6 @@
 
             tempImg.src = targetUrl;
             imgUrl = targetUrl;
-
-            // 2秒後保險機制
-            setTimeout(() => { 
-                if (pImg.style.display === 'none') {
-                    pImg.src = targetUrl;
-                    pImg.style.display = 'block';
-                    loader.style.display = 'none';
-                }
-            }, 2000);
         }
 
         async function initLIFF() {
@@ -138,7 +126,6 @@
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (e) {
-                console.error(e);
                 document.getElementById('msg').innerText = "連線失敗，請重新整理";
                 document.getElementById('loader').style.display = 'none';
             }
@@ -149,10 +136,8 @@
         }
 
         async function handleShare() {
-            const w = getParam('w') || '800';
-            const h = getParam('h') || '800';
-            const finalShareImgUrl = imgUrl.includes("via.placeholder.com") ? getParam('i') : imgUrl;
-            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(finalShareImgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
+            // 使用偵測到的實際寬高比例
+            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${imgW}&h=${imgH}&f=${encodeURIComponent(userName)}`;
 
             try {
                 const res = await liff.shareTargetPicker([{
@@ -163,20 +148,19 @@
                         "body": {
                             "type": "box", "layout": "vertical", "paddingAll": "0px",
                             "contents": [{
-                                "type": "image", "url": finalShareImgUrl, "size": "full", 
-                                "aspectMode": "fit", "aspectRatio": `${w}:${h}`,
+                                "type": "image", "url": imgUrl, "size": "full", 
+                                "aspectMode": "fit", "aspectRatio": `${imgW}:${imgH}`,
                                 "action": { "type": "uri", "uri": myShareLink }
                             }]
                         }
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 'sharer_name': userName, 'target_img': finalShareImgUrl });
+                    gtag('event', 'edm_share_success', { 'sharer_name': userName, 'target_img': imgUrl });
                     liff.closeWindow();
                 }
             } catch (error) { 
-                console.error(error); 
-                alert("分享取消或失敗");
+                alert("分享失敗，請稍後再試");
             }
         }
 
