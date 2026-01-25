@@ -14,8 +14,9 @@
     </script>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
     <style>
-        /* 修改點 1: 改用 Flex 佈局，讓圖片與按鈕上下排列，不重疊 */
+        /* 全域設定：滿版、無捲軸、Flex 佈局 */
         body, html { 
             margin: 0; 
             padding: 0; 
@@ -24,33 +25,34 @@
             background-color: #000; 
             font-family: -apple-system, sans-serif; 
             display: flex;
-            flex-direction: column; /* 上下排列 */
+            flex-direction: column; /* 垂直排列 */
+            overflow: hidden; /* 禁止滑動 */
         }
         
-        /* 修改點 2: 圖片區塊自動填滿剩餘空間，但不溢出 */
+        /* 圖片區塊：自動填滿上方剩餘空間 */
         #previewImg { 
             width: 100%; 
             height: 100%; 
-            flex: 1;           /* 佔據剩餘空間 */
-            min-height: 0;     /* 防止 flex 子元素溢出 */
-            object-fit: contain; /* 保持比例完整顯示 */
-            display: none; 
+            flex: 1;           /* 佔據剩餘高度 */
+            min-height: 0;     /* 防止 Flex 子元素溢出 */
+            object-fit: contain; /* 保持圖片比例 */
+            display: none;     /* 預設隱藏，載入後顯示 */
             background-color: #000;
         }
 
-        /* 修改點 3: 按鈕區塊不再浮動覆蓋，而是固定在下方 */
+        /* 按鈕區塊：固定在下方，不遮擋圖片 */
         .ui-overlay { 
-            position: relative; /* 改回相對定位 */
+            position: relative;
             width: 100%; 
-            padding: 20px 20px 40px; /* 調整間距 */
-            background: #000; /* 背景純黑 */
+            padding: 20px 20px 40px; /* 調整舒適間距 */
+            background: #000; 
             box-sizing: border-box; 
             text-align: center;
-            flex-shrink: 0; /* 空間不足時不壓縮此區塊 */
+            flex-shrink: 0; /* 禁止壓縮此區塊高度 */
             z-index: 10;
         }
 
-        /* 修改點 4: 所有按鈕套用指定漸層色 (黃綠 -> 藍) */
+        /* 通用按鈕樣式：漸層色 */
         .btn { 
             border: none; 
             padding: 18px; 
@@ -60,29 +62,26 @@
             cursor: pointer; 
             width: 100%; 
             max-width: 300px;
-            transition: 0.3s; 
+            transition: 0.2s; 
             text-decoration: none; 
             display: none; 
             box-sizing: border-box; 
             color: white;
-            /* 漸層背景：模擬附圖樣式 */
+            /* 漸層背景：黃綠 -> 藍 */
             background: linear-gradient(90deg, #d4c84a 0%, #3672d9 100%);
-            box-shadow: 0 4px 15px rgba(54, 114, 217, 0.4); /* 配合藍色系的陰影 */
+            box-shadow: 0 4px 15px rgba(54, 114, 217, 0.4); 
         }
 
-        /* 按鈕 hover 效果 (稍微變亮) */
+        /* 按鈕點擊效果 */
         .btn:active {
             opacity: 0.9;
             transform: scale(0.98);
         }
 
-        /* 移除原本的個別顏色設定，統一用漸層 */
-        .share-btn { border: none; }
-        .recall-btn { border: none; }
-        
+        /* 提示文字 */
         #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
-        /* Loader 顏色微調配合新主色 */
+        /* 載入動畫 */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #d4c84a; 
@@ -105,36 +104,42 @@
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", ratio = "1:1", userName = "隱身分享者";
+        let imgUrl = "", userName = "隱身分享者";
 
+        // 取得網址參數
         function getParam(name) {
             const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 核心邏輯不變：極速預覽
+        // 1. 極速預覽：優先顯示圖片
         function fastPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
             const pImg = document.getElementById('previewImg');
             pImg.src = imgUrl;
             
+            // 圖片載入完成後顯示
             pImg.onload = () => {
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
             
+            // 防呆：如果圖片載入超過 1.2 秒，強制顯示（避免 Loader 卡死）
             setTimeout(() => { 
                 pImg.style.display = 'block'; 
                 document.getElementById('loader').style.display = 'none'; 
             }, 1200);
         }
 
+        // 2. 初始化 LIFF 與 GA4
         async function initLIFF() {
             try {
+                // GA4: 發送瀏覽事件 (imgUrl 此時已有值，不會是 not set)
                 const from = getParam('f') || '直接點擊';
                 gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
 
+                // 檢查是否在 LINE 內部
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
@@ -153,14 +158,17 @@
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (e) {
+                console.error(e);
                 document.getElementById('msg').innerText = "連線失敗，請重新整理";
             }
         }
 
+        // 強制喚回 LINE
         function forceOpen() { 
             window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&f=recall`; 
         }
 
+        // 處理分享
         async function handleShare() {
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
@@ -171,29 +179,4 @@
                     "type": "flex",
                     "altText": "您收到一張精美圖片",
                     "contents": {
-                        "type": "bubble", "size": "mega",
-                        "body": {
-                            "type": "box", "layout": "vertical", "paddingAll": "0px",
-                            "contents": [{
-                                "type": "image", "url": imgUrl, "size": "full", 
-                                "aspectMode": "fit", "aspectRatio": `${w}:${h}`,
-                                "action": { "type": "uri", "uri": myShareLink }
-                            }]
-                        }
-                    }
-                }]);
-                if (res) {
-                    gtag('event', 'edm_share_success', { 
-                        'sharer_name': userName,
-                        'target_img': imgUrl 
-                    });
-                    liff.closeWindow();
-                }
-            } catch (error) { console.error(error); }
-        }
-
-        fastPreview(); 
-        initLIFF();
-    </script>
-</body>
-</html>
+                        "type": "bubble", "
