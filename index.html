@@ -16,73 +16,47 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <style>
-        /* 全域設定：Flex 佈局，上下排列 */
+        /* 全域設定 */
         body, html { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            background-color: #000; 
-            font-family: -apple-system, sans-serif; 
-            display: flex;
-            flex-direction: column; 
-            overflow: hidden; 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background-color: #000; font-family: -apple-system, sans-serif; 
+            display: flex; flex-direction: column; overflow: hidden; 
         }
         
-        /* 圖片區塊：自動填滿剩餘空間 */
+        /* 圖片區塊 */
         #previewImg { 
-            width: 100%; 
-            height: 100%; 
-            flex: 1;           
-            min-height: 0;     
-            object-fit: contain; 
-            display: none;     /* 預設隱藏 */
-            background-color: #000;
-            transition: opacity 0.3s ease-in; /* 加入淡入效果 */
+            width: 100%; height: 100%; flex: 1; min-height: 0; 
+            object-fit: contain; display: none; background-color: #000;
+            transition: opacity 0.3s ease-in;
         }
 
-        /* 下方控制區 */
+        /* 下方按鈕區 */
         .ui-overlay { 
-            position: relative;
-            width: 100%; 
-            padding: 20px 20px 40px; 
-            background: #000; 
-            box-sizing: border-box; 
-            text-align: center;
-            flex-shrink: 0; 
-            z-index: 10;
+            position: relative; width: 100%; padding: 20px 20px 40px; 
+            background: #000; box-sizing: border-box; text-align: center;
+            flex-shrink: 0; z-index: 10;
         }
 
-        /* 通用按鈕樣式：強化漸層色 */
+        /* 強化綠色漸層按鈕 */
         .btn { 
-            border: none; 
-            padding: 18px; 
-            font-size: 17px; 
-            border-radius: 50px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            width: 100%; 
-            max-width: 300px;
-            transition: 0.2s; 
-            text-decoration: none; 
-            display: none; 
-            box-sizing: border-box; 
-            color: white;
-            /* 修改點：更鮮豔的萊姆綠 -> 藍色漸層 */
-            background: linear-gradient(90deg, #addd35 0%, #3672d9 100%);
-            box-shadow: 0 4px 15px rgba(54, 114, 217, 0.4); 
+            border: none; padding: 18px; font-size: 17px; border-radius: 50px; 
+            font-weight: bold; cursor: pointer; width: 100%; max-width: 300px;
+            transition: 0.2s; text-decoration: none; display: none; 
+            box-sizing: border-box; color: white;
+            /* 調整比例：讓綠色 (#addd35) 更有感 */
+            background: linear-gradient(90deg, #addd35 15%, #3672d9 100%);
+            box-shadow: 0 4px 15px rgba(173, 221, 53, 0.3); 
         }
 
-        .btn:active { opacity: 0.9; transform: scale(0.98); }
-
+        .btn:active { opacity: 0.9; transform: scale(0.97); }
         #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
-        /* 載入動畫，顏色配合新漸層 */
+        /* 讀取動畫 */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #addd35; 
+            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #addd35; 
             border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; 
-            z-index: 5;
+            z-index: 99;
         }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
     </style>
@@ -107,39 +81,32 @@
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 修改點：更穩健的極速預覽邏輯
+        // 核心 Debug：強化圖片預覽與跨域處理
         function fastPreview() {
             const i = getParam('i');
-            // 如果沒有參數，使用預設圖；有參數則使用參數中的網址
             const targetUrl = i ? i : "https://via.placeholder.com/600x800?text=No+Image";
-            
             const pImg = document.getElementById('previewImg');
             const loader = document.getElementById('loader');
 
-            // 建立一個暫存的 Image 物件來預先載入
             const tempImg = new Image();
+            tempImg.crossOrigin = "Anonymous"; // 嘗試處理跨域
 
-            // 情況 A：圖片載入成功
             tempImg.onload = () => {
-                pImg.src = targetUrl; // 將成功載入的網址賦予實際的 img 標籤
+                pImg.src = targetUrl;
                 pImg.style.display = 'block';
                 loader.style.display = 'none';
             };
 
-            // 情況 B：圖片載入失敗 (例如網址錯誤或跨域問題)
             tempImg.onerror = () => {
-                // 顯示失敗提示圖，避免畫面空白
                 pImg.src = "https://via.placeholder.com/600x800?text=Load+Failed";
                 pImg.style.display = 'block';
                 loader.style.display = 'none';
-                console.warn("Image failed to load:", targetUrl);
             };
 
-            // 開始載入
             tempImg.src = targetUrl;
-            imgUrl = targetUrl; // 更新全域變數供分享使用
+            imgUrl = targetUrl;
 
-            // 保險機制：如果 2 秒後上面的 onload/onerror 都沒觸發，強制顯示
+            // 2秒後保險機制
             setTimeout(() => { 
                 if (pImg.style.display === 'none') {
                     pImg.src = targetUrl;
@@ -149,11 +116,9 @@
             }, 2000);
         }
 
-        // 初始化 LIFF 與 GA4
         async function initLIFF() {
             try {
                 const from = getParam('f') || '直接點擊';
-                // 這裡使用 imgUrl，確保 GA 紀錄的是最終嘗試載入的網址
                 gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
 
                 if (!/Line/i.test(navigator.userAgent)) {
@@ -169,14 +134,12 @@
                 } else {
                     const profile = await liff.getProfile();
                     userName = profile.displayName; 
-                    
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (e) {
                 console.error(e);
                 document.getElementById('msg').innerText = "連線失敗，請重新整理";
-                // 即使 LIFF 失敗，也要確保 Loader 消失，讓使用者看到圖片(如果有的話)
                 document.getElementById('loader').style.display = 'none';
             }
         }
@@ -188,7 +151,6 @@
         async function handleShare() {
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
-            // 確保分享出去的連結是有效的
             const finalShareImgUrl = imgUrl.includes("via.placeholder.com") ? getParam('i') : imgUrl;
             const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(finalShareImgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
 
@@ -209,10 +171,7 @@
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 
-                        'sharer_name': userName,
-                        'target_img': finalShareImgUrl 
-                    });
+                    gtag('event', 'edm_share_success', { 'sharer_name': userName, 'target_img': finalShareImgUrl });
                     liff.closeWindow();
                 }
             } catch (error) { 
@@ -221,7 +180,6 @@
             }
         }
 
-        // 執行順序：先處理圖片，再處理 LIFF
         fastPreview(); 
         initLIFF();
     </script>
