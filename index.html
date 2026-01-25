@@ -12,7 +12,6 @@
         gtag('js', new Date());
         gtag('config', 'G-5M3C56BV75');
     </script>
-
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <style>
@@ -22,93 +21,101 @@
             display: flex; flex-direction: column; overflow: hidden; 
         }
         
+        /* 修正為滿版容器，確保圖片等比例填滿 */
+        .preview-container {
+            flex: 1; width: 100%; display: flex; 
+            align-items: center; justify-content: center; overflow: hidden;
+            background: #000;
+        }
+
         #previewImg { 
-            width: 100%; height: 100%; flex: 1; min-height: 0; 
-            object-fit: contain; display: none; background-color: #000;
+            max-width: 100%; max-height: 100%; 
+            object-fit: contain; /* 確保等比例不被裁切 */
+            display: none; 
         }
 
         .ui-overlay { 
-            position: relative; width: 100%; padding: 20px 20px 40px; 
+            width: 100%; padding: 20px 20px 40px; 
             background: #000; box-sizing: border-box; text-align: center;
-            flex-shrink: 0; z-index: 10;
+            z-index: 10; flex-shrink: 0;
         }
 
+        /* 強化綠色漸層，綠色佔比更高更鮮艷 */
         .btn { 
             border: none; padding: 18px; font-size: 17px; border-radius: 50px; 
             font-weight: bold; cursor: pointer; width: 100%; max-width: 300px;
-            transition: 0.2s; text-decoration: none; display: none; 
-            box-sizing: border-box; color: white;
-            background: linear-gradient(90deg, #addd35 0%, #3672d9 100%);
-            box-shadow: 0 4px 15px rgba(173, 221, 53, 0.4); 
+            transition: 0.2s; color: white;
+            background: linear-gradient(90deg, #addd35 10%, #3672d9 100%);
+            box-shadow: 0 4px 20px rgba(173, 221, 53, 0.4); 
+            display: none;
         }
 
-        .btn:active { opacity: 0.9; transform: scale(0.97); }
-        #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
+        .btn:active { opacity: 0.8; transform: scale(0.96); }
+        #msg { color: #888; font-size: 14px; margin-bottom: 15px; }
         
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #addd35; 
-            border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; 
+            border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; 
             z-index: 99;
         }
-        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div id="loader" class="loader"></div>
-    <img id="previewImg" src="" alt="EDM Preview">
+    
+    <div class="preview-container">
+        <img id="previewImg" src="" alt="EDM">
+    </div>
 
     <div class="ui-overlay">
-        <div id="msg">正在準備分享連結...</div>
-        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
-        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
+        <div id="msg">載入中...</div>
+        <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
+        <button id="recallBtn" class="btn" style="background: #333;" onclick="forceOpen()">重新整理</button>
     </div>
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S";
         let imgUrl = "", userName = "隱身分享者";
-        let imgW = 800, imgH = 800; // 預設比例
+        let finalRatio = "1:1"; // 預設比例，但會被自動偵測取代
 
         function getParam(name) {
-            const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
-            return res ? decodeURIComponent(res[1]) : null;
+            return new URLSearchParams(window.location.search).get(name);
         }
 
-        // 修改點：不管什麼大小都自動偵測尺寸
+        // 極速預覽與比例偵測
         function fastPreview() {
-            const i = getParam('i');
-            const targetUrl = i ? i : "https://via.placeholder.com/600x800?text=No+Image";
+            imgUrl = getParam('i') || "https://via.placeholder.com/800";
             const pImg = document.getElementById('previewImg');
             const loader = document.getElementById('loader');
 
-            const tempImg = new Image();
-            tempImg.crossOrigin = "anonymous"; // 修正跨域讀取問題
+            // 1. 直接給 src 讓瀏覽器顯示（這不會受 CORS 限制而跑不出來）
+            pImg.src = imgUrl;
 
-            tempImg.onload = () => {
-                imgW = tempImg.naturalWidth; // 自動抓取寬度
-                imgH = tempImg.naturalHeight; // 自動抓取高度
-                pImg.src = targetUrl;
+            // 2. 偵測圖片載入
+            pImg.onload = function() {
                 pImg.style.display = 'block';
                 loader.style.display = 'none';
-                console.log(`Detected Size: ${imgW}x${imgH}`);
+                
+                // 自動計算原始比例
+                const w = pImg.naturalWidth;
+                const h = pImg.naturalHeight;
+                if(w > 0 && h > 0) {
+                    finalRatio = `${w}:${h}`;
+                }
+                console.log("Detected Ratio:", finalRatio);
             };
 
-            tempImg.onerror = () => {
-                pImg.src = "https://via.placeholder.com/600x800?text=Load+Failed";
-                pImg.style.display = 'block';
+            pImg.onerror = function() {
                 loader.style.display = 'none';
+                document.getElementById('msg').innerText = "圖片連結無效";
             };
-
-            tempImg.src = targetUrl;
-            imgUrl = targetUrl;
         }
 
         async function initLIFF() {
             try {
-                const from = getParam('f') || '直接點擊';
-                gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
-
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
@@ -116,7 +123,6 @@
                 }
 
                 await liff.init({ liffId: LIFF_ID });
-
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
@@ -124,22 +130,22 @@
                     userName = profile.displayName; 
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
+                    
+                    // 成功登入後發送 GA
+                    gtag('event', 'edm_view', { 'target_img': imgUrl, 'user': userName });
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "連線失敗，請重新整理";
                 document.getElementById('loader').style.display = 'none';
             }
         }
 
-        function forceOpen() { 
-            window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&f=recall`; 
-        }
+        function forceOpen() { location.reload(); }
 
         async function handleShare() {
-            // 使用偵測到的實際寬高比例
-            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${imgW}&h=${imgH}&f=${encodeURIComponent(userName)}`;
+            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&f=${encodeURIComponent(userName)}`;
 
             try {
+                // 分享時會直接帶入剛才偵測到的 finalRatio
                 const res = await liff.shareTargetPicker([{
                     "type": "flex",
                     "altText": "您收到一張精美圖片",
@@ -149,18 +155,18 @@
                             "type": "box", "layout": "vertical", "paddingAll": "0px",
                             "contents": [{
                                 "type": "image", "url": imgUrl, "size": "full", 
-                                "aspectMode": "fit", "aspectRatio": `${imgW}:${imgH}`,
+                                "aspectMode": "fit", "aspectRatio": finalRatio,
                                 "action": { "type": "uri", "uri": myShareLink }
                             }]
                         }
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 'sharer_name': userName, 'target_img': imgUrl });
+                    gtag('event', 'edm_share_success', { 'sharer': userName });
                     liff.closeWindow();
                 }
             } catch (error) { 
-                alert("分享失敗，請稍後再試");
+                // 靜默處理
             }
         }
 
