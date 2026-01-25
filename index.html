@@ -15,12 +15,14 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
+        /* 佈局：Flexbox 確保圖片與按鈕上下並列不重疊 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; font-family: -apple-system, sans-serif; 
             display: flex; flex-direction: column; overflow: hidden; 
         }
         
+        /* 圖片區塊：佔滿剩餘空間 */
         .img-container {
             flex: 1; display: flex; align-items: center; justify-content: center;
             overflow: hidden; background: #000;
@@ -31,33 +33,37 @@
             object-fit: contain; display: none; 
         }
 
+        /* 下方按鈕區塊 */
         .ui-overlay { 
-            width: 100%; padding: 20px 20px 45px; 
+            width: 100%; padding: 25px 20px 45px; 
             background: #000; box-sizing: border-box; text-align: center;
             flex-shrink: 0; z-index: 10;
         }
 
-        /* --- 核心修改：極大化綠色佔比的漸層 --- */
+        /* --- 修改核心：強化綠色比例的按鈕 --- */
         .btn { 
             border: none; padding: 18px; font-size: 17px; border-radius: 50px; 
-            font-weight: bold; cursor: pointer; width: 100%; max-width: 300px;
+            font-weight: bold; cursor: pointer; width: 100%; max-width: 320px;
             transition: 0.3s; text-decoration: none; display: none; color: white;
             
-            /* 模擬附圖：黃色與藍色僅在邊緣 10% 以內，中間 80% 全綠 */
+            /* 精準配方：讓綠色佔據中間 70% 的寬度 */
             background: linear-gradient(90deg, 
-                #e6d657 0%,    /* 起始點黃色 */
-                #70c945 10%,   /* 10% 就進入純綠色 */
-                #70c945 90%,   /* 一直綠到 90% */
-                #3672d9 100%   /* 最後 10% 才轉藍色 */
+                #e6d657 0%,    /* 左側黃色 */
+                #70c945 15%,   /* 快速進入綠色 */
+                #70c945 85%,   /* 綠色一直延伸到 85% */
+                #3672d9 100%   /* 最後才轉為藍色 */
             );
             
+            /* 配合綠色主調的陰影 */
             box-shadow: 0 4px 15px rgba(112, 201, 69, 0.5);
+            text-shadow: 0px 1px 2px rgba(0,0,0,0.2);
         }
 
-        .btn:active { opacity: 0.85; transform: scale(0.97); }
+        .btn:active { opacity: 0.9; transform: scale(0.97); }
+
+        #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
-        #msg { color: #888; font-size: 14px; margin-bottom: 15px; }
-        
+        /* Loader */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #70c945; 
@@ -82,7 +88,7 @@
     </div>
 
     <script>
-        // --- 功能邏輯維持不變 ---
+        // --- 功能邏輯保持原封不動 ---
         const LIFF_ID = "2008941488-Phn5v50S";
         let imgUrl = "", userName = "隱身分享者";
         let autoW = 800, autoH = 800;
@@ -97,12 +103,14 @@
             imgUrl = i ? i : "https://via.placeholder.com/800x800?text=No+Image";
             const pImg = document.getElementById('previewImg');
             pImg.src = imgUrl;
+            
             pImg.onload = () => {
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
                 autoW = pImg.naturalWidth;
                 autoH = pImg.naturalHeight;
             };
+            
             setTimeout(() => { 
                 if(pImg.style.display !== 'block') {
                     pImg.style.display = 'block'; 
@@ -118,7 +126,9 @@
                     document.getElementById('recallBtn').style.display = 'inline-block';
                     return; 
                 }
+
                 await liff.init({ liffId: LIFF_ID });
+
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
@@ -129,7 +139,7 @@
                     gtag('event', 'edm_view', { 'sharer_name': userName, 'target_img': imgUrl });
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "連線失敗";
+                document.getElementById('msg').innerText = "連線失敗，請重新整理";
             }
         }
 
@@ -141,9 +151,11 @@
             const w = getParam('w') || autoW;
             const h = getParam('h') || autoH;
             const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
+
             try {
                 const res = await liff.shareTargetPicker([{
-                    "type": "flex", "altText": "您收到一張精美圖片",
+                    "type": "flex",
+                    "altText": "您收到一張精美圖片",
                     "contents": {
                         "type": "bubble", "size": "mega",
                         "body": {
