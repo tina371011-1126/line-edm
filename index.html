@@ -15,76 +15,49 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 佈局優化：確保按鈕不遮擋圖片內容 */
         body, html { 
-            margin: 0; 
-            padding: 0; 
-            width: 100%; 
-            height: 100%; 
-            overflow: hidden; 
-            background-color: #000; 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background-color: #000; 
             font-family: -apple-system, sans-serif; 
-            display: flex;
-            flex-direction: column; 
+            display: flex; flex-direction: column; 
         }
         
-        /* 圖片容器：自動佔滿剩餘空間 */
         #previewImg { 
-            width: 100%; 
-            height: 100%; 
-            flex: 1;
-            min-height: 0;
-            object-fit: contain; 
-            display: none; 
-            background-color: #000;
+            width: 100%; height: 100%; flex: 1;
+            min-height: 0; object-fit: contain; 
+            display: none; background-color: #000;
         }
 
-        /* 下方按鈕區塊 */
         .ui-overlay { 
-            position: relative;
-            width: 100%; 
-            padding: 30px 20px 40px; 
-            background: #000; 
-            box-sizing: border-box; 
-            text-align: center;
-            flex-shrink: 0;
-            z-index: 10;
+            position: relative; width: 100%; 
+            padding: 30px 20px 45px; 
+            background: #000; box-sizing: border-box; 
+            text-align: center; flex-shrink: 0; z-index: 10;
         }
 
-        /* 精準模擬附圖：大面積綠色過渡按鈕 */
+        /* --- 核心修改：均分 1/3 的漸層比例 --- */
         .btn { 
-            border: none; 
-            padding: 18px; 
-            font-size: 17px; 
-            border-radius: 50px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            width: 100%; 
-            max-width: 300px;
-            transition: 0.3s; 
-            text-decoration: none; 
-            display: none; 
-            box-sizing: border-box; 
-            color: white;
-            /* 調整色標：將黃色(d4c84a)壓縮在前端，讓亮綠色(62be36)佔據 40% 以上的中央面積，最後滑入深藍 */
+            border: none; padding: 18px; font-size: 17px; 
+            border-radius: 50px; font-weight: bold; 
+            cursor: pointer; width: 100%; max-width: 320px;
+            transition: 0.3s; text-decoration: none; 
+            display: none; box-sizing: border-box; color: white;
+            
+            /* 調整為均分比例：0-33% 黃綠過渡, 33-67% 綠色核心, 67-100% 綠藍過渡 */
             background: linear-gradient(90deg, 
-                #d4c84a 0%, 
-                #62be36 35%, 
-                #62be36 65%, 
-                #3672d9 100%
+                #d4c84a 0%,    /* 黃色起始點 */
+                #62be36 33%,   /* 1/3 處進入綠色 */
+                #62be36 67%,   /* 2/3 處維持綠色 */
+                #3672d9 100%   /* 最後 1/3 進入藍色 */
             );
-            /* 綠色系發光陰影 */
-            box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); 
+            
+            box-shadow: 0 4px 18px rgba(98, 190, 54, 0.3); 
         }
 
-        .btn:active {
-            opacity: 0.9;
-            transform: scale(0.97);
-        }
+        .btn:active { opacity: 0.9; transform: scale(0.97); }
 
         #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
-        /* Loader */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #62be36; 
@@ -114,7 +87,6 @@
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 極速預覽核心
         function fastPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
@@ -137,9 +109,7 @@
                     document.getElementById('recallBtn').style.display = 'inline-block';
                     return; 
                 }
-
                 await liff.init({ liffId: LIFF_ID });
-
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
@@ -149,7 +119,7 @@
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (e) {
-                document.getElementById('msg').innerText = "連線失敗，請重新整理";
+                document.getElementById('msg').innerText = "連線失敗";
             }
         }
 
