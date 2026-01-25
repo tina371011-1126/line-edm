@@ -113,8 +113,10 @@
             try {
                 // 發送瀏覽事件
                 const from = getParam('f') || '直接點擊';
-                gtag('event', 'edm_view', { 'target_img': imgUrl, 'referrer_name': from });
-
+                gtag('event', 'edm_share_success', { 
+        'sharer_name': userName,
+        'target_img': imgUrl // 如果這裡在 imgUrl 抓到前就觸發，就會變 (not set)
+    });
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
