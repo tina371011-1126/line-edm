@@ -15,7 +15,7 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 修改點 1: 改用 Flex Column 佈局，讓內容上下排列 */
+        /* 佈局優化：確保按鈕不遮擋圖片內容 */
         body, html { 
             margin: 0; 
             padding: 0; 
@@ -24,35 +24,34 @@
             overflow: hidden; 
             background-color: #000; 
             font-family: -apple-system, sans-serif; 
-            display: flex;           /* 啟用 Flex */
-            flex-direction: column;  /* 垂直排列方向 */
+            display: flex;
+            flex-direction: column; 
         }
         
-        /* 修改點 2: 圖片區塊自動填滿上方剩餘空間 */
+        /* 圖片容器：自動佔滿剩餘空間 */
         #previewImg { 
             width: 100%; 
             height: 100%; 
-            flex: 1;             /* 關鍵：佔據剩餘空間 */
-            min-height: 0;       /* 防止 Flex 子元素溢出 */
-            object-fit: contain; /* 保持比例完整顯示 */
-            display: none;       /* 預設隱藏 */
+            flex: 1;
+            min-height: 0;
+            object-fit: contain; 
+            display: none; 
             background-color: #000;
-            z-index: 0;
         }
 
-        /* 修改點 3: 按鈕區塊固定在下方，不覆蓋圖片 */
+        /* 下方按鈕區塊 */
         .ui-overlay { 
-            position: relative; /* 改回相對定位 */
+            position: relative;
             width: 100%; 
-            padding: 30px 20px 40px; /* 調整間距 */
-            background: #000; /* 背景改為純黑，不再是透明漸層 */
+            padding: 30px 20px 40px; 
+            background: #000; 
             box-sizing: border-box; 
             text-align: center;
-            flex-shrink: 0; /* 空間不足時不壓縮此區塊 */
+            flex-shrink: 0;
             z-index: 10;
         }
 
-        /* 修改點 4: 所有按鈕統一使用新的黃綠藍漸層 */
+        /* 精準模擬附圖：大面積綠色過渡按鈕 */
         .btn { 
             border: none; 
             padding: 18px; 
@@ -66,29 +65,29 @@
             text-decoration: none; 
             display: none; 
             box-sizing: border-box; 
-            color: white; /* 文字改為白色 */
-            /* 新的漸層：黃 -> 綠(加寬) -> 藍，參考附圖 */
-            background: linear-gradient(90deg, #e2d154 0%, #85c446 45%, #3672d9 100%);
-            /* 配合新色系的陰影 */
-            box-shadow: 0 4px 15px rgba(133, 196, 70, 0.4); 
+            color: white;
+            /* 調整色標：將黃色(d4c84a)壓縮在前端，讓亮綠色(62be36)佔據 40% 以上的中央面積，最後滑入深藍 */
+            background: linear-gradient(90deg, 
+                #d4c84a 0%, 
+                #62be36 35%, 
+                #62be36 65%, 
+                #3672d9 100%
+            );
+            /* 綠色系發光陰影 */
+            box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); 
         }
 
-        /* 按鈕點擊效果 */
         .btn:active {
             opacity: 0.9;
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
 
-        /* 移除舊的個別按鈕顏色設定 */
-        .share-btn { border: none; }
-        .recall-btn { border: none; }
+        #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
         
-        #msg { color: #999; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
-        
-        /* Loader 顏色微調配合新主色 */
+        /* Loader */
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #e2d154; 
+            border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #62be36; 
             border-radius: 50%; width: 35px; height: 35px; animation: spin 0.8s linear infinite; 
             z-index: 5;
         }
@@ -98,38 +97,33 @@
 <body>
 
     <div id="loader" class="loader"></div>
-    
     <img id="previewImg" src="" alt="EDM Preview">
 
     <div class="ui-overlay">
         <div id="msg">正在準備分享連結...</div>
-        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
-        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
+        <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
+        <button id="recallBtn" class="btn" onclick="forceOpen()">點此回到 LINE 分享</button>
     </div>
 
     <script>
-        // --- 以下 JavaScript 功能程式碼完全未動 ---
         const LIFF_ID = "2008941488-Phn5v50S";
-        let imgUrl = "", ratio = "1:1", userName = "隱身分享者";
+        let imgUrl = "", userName = "隱身分享者";
 
         function getParam(name) {
             const res = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.href);
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        // 極速預覽
+        // 極速預覽核心
         function fastPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
             const pImg = document.getElementById('previewImg');
             pImg.src = imgUrl;
-            
             pImg.onload = () => {
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
-            
-            // 防呆：1.2秒強制顯示
             setTimeout(() => { 
                 pImg.style.display = 'block'; 
                 document.getElementById('loader').style.display = 'none'; 
@@ -138,13 +132,6 @@
 
         async function initLIFF() {
             try {
-                const from = getParam('f') || '直接點擊';
-                // 這裡 imgUrl 尚未完全確定，GA 可能會紀錄到部分資訊
-                gtag('event', 'edm_share_success', { 
-                    'sharer_name': userName,
-                    'target_img': imgUrl 
-                });
-                
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
@@ -158,7 +145,6 @@
                 } else {
                     const profile = await liff.getProfile();
                     userName = profile.displayName; 
-                    
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
