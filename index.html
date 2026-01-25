@@ -15,14 +15,13 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        /* 佈局：Flexbox 確保圖片與按鈕上下並列不重疊 */
+        /* 佈局維持不變 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; font-family: -apple-system, sans-serif; 
             display: flex; flex-direction: column; overflow: hidden; 
         }
         
-        /* 圖片區塊：佔滿剩餘空間 */
         .img-container {
             flex: 1; display: flex; align-items: center; justify-content: center;
             overflow: hidden; background: #000;
@@ -33,37 +32,37 @@
             object-fit: contain; display: none; 
         }
 
-        /* 下方按鈕區塊 */
         .ui-overlay { 
-            width: 100%; padding: 25px 20px 45px; 
+            width: 100%; padding: 20px 20px 40px; 
             background: #000; box-sizing: border-box; text-align: center;
             flex-shrink: 0; z-index: 10;
         }
 
-        /* --- 修改核心：強化綠色比例的按鈕 --- */
+        /* --- 修改重點：按鈕顏色 --- */
         .btn { 
             border: none; padding: 18px; font-size: 17px; border-radius: 50px; 
-            font-weight: bold; cursor: pointer; width: 100%; max-width: 320px;
+            font-weight: bold; cursor: pointer; width: 100%; max-width: 300px;
             transition: 0.3s; text-decoration: none; display: none; color: white;
             
-            /* 精準配方：讓綠色佔據中間 70% 的寬度 */
+            /* 新的漸層：大幅增加中間綠色的比例，參考附圖 */
             background: linear-gradient(90deg, 
                 #e6d657 0%,    /* 左側黃色 */
-                #70c945 15%,   /* 快速進入綠色 */
-                #70c945 85%,   /* 綠色一直延伸到 85% */
-                #3672d9 100%   /* 最後才轉為藍色 */
+                #70c945 20%,   /* 快速進入綠色 */
+                #70c945 75%,   /* 綠色一直保持到 75% */
+                #3672d9 100%   /* 最後轉為藍色 */
             );
             
-            /* 配合綠色主調的陰影 */
-            box-shadow: 0 4px 15px rgba(112, 201, 69, 0.5);
-            text-shadow: 0px 1px 2px rgba(0,0,0,0.2);
+            /* 配合新綠色的發光陰影 */
+            box-shadow: 0 4px 15px rgba(112, 201, 69, 0.4);
         }
 
-        .btn:active { opacity: 0.9; transform: scale(0.97); }
-
-        #msg { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
+        .btn:active { opacity: 0.8; transform: scale(0.96); }
         
-        /* Loader */
+        .share-btn { border: none; }
+        .recall-btn { border: none; }
+
+        #msg { color: #888; font-size: 14px; margin-bottom: 15px; }
+        
         .loader { 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #70c945; 
@@ -83,12 +82,12 @@
 
     <div class="ui-overlay">
         <div id="msg">載入中...</div>
-        <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
-        <button id="recallBtn" class="btn" onclick="forceOpen()">點此回到 LINE 分享</button>
+        <button id="actionBtn" class="btn share-btn" onclick="handleShare()">確認並轉傳給好友</button>
+        <button id="recallBtn" class="btn recall-btn" onclick="forceOpen()">點此回到 LINE 分享</button>
     </div>
 
     <script>
-        // --- 功能邏輯保持原封不動 ---
+        // --- JavaScript 功能完全維持不變 ---
         const LIFF_ID = "2008941488-Phn5v50S";
         let imgUrl = "", userName = "隱身分享者";
         let autoW = 800, autoH = 800;
@@ -116,7 +115,7 @@
                     pImg.style.display = 'block'; 
                     document.getElementById('loader').style.display = 'none'; 
                 }
-            }, 1200);
+            }, 1500);
         }
 
         async function initLIFF() {
@@ -134,9 +133,14 @@
                 } else {
                     const profile = await liff.getProfile();
                     userName = profile.displayName; 
+                    
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
-                    gtag('event', 'edm_view', { 'sharer_name': userName, 'target_img': imgUrl });
+
+                    gtag('event', 'edm_view', { 
+                        'sharer_name': userName,
+                        'target_img': imgUrl 
+                    });
                 }
             } catch (e) {
                 document.getElementById('msg').innerText = "連線失敗，請重新整理";
@@ -169,7 +173,10 @@
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 'sharer_name': userName, 'target_img': imgUrl });
+                    gtag('event', 'edm_share_success', { 
+                        'sharer_name': userName,
+                        'target_img': imgUrl 
+                    });
                     liff.closeWindow();
                 }
             } catch (error) { console.error(error); }
