@@ -10,13 +10,29 @@
         h2 { color: #3672d9; text-align: center; font-size: 20px; margin-bottom: 5px; }
         p { font-size: 12px; color: #777; text-align: center; margin-bottom: 20px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { background: linear-gradient(90deg, #d4c84a 0%, #3672d9 100%); color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3); transition: opacity 0.3s; }
+        
+        /* --- 主要按鈕樣式修改處 --- */
+        button { 
+            /* 修改為符合圖片的柔和漸層 */
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
+            
+            color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3); transition: opacity 0.3s; 
+        }
         button:hover { opacity: 0.9; }
         button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+        
         .result-area { margin-top: 20px; display: none; }
         .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 15px; display: block; }
         .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; position: relative; margin-top: 5px; line-height: 1.5; }
-        .copy-btn { background: linear-gradient(90deg, #d4c84a 0%, #3672d9 100%); color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; width: auto; margin-top: 0; box-shadow: none; }
+        
+        /* --- 複製按鈕樣式修改處 --- */
+        .copy-btn { 
+            /* 同步修改為柔和漸層 */
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
+            
+            color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; width: auto; margin-top: 0; box-shadow: none; 
+        }
+        
         .preview-text { color: #3672d9; font-weight: bold; }
     </style>
 </head>
@@ -52,7 +68,6 @@
         try {
             const shortImgUrl = await getShortUrl(rawImgUrl);
             const dims = await getImageDimensions(rawImgUrl);
-            // 將 f=d 改為 f=Direct 代表來源為工具產出，並確保參數邏輯一致
             const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
             const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
             const finalShort = await getShortUrl(liffBase);
