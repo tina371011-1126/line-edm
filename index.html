@@ -17,7 +17,7 @@
         #previewImg { width: 100%; height: 100%; flex: 1; min-height: 0; object-fit: contain; display: none; background-color: #000; }
         .ui-overlay { position: relative; width: 100%; padding: 30px 20px 45px; background: #000; box-sizing: border-box; text-align: center; flex-shrink: 0; z-index: 10; }
         
-        /* --- 按鈕樣式修改處 --- */
+        /* --- 按鈕樣式 (已確認修正為漸層) --- */
         .btn { 
             border: none; 
             padding: 18px; 
@@ -33,11 +33,11 @@
             box-sizing: border-box; 
             color: white; 
             
-            /* 修改為符合圖片的柔和漸層：黃 -> 綠 -> 藍 */
+            /* 黃 -> 綠 -> 藍 漸層 */
             background: linear-gradient(90deg, 
-                #d4c84a 0%,    /* 左側黃色 */
-                #62be36 50%,   /* 中間綠色 */
-                #3672d9 100%   /* 右側藍色 */
+                #d4c84a 0%,    
+                #62be36 50%,   
+                #3672d9 100%   
             );
             
             box-shadow: 0 4px 18px rgba(98, 190, 54, 0.3); 
@@ -59,7 +59,7 @@
     </div>
 
     <script>
-        const LIFF_ID = "2008941488-Phn5v50S";
+        const LIFF_ID = "2008941488-Phn5v50S"; // 請確認此 ID 是否正確
         let imgUrl = "", userName = "匿名用戶"; 
 
         function getParam(name) {
@@ -76,6 +76,7 @@
                 pImg.style.display = 'block';
                 document.getElementById('loader').style.display = 'none';
             };
+            // 防止圖片載入過久，1.2秒後強制顯示
             setTimeout(() => { 
                 pImg.style.display = 'block'; 
                 document.getElementById('loader').style.display = 'none'; 
@@ -84,6 +85,7 @@
 
         async function initLIFF() {
             try {
+                // 檢查是否在 LINE App 內開啟
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
                     document.getElementById('recallBtn').style.display = 'inline-block';
@@ -104,11 +106,15 @@
                     document.getElementById('msg').style.display = 'none';
                     document.getElementById('actionBtn').style.display = 'inline-block';
                 }
-            } catch (e) { document.getElementById('msg').innerText = "連線失敗"; }
+            } catch (e) { 
+                console.error(e);
+                document.getElementById('msg').innerText = "連線失敗：" + e.message; 
+            }
         }
 
         function forceOpen() { 
             const i = getParam('i') || "";
+            // 強制喚起 LINE App
             window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(i)}&f=recall`; 
         }
 
@@ -122,6 +128,7 @@
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
             const i = getParam('i') || "no_image";
+            // 修正：確保分享出去的連結也是正確的 LIFF URL
             const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(i)}&w=${w}&h=${h}&f=${encodeURIComponent(currentName)}`;
 
             try {
@@ -147,8 +154,12 @@
                     });
                     liff.closeWindow();
                 }
-            } catch (error) { console.error(error); }
+            } catch (error) { 
+                console.error(error); 
+                alert("分享失敗，請確認已啟用 Share Target Picker");
+            }
         }
+        
         fastPreview(); 
         initLIFF();
     </script>
