@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDM 連結產生器 v8 - 無跳轉版</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title>EDM 連結產生器 v5</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
@@ -12,128 +11,71 @@
         p { font-size: 12px; color: #777; text-align: center; margin-bottom: 20px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         
+        /* --- 主要按鈕樣式修改處 --- */
         button { 
+            /* 修改為符合圖片的柔和漸層 */
             background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
-            color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3); transition: 0.3s; 
+            
+            color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3); transition: opacity 0.3s; 
         }
-        button:hover { opacity: 0.9; transform: scale(0.98); }
-        button:disabled { background: #ccc !important; cursor: not-allowed; box-shadow: none; }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
         
-        .share-btn { background: #06C755; margin-top: 15px; display: none; } /* LINE 綠 */
-
         .result-area { margin-top: 20px; display: none; }
         .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 15px; display: block; }
         .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; position: relative; margin-top: 5px; line-height: 1.5; }
         
-        .copy-btn { background: #666; color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; width: auto; margin-top: 0; box-shadow: none; }
+        /* --- 複製按鈕樣式修改處 --- */
+        .copy-btn { 
+            /* 同步修改為柔和漸層 */
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
+            
+            color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; width: auto; margin-top: 0; box-shadow: none; 
+        }
         
-        #liffMsg { font-size: 11px; color: #e74c3c; text-align: center; margin-top: 10px; }
+        .preview-text { color: #3672d9; font-weight: bold; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2>🚀 EDM 極速分享器</h2>
-    <p>輸入網址後直接發送圖卡到群組</p>
-    
+    <h2>🚀 EDM 連結產生器</h2>
+    <p>產出已包含轉傳追蹤與自動換行</p>
     <input type="url" id="imgUrl" placeholder="請貼上圖片網址">
-    <button id="genBtn" onclick="generate()">1. 產生預覽與連結</button>
-
+    <button id="genBtn" onclick="generate()">產生連結</button>
     <div id="resultArea" class="result-area">
-        <button id="shareBtn" class="share-btn" onclick="directShare()">2. 直接發送到 LINE 群組/好友</button>
-        <div id="liffMsg"></div>
-
-        <span class="link-label">Deep Link (LINE 專用/無跳轉):</span>
+        <span class="link-label">1. LINE 專用 (強制喚回):</span>
         <div class="link-box">
-            <button class="copy-btn" onclick="copyText()">複製</button>
-            <span id="finalLink">---</span>
+            <button class="copy-btn" onclick="copyText('deepLink')">複製內容</button>
+            <span class="preview-text">🔔打開EDM連結：</span><br>
+            <span id="deepLink">---</span>
+        </div>
+        <span class="link-label">2. 萬用短網址 (外部使用):</span>
+        <div class="link-box">
+            <button class="copy-btn" onclick="copyText('shortLink')">複製內容</button>
+            <span class="preview-text">🔔打開EDM連結：</span><br>
+            <span id="shortLink">---</span>
         </div>
     </div>
 </div>
-
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
     const PROXY = 'https://corsproxy.io/?';
-    // 儲存當前資料，供分享按鈕使用
-    let currentData = { url: "", w: 800, h: 800, deepLink: "" };
-
-    async function initToolLIFF() {
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (!liff.isLoggedIn()) {
-                document.getElementById('liffMsg').innerText = "提示：登入 LINE 後可使用直接分享功能";
-            }
-        } catch (e) { console.error(e); }
-    }
-
     async function generate() {
         const rawImgUrl = document.getElementById('imgUrl').value.trim();
         if(!rawImgUrl) return alert("請輸入網址");
-        
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "處理中...";
-
+        btn.disabled = true; btn.innerText = "極速縮短中...";
         try {
-            // 1. 縮短「圖片網址」以節省長度 (保留)
             const shortImgUrl = await getShortUrl(rawImgUrl);
-            
-            // 2. 取得圖片尺寸
             const dims = await getImageDimensions(rawImgUrl);
-            
-            // 3. 核心修正：只產出 line://app/ 開頭的 Deep Link
-            // 注意：我們縮短了參數裡的圖片網址，但沒有縮短整個 LIFF 網址，因為縮短服務不支援 line:// 協議
-            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Tool`;
-
-            currentData = { url: shortImgUrl, w: dims.w, h: dims.h, deepLink: deepLink };
-
-            document.getElementById('finalLink').innerText = deepLink;
+            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
+            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
+            const finalShort = await getShortUrl(liffBase);
+            document.getElementById('deepLink').innerText = deepLink;
+            document.getElementById('shortLink').innerText = finalShort;
             document.getElementById('resultArea').style.display = 'block';
-            document.getElementById('shareBtn').style.display = 'block';
-            
-            btn.innerText = "產生成功！";
-        } catch (e) {
-            alert("產生失敗，請檢查網址");
-        } finally {
-            btn.disabled = false;
-            setTimeout(() => { btn.innerText = "1. 產生預覽與連結"; }, 2000);
-        }
+        } catch (e) { alert("產生失敗"); } finally { btn.disabled = false; btn.innerText = "產生連結"; }
     }
-
-    async function directShare() {
-        if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-        }
-        if (!liff.isApiAvailable('shareTargetPicker')) {
-            alert("此環境不支援分享功能，請在 LINE 內使用");
-            return;
-        }
-
-        try {
-            const res = await liff.shareTargetPicker([{
-                "type": "flex",
-                "altText": "您收到一張 EDM 圖片分享",
-                "contents": {
-                    "type": "bubble", "size": "mega",
-                    "body": {
-                        "type": "box", "layout": "vertical", "paddingAll": "0px",
-                        "contents": [{
-                            "type": "image",
-                            "url": currentData.url,
-                            "size": "full",
-                            "aspectMode": "fit",
-                            "aspectRatio": `${currentData.w}:${currentData.h}`,
-                            "action": { "type": "uri", "uri": currentData.deepLink } // 使用 Deep Link
-                        }]
-                    }
-                }
-            }]);
-
-            if (res) alert("已成功發送！");
-        } catch (error) {
-            alert("分享已取消");
-        }
-    }
-
     async function getShortUrl(longUrl) {
         try {
             const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
@@ -142,7 +84,6 @@
             return data.shorturl || longUrl;
         } catch (e) { return longUrl; }
     }
-
     function getImageDimensions(url) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -151,13 +92,11 @@
             img.src = url;
         });
     }
-
-    function copyText() {
-        const url = document.getElementById('finalLink').innerText;
-        navigator.clipboard.writeText(url).then(() => alert("已複製連結！"));
+    function copyText(id) {
+        const url = document.getElementById(id).innerText;
+        const fullText = `🔔打開EDM連結：\n${url}`;
+        navigator.clipboard.writeText(fullText).then(() => alert("已複製！"));
     }
-
-    initToolLIFF();
 </script>
 </body>
 </html>
