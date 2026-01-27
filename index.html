@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>圖片預覽</title>
+    
+    <meta property="og:title" content="您收到一張圖片分享">
+    <meta property="og:description" content="點擊查看完整內容">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://via.placeholder.com/1024x512/3672d9/ffffff?text=Click+To+View+Image">
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -14,32 +20,17 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; }
-        #previewImg { width: 100%; height: 100%; flex: 1; min-height: 0; object-fit: contain; display: none; background-color: #000; }
+        
+        /* 修正：圖片初始透明並增加過渡，讀取更平滑 */
+        #previewImg { width: 100%; height: 100%; flex: 1; min-height: 0; object-fit: contain; opacity: 0; transition: opacity 0.4s; background-color: #000; }
+        
         .ui-overlay { position: relative; width: 100%; padding: 30px 20px 45px; background: #000; box-sizing: border-box; text-align: center; flex-shrink: 0; z-index: 10; }
         
-        /* --- 按鈕樣式 (已確認修正為漸層) --- */
         .btn { 
-            border: none; 
-            padding: 18px; 
-            font-size: 17px; 
-            border-radius: 50px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            width: 100%; 
-            max-width: 320px; 
-            transition: 0.3s; 
-            text-decoration: none; 
-            display: none; 
-            box-sizing: border-box; 
-            color: white; 
-            
-            /* 黃 -> 綠 -> 藍 漸層 */
-            background: linear-gradient(90deg, 
-                #d4c84a 0%,    
-                #62be36 50%,   
-                #3672d9 100%   
-            );
-            
+            border: none; padding: 18px; font-size: 17px; border-radius: 50px; font-weight: bold; cursor: pointer; 
+            width: 100%; max-width: 320px; transition: 0.3s; text-decoration: none; display: none; 
+            box-sizing: border-box; color: white; 
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
             box-shadow: 0 4px 18px rgba(98, 190, 54, 0.3); 
         }
         .btn:active { opacity: 0.9; transform: scale(0.97); }
@@ -51,7 +42,8 @@
 </head>
 <body>
     <div id="loader" class="loader"></div>
-    <img id="previewImg" src="" alt="EDM Preview">
+    <img id="previewImg" src="" alt="EDM Preview" referrerpolicy="no-referrer">
+    
     <div class="ui-overlay">
         <div id="msg">正在準備分享連結...</div>
         <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
@@ -59,7 +51,7 @@
     </div>
 
     <script>
-        const LIFF_ID = "2008941488-Phn5v50S"; // 請確認此 ID 是否正確
+        const LIFF_ID = "2008941488-Phn5v50S"; 
         let imgUrl = "", userName = "匿名用戶"; 
 
         function getParam(name) {
@@ -67,101 +59,45 @@
             return res ? decodeURIComponent(res[1]) : null;
         }
 
-        function fastPreview() {
+        function loadPreview() {
             const i = getParam('i');
             imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
             const pImg = document.getElementById('previewImg');
-            pImg.src = imgUrl;
+            
             pImg.onload = () => {
-                pImg.style.display = 'block';
+                pImg.style.opacity = '1';
                 document.getElementById('loader').style.display = 'none';
             };
-            // 防止圖片載入過久，1.2秒後強制顯示
-            setTimeout(() => { 
-                pImg.style.display = 'block'; 
-                document.getElementById('loader').style.display = 'none'; 
-            }, 1200);
+            
+            pImg.onerror = () => {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('msg').innerText = "圖片讀取失敗";
+            };
+
+            pImg.src = imgUrl;
+
+            // 備援：1.5秒後強制關閉 loader
+            setTimeout(() => {
+                if(pImg.style.opacity !== '1') {
+                    pImg.style.opacity = '1';
+                    document.getElementById('loader').style.display = 'none';
+                }
+            }, 1500);
         }
 
         async function initLIFF() {
             try {
-                // 檢查是否在 LINE App 內開啟
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
+                    document.getElementById('loader').style.display = 'none';
                     document.getElementById('recallBtn').style.display = 'inline-block';
                     return; 
                 }
+                
                 await liff.init({ liffId: LIFF_ID });
+                
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
                     const profile = await liff.getProfile();
-                    userName = profile.displayName || "匿名用戶";
-                    
-                    gtag('event', 'edm_view', { 
-                        'sharer_name': userName,
-                        'target_img': getParam('i') || "empty" 
-                    });
-
-                    document.getElementById('msg').style.display = 'none';
-                    document.getElementById('actionBtn').style.display = 'inline-block';
-                }
-            } catch (e) { 
-                console.error(e);
-                document.getElementById('msg').innerText = "連線失敗：" + e.message; 
-            }
-        }
-
-        function forceOpen() { 
-            const i = getParam('i') || "";
-            // 強制喚起 LINE App
-            window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(i)}&f=recall`; 
-        }
-
-        async function handleShare() {
-            let currentName = "匿名用戶";
-            try {
-                const profile = await liff.getProfile();
-                currentName = profile.displayName || "匿名用戶";
-            } catch (e) { console.error(e); }
-
-            const w = getParam('w') || '800';
-            const h = getParam('h') || '800';
-            const i = getParam('i') || "no_image";
-            // 修正：確保分享出去的連結也是正確的 LIFF URL
-            const myShareLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(i)}&w=${w}&h=${h}&f=${encodeURIComponent(currentName)}`;
-
-            try {
-                const res = await liff.shareTargetPicker([{
-                    "type": "flex",
-                    "altText": "您收到好友傳來的圖片",
-                    "contents": {
-                        "type": "bubble", "size": "mega",
-                        "body": {
-                            "type": "box", "layout": "vertical", "paddingAll": "0px",
-                            "contents": [{
-                                "type": "image", "url": i, "size": "full", 
-                                "aspectMode": "fit", "aspectRatio": `${w}:${h}`,
-                                "action": { "type": "uri", "uri": myShareLink }
-                            }]
-                        }
-                    }
-                }]);
-                if (res) {
-                    gtag('event', 'edm_share_success', { 
-                        'sharer_name': currentName,
-                        'target_img': i 
-                    });
-                    liff.closeWindow();
-                }
-            } catch (error) { 
-                console.error(error); 
-                alert("分享失敗，請確認已啟用 Share Target Picker");
-            }
-        }
-        
-        fastPreview(); 
-        initLIFF();
-    </script>
-</body>
-</html>
+                    userName = profile.displayName || "匿名
