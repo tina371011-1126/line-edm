@@ -22,8 +22,8 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; }
         
-        /* 修正：圖片預設透明，載入後才顯示，避免閃爍 */
-        #previewImg { width: 100%; height: 100%; flex: 1; min-height: 0; object-fit: contain; opacity: 0; transition: opacity 0.5s; background-color: #000; }
+        /* 確保圖片正確置中並填滿 */
+        #previewImg { width: 100%; height: 100%; flex: 1; min-height: 0; object-fit: contain; opacity: 0; transition: opacity 0.4s ease-in; background-color: #000; display: block; }
         
         .ui-overlay { position: relative; width: 100%; padding: 30px 20px 45px; background: #000; box-sizing: border-box; text-align: center; flex-shrink: 0; z-index: 10; }
         
@@ -60,40 +60,50 @@
             return res ? decodeURIComponent(res[1]) : null;
         }
 
+        // 優化圖片載入邏輯
         function loadPreview() {
             const i = getParam('i');
-            // 如果網址不存在，顯示預設圖
-            imgUrl = i ? i : "https://via.placeholder.com/600x600?text=No+Image";
+            if (!i) {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('msg').innerText = "未提供圖片網址";
+                return;
+            }
             
+            imgUrl = i;
             const pImg = document.getElementById('previewImg');
             
-            // 設定監聽器：圖片載入成功後才顯示
+            // 監聽載入成功
             pImg.onload = () => {
                 pImg.style.opacity = '1';
                 document.getElementById('loader').style.display = 'none';
             };
             
-            // 設定監聽器：圖片載入失敗時的處理
+            // 監聽載入失敗
             pImg.onerror = () => {
                 document.getElementById('loader').style.display = 'none';
-                document.getElementById('msg').innerText = "圖片載入失敗，請確認網址";
+                document.getElementById('msg').innerText = "圖片讀取失敗，請確認來源網址";
+                // 失敗時給予基本視覺反饋
+                pImg.src = "https://via.placeholder.com/600x600?text=Image+Load+Failed";
+                pImg.style.opacity = '0.5';
             };
 
-            // 設定 src 開始載入
             pImg.src = imgUrl;
 
-            // 備援：如果2秒都還沒反應，強制關閉 loader 顯示圖片(可能是已經快取了)
+            // 備援機制：3秒後強制關閉 Loader (防止某些瀏覽器不觸發 onload)
             setTimeout(() => {
-                pImg.style.opacity = '1';
-                document.getElementById('loader').style.display = 'none';
-            }, 2000);
+                if(pImg.style.opacity !== '1') {
+                    pImg.style.opacity = '1';
+                    document.getElementById('loader').style.display = 'none';
+                }
+            }, 3000);
         }
 
         async function initLIFF() {
             try {
-                // 檢查 User Agent
+                // 1. 強制檢查是否在 LINE 內
                 if (!/Line/i.test(navigator.userAgent)) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟";
+                    document.getElementById('loader').style.display = 'none';
                     document.getElementById('recallBtn').style.display = 'inline-block';
                     return; 
                 }
@@ -106,11 +116,11 @@
                     try {
                         const profile = await liff.getProfile();
                         userName = profile.displayName || "匿名用戶";
-                    } catch (e) { console.log('Profile error', e); }
+                    } catch (e) { console.warn('Profile error', e); }
                     
                     gtag('event', 'edm_view', { 
                         'sharer_name': userName,
-                        'target_img': getParam('i') || "empty" 
+                        'target_img': imgUrl 
                     });
 
                     document.getElementById('msg').style.display = 'none';
@@ -118,34 +128,33 @@
                 }
             } catch (e) { 
                 console.error(e);
-                document.getElementById('msg').innerText = "連線失敗：" + e.message; 
+                document.getElementById('msg').innerText = "LIFF 初始化失敗"; 
             }
         }
 
         function forceOpen() { 
             const i = getParam('i') || "";
-            // 強制使用 Deep Link 喚起
+            // 強制使用 line:// 協議喚回
             window.location.href = `line://app/${LIFF_ID}/?i=${encodeURIComponent(i)}&f=recall`; 
         }
 
         async function handleShare() {
-            let currentName = "匿名用戶";
-            try {
-                const profile = await liff.getProfile();
-                currentName = profile.displayName || "匿名用戶";
-            } catch (e) { console.error(e); }
-
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
-            const i = getParam('i') || "no_image";
+            const i = getParam('i') || imgUrl;
             
-            // 修正：分享出去的連結強制使用 line://app/ 開頭，防止跳轉瀏覽器
-            const myDeepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(i)}&w=${w}&h=${h}&f=${encodeURIComponent(currentName)}`;
+            // 核心修正：確保分享出去的連結完全使用 line:// 協議，不經過 https
+            const myDeepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(i)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
+
+            if (!liff.isApiAvailable('shareTargetPicker')) {
+                alert("請更新 LINE 版本以使用分享功能");
+                return;
+            }
 
             try {
                 const res = await liff.shareTargetPicker([{
                     "type": "flex",
-                    "altText": "您收到好友傳來的圖片",
+                    "altText": "您收到一張圖片分享",
                     "contents": {
                         "type": "bubble", "size": "mega",
                         "body": {
@@ -159,18 +168,15 @@
                     }
                 }]);
                 if (res) {
-                    gtag('event', 'edm_share_success', { 
-                        'sharer_name': currentName,
-                        'target_img': i 
-                    });
+                    gtag('event', 'edm_share_success', { 'sharer_name': userName });
                     liff.closeWindow();
                 }
             } catch (error) { 
-                console.error(error); 
-                alert("分享失敗，請確認已啟用 Share Target Picker");
+                console.error(error);
             }
         }
         
+        // 執行
         loadPreview(); 
         initLIFF();
     </script>
