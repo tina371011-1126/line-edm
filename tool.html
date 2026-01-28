@@ -6,12 +6,18 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-MQ0WMMRZH5');
+      gtag('config', 'G-MQ0WMMRZH5', {
+        'custom_map': {
+          'dimension1': 'sharer_id',
+          'dimension2': 'share_from'
+        }
+      });
     </script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI早安圖</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --primary: #ff4757; --line: #2ed573; --bg: #fffaf0; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
@@ -71,7 +77,6 @@
 </div>
 
 <script>
-    // 帳號資訊已自動填入
     const CLOUD_NAME = "dwdkxs8ot"; 
     const UPLOAD_PRESET = "morning picture"; 
     const LIFF_ID = "2008941488-Phn5v50S";
@@ -81,13 +86,42 @@
     let bg = new Image();
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
+    let currentUserNickname = "神秘好友";
+
+    // 取得網址參數的工具
+    const getUrlParam = (name) => new URLSearchParams(window.location.search).get(name);
+
+    // 初始化 LIFF 並處理追蹤參數
+    async function initApp() {
+        try {
+            await liff.init({ liffId: LIFF_ID });
+            
+            // 抓取網址中的追蹤來源
+            const fromWhom = getUrlParam('sharer_id') || '未知分享者';
+            const fromPlatform = getUrlParam('share_from') || '直接開啟';
+
+            // 向 GA4 發送「被點開」事件
+            gtag('event', 'page_view_from_share', {
+                'sharer_id': fromWhom,
+                'share_from': fromPlatform
+            });
+
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                currentUserNickname = profile.displayName;
+                document.getElementById('status').innerText = `✨ 您好 ${currentUserNickname}，開始製作吧！`;
+            }
+        } catch (err) {
+            console.log("LIFF 初始化失敗或非 LINE 環境");
+        }
+        fetchBrightBg();
+    }
 
     function fetchBrightBg() {
-        document.getElementById('status').innerText = "☀️ 挑選活力背景中...";
         bg = new Image();
         bg.crossOrigin = "anonymous";
         bg.src = `https://picsum.photos/600/600?bright,sunny,nature&sig=${Math.random()}`;
-        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動、滑桿可縮放"; };
+        bg.onload = () => draw();
     }
 
     function draw() {
@@ -112,6 +146,7 @@
         });
     }
 
+    // 拖曳控制
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -165,10 +200,16 @@
             const data = await res.json();
 
             if (data.secure_url) {
-                // GA4 事件追蹤
-                gtag('event', 'generate_morning_card', { 'image_url': data.secure_url });
+                // GA4 追蹤：記錄是誰在轉傳
+                gtag('event', 'generate_morning_card', { 
+                    'image_url': data.secure_url,
+                    'sharer_id': currentUserNickname,
+                    'share_from': 'morning_tool_v2'
+                });
 
-                const finalContent = `🔔打開早安圖連結：\nline://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
+                // 在產出的連結中埋入參數
+                const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
+                const finalContent = `🔔打開早安圖連結：\n${finalLink}`;
                 
                 const textArea = document.createElement("textarea");
                 textArea.value = finalContent;
@@ -184,16 +225,15 @@
                     btn.disabled = false;
                     btn.innerText = "🚀 產生並複製 LINE 連結";
                 }, 3000);
-            } else {
-                alert("上傳失敗，請確認 Cloudinary 設定。");
-                btn.disabled = false; btn.innerText = "🚀 重新嘗試";
             }
         } catch (e) {
             alert("網路異常。");
-            btn.disabled = false; btn.innerText = "🚀 重新嘗試";
+            btn.disabled = false;
         }
     }
-    fetchBrightBg();
+    
+    // 改用 initApp 啟動
+    initApp();
 </script>
 </body>
 </html>
