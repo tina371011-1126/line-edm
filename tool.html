@@ -3,128 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖 V7 - Cloudinary 穩定版</title>
+    <title>早安圖產生器 V8</title>
     <style>
-        :root { --primary: #28a745; }
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; box-sizing: border-box; }
-        #canvasContainer { 
-            position: relative; margin: 10px auto; background: #000; border-radius: 12px; overflow: hidden; 
-            width: 100%; aspect-ratio: 1 / 1; touch-action: none; border: 4px solid #fff;
-        }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        #canvasContainer { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 10px; overflow: hidden; touch-action: none; border: 3px solid #fff; }
         canvas { width: 100%; height: 100%; display: block; }
-        .ui-group { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+        .ui { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .row { display: flex; gap: 8px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
-        input[type="range"] { flex: 1; accent-color: var(--primary); }
-        .sticker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #eee; }
-        .sticker { font-size: 24px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; min-width: 40px; text-align: center; }
-        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
+        input[type="text"] { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
+        .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; }
+        .sticker { font-size: 20px; cursor: pointer; background: #eee; padding: 8px; border-radius: 8px; min-width: 35px; text-align: center; }
+        .no-sticker { background: #ffcccc; color: #d00; font-weight: bold; }
+        button { background: #28a745; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
         button:disabled { background: #ccc; }
-        .btn-secondary { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
-        #status { font-size: 12px; color: #666; text-align: center; margin-bottom: 5px; }
-        .result-panel { display: none; margin-top: 15px; padding: 15px; background: #eef9f0; border: 2px dashed #28a745; border-radius: 12px; }
-        #finalUrl { font-size: 10px; word-break: break-all; background: #fff; display: block; padding: 8px; margin: 5px 0; border: 1px solid #c3e6cb; }
+        .btn-alt { background: #6c757d; font-size: 13px; flex: 1; }
+        #status { font-size: 12px; color: #666; text-align: center; }
+        .result { display: none; margin-top: 15px; padding: 10px; background: #eef9f0; border-radius: 10px; border: 1px dashed #28a745; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h3 style="text-align:center; margin: 0 0 10px; color: #333;">🌅 早安圖產生器 V7</h3>
-    <div id="status">準備中...</div>
-    
+    <div id="status">正在從 Unsplash 載入背景...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
 
-    <div class="ui-group">
+    <div class="ui">
         <div class="row">
-            <input type="text" id="mainText" placeholder="輸入祝福文字..." value="早安平安，事事順心" oninput="draw()">
+            <input type="text" id="mainText" placeholder="輸入祝福語" value="早安平安，事事順心" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         <div class="row">
-            <span style="font-size:12px;">大小</span>
+            <span style="font-size:12px">文字大小</span>
             <input type="range" id="textSize" min="30" max="150" value="70" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-secondary" onclick="fetchUnsplash()">🔄 換背景</button>
-            <button class="btn-secondary" onclick="resetAll()">🗑️ 重置 (白色)</button>
+            <button class="btn-alt" onclick="fetchImg()">🔄 換圖</button>
+            <button class="btn-alt" onclick="reset()">🗑️ 重置白色</button>
         </div>
         <div class="sticker-bar">
-            <div class="sticker" onclick="addEmoji('☀️')">☀️</div>
-            <div class="sticker" onclick="addEmoji('🌸')">🌸</div>
-            <div class="sticker" onclick="addEmoji('☕')">☕</div>
-            <div class="sticker" onclick="addEmoji('🍀')">🍀</div>
-            <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
-            <div class="sticker" onclick="addEmoji('🙏')">🙏</div>
+            <div class="sticker no-sticker" onclick="clearStickers()">🚫</div>
+            <div class="sticker" onclick="addSticker('☀️')">☀️</div>
+            <div class="sticker" onclick="addSticker('🌸')">🌸</div>
+            <div class="sticker" onclick="addSticker('☕')">☕</div>
+            <div class="sticker" onclick="addSticker('🍀')">🍀</div>
+            <div class="sticker" onclick="addSticker('🙏')">🙏</div>
         </div>
-        <button id="submitBtn" onclick="uploadToCloudinary()">✨ 製作完成並獲取連結</button>
+        <button id="subBtn" onclick="upload()">✨ 產生分享連結</button>
     </div>
 
-    <div id="resultPanel" class="result-panel">
-        <strong>🎉 製作完成！</strong>
-        <span id="finalUrl">...</span>
-        <button onclick="copyLink()">📋 複製分享連結</button>
+    <div id="res" class="result">
+        <span id="url" style="font-size: 10px; word-break: break-all; display: block;"></span>
+        <button onclick="copyLink()" style="width: 100%; margin-top: 5px;">📋 複製連結發送到 LINE</button>
     </div>
 </div>
 
 <script>
-    // --- 設定區 ---
-    const LIFF_ID = "2008941488-Phn5v50S"; 
+    const LIFF_ID = "2008941488-Phn5v50S";
     const UNSPLASH_KEY = "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw";
-    const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/demo/image/upload"; // 使用 demo 或您自己的 cloud name
-    const CLOUDINARY_PRESET = "unsigned_preset"; // 需在 Cloudinary 設定 unsigned 上傳
-
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
-    let bgImg = new Image();
+    let bg = new Image();
     let items = [{ type: 'text', x: 400, y: 700 }];
-    let activeItem = null;
+    let active = null;
 
-    // 1. 抓取 Unsplash
-    async function fetchUnsplash() {
-        document.getElementById('status').innerText = "Unsplash 圖片挑選中...";
+    async function fetchImg() {
+        document.getElementById('status').innerText = "Unsplash 圖片載入中...";
         try {
-            const res = await fetch(`https://api.unsplash.com/photos/random?query=morning,nature&client_id=${UNSPLASH_KEY}`);
-            const data = await res.json();
-            bgImg = new Image();
-            bgImg.crossOrigin = "anonymous";
-            bgImg.src = data.urls.regular + "&w=800&h=800&fit=crop";
-            bgImg.onload = () => { draw(); document.getElementById('status').innerText = "就緒：可拖動文字位置"; };
-        } catch (e) { document.getElementById('status').innerText = "Unsplash 額度已達上限"; }
+            const r = await fetch(`https://api.unsplash.com/photos/random?query=nature,morning&client_id=${UNSPLASH_KEY}`);
+            const d = await r.json();
+            bg = new Image();
+            bg.crossOrigin = "anonymous";
+            bg.src = d.urls.regular + "&w=800&h=800&fit=crop";
+            bg.onload = () => { draw(); document.getElementById('status').innerText = "就緒：文字可移動"; };
+        } catch (e) { document.getElementById('status').innerText = "API 額度已滿，請稍後"; }
     }
 
-    // 2. 渲染與重置
     function draw() {
         ctx.clearRect(0,0,800,800);
-        if(bgImg.src) ctx.drawImage(bgImg,0,0,800,800);
+        if(bg.src) ctx.drawImage(bg,0,0,800,800);
         const txt = document.getElementById('mainText').value || "早安";
-        const color = document.getElementById('mainColor').value;
-        const size = document.getElementById('textSize').value;
+        const col = document.getElementById('mainColor').value;
+        const sz = document.getElementById('textSize').value;
 
-        items.forEach(item => {
+        items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            if(item.type === 'text') {
-                ctx.font = `bold ${size}px sans-serif`;
+            if(it.type === 'text') {
+                ctx.font = `bold ${sz}px sans-serif`;
                 ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 10;
-                ctx.strokeText(txt, item.x, item.y);
-                ctx.fillStyle = color; ctx.fillText(txt, item.x, item.y);
+                ctx.strokeText(txt, it.x, it.y);
+                ctx.fillStyle = col; ctx.fillText(txt, it.x, it.y);
             } else {
-                ctx.font = "100px serif"; ctx.fillText(item.emoji, item.x, item.y);
+                ctx.font = "100px serif"; ctx.fillStyle = "white";
+                ctx.fillText(it.emoji, it.x, it.y);
             }
         });
     }
 
-    function resetAll() {
+    function reset() {
         items = [{ type: 'text', x: 400, y: 700 }];
         document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 70;
         draw();
     }
 
-    function addEmoji(e) { items.push({ type: 'emoji', x: 400, y: 400, emoji: e }); draw(); }
+    function addSticker(e) { items.push({ type: 'sticker', x: 400, y: 400, emoji: e }); draw(); }
+    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    // 3. 移動邏輯 (含邊界鎖定)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -132,59 +119,51 @@
         return { x: (cx - r.left) * (800 / r.width), y: (cy - r.top) * (800 / r.height) };
     }
 
-    canvas.addEventListener('touchstart', (e) => {
+    const start = (e) => {
         const p = getPos(e);
-        activeItem = [...items].reverse().find(i => Math.abs(i.x - p.x) < 80 && Math.abs(i.y - p.y) < 80);
-        if(activeItem && e.cancelable) e.preventDefault();
-    }, {passive: false});
-
-    canvas.addEventListener('touchmove', (e) => {
-        if(!activeItem) return;
-        const p = getPos(e);
-        activeItem.x = Math.max(50, Math.min(750, p.x));
-        activeItem.y = Math.max(50, Math.min(750, p.y));
-        draw();
+        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 100 && Math.abs(i.y - p.y) < 100);
+        if(active && e.cancelable) e.preventDefault();
+    };
+    const move = (e) => {
+        if(!active) return;
         if(e.cancelable) e.preventDefault();
-    }, {passive: false});
+        const p = getPos(e);
+        active.x = Math.max(60, Math.min(740, p.x));
+        active.y = Math.max(60, Math.min(740, p.y));
+        draw();
+    };
 
-    window.addEventListener('touchend', () => activeItem = null);
+    canvas.addEventListener('touchstart', start, {passive: false});
+    window.addEventListener('touchmove', move, {passive: false});
+    window.addEventListener('touchend', () => active = null);
+    canvas.addEventListener('mousedown', start);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', () => active = null);
 
-    // 4. 上傳 Cloudinary
-    async function uploadToCloudinary() {
-        const btn = document.getElementById('submitBtn');
-        btn.disabled = true; btn.innerText = "圖片壓縮上傳中...";
-        
+    async function upload() {
+        const b = document.getElementById('subBtn');
+        b.disabled = true; b.innerText = "上傳中...";
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
-            const formData = new FormData();
-            formData.append("file", base64);
-            formData.append("upload_preset", "ml_default"); // 這是 Cloudinary 預設的 unsigned preset 名稱
+            const fd = new FormData();
+            fd.append("file", base64);
+            fd.append("upload_preset", "ml_default");
 
-            // 注意：為了您的方便，這裡使用 demo cloud，正式使用建議申請免費帳號換成自己的 URL
-            const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", {
-                method: "POST",
-                body: formData
-            });
-            const data = await res.json();
-            
-            if (data.secure_url) {
-                const finalLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=800&h=800`;
-                document.getElementById('finalUrl').innerText = finalLink;
-                document.getElementById('resultPanel').style.display = 'block';
-                btn.innerText = "✅ 產生完成";
-            } else { throw new Error(); }
-        } catch (e) {
-            alert("上傳失敗，請稍後再試。");
-            btn.disabled = false; btn.innerText = "✨ 再次嘗試獲取連結";
-        }
+            const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { method: "POST", body: fd });
+            const d = await res.json();
+            const link = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(d.secure_url)}&w=800&h=800`;
+            document.getElementById('url').innerText = link;
+            document.getElementById('res').style.display = 'block';
+            b.innerText = "✅ 產生成功";
+        } catch (e) { alert("上傳失敗"); b.disabled = false; b.innerText = "再次嘗試"; }
     }
 
     function copyLink() {
-        const url = document.getElementById('finalUrl').innerText;
-        navigator.clipboard.writeText(`☀️ 送您一張祝福圖片：\n${url}`).then(() => alert("已複製！快去 LINE 分享吧！"));
+        const u = document.getElementById('url').innerText;
+        navigator.clipboard.writeText(`☀️ 早安祝福圖片：\n${u}`).then(() => alert("連結已複製"));
     }
 
-    fetchUnsplash();
+    fetchImg();
 </script>
 </body>
 </html>
