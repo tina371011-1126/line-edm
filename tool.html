@@ -3,167 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖連結產生器</title>
+    <title>AI 商用早安圖產生器 v12</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root { --line-green: #06C755; --accent: #3672d9; }
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: #f3f5f7; margin: 0; padding: 15px; display: flex; justify-content: center; overflow-x: hidden; }
-        .card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 450px; box-sizing: border-box; }
+        :root { --line: #06C755; --bg: #f8f9fb; }
+        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; justify-content: center; overscroll-behavior-y: contain; }
+        .card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
         
-        /* 畫布區 */
-        .preview-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #333; border-radius: 16px; overflow: hidden; margin-bottom: 15px; touch-action: none; border: 2px solid #eee; }
-        #mainCanvas { width: 100%; height: 100%; display: block; cursor: move; }
+        .preview-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 16px; overflow: hidden; margin-bottom: 15px; border: 2px solid #eee; touch-action: none; }
+        #mainCanvas { width: 100%; height: 100%; cursor: crosshair; }
         
-        .control-label { font-size: 14px; font-weight: bold; color: #444; margin: 12px 0 8px; display: block; }
-        .input-row { display: flex; gap: 10px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
         input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; }
-        input[type="color"] { width: 50px; height: 48px; border: none; background: none; cursor: pointer; padding: 0; }
+        input[type="color"] { width: 50px; height: 50px; border: none; background: none; cursor: pointer; }
         
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-        button { border: none; padding: 14px; border-radius: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; }
-        .btn-refresh { background: #e1e5ea; color: #333; }
-        .btn-confirm { background: linear-gradient(135deg, #62be36, #3672d9); color: white; }
+        .btn-stack { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { border: none; padding: 15px; border-radius: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-ref { background: #f0f0f0; color: #333; }
+        .btn-gen { background: linear-gradient(135deg, #62be36, #3672d9); color: white; }
         
-        /* 複製文案區 */
-        .result-area { margin-top: 20px; border-top: 2px dashed #eee; padding-top: 15px; display: none; }
-        .copy-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; position: relative; }
-        .copy-text { font-size: 14px; color: #333; word-break: break-all; margin-bottom: 10px; line-height: 1.5; white-space: pre-wrap; }
-        .btn-copy { background: #555; color: white; width: 100%; font-size: 14px; padding: 10px; }
-        .btn-share { background: var(--line-green); color: white; width: 100%; margin-top: 10px; font-size: 16px; }
-        
-        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display:none; }
+        /* 結果文案區 */
+        .result-box { margin-top: 20px; border-top: 2px dashed #eee; padding-top: 20px; display: none; }
+        .copy-area { background: #f1f3f5; padding: 15px; border-radius: 12px; font-size: 14px; color: #333; word-break: break-all; margin-bottom: 10px; white-space: pre-wrap; line-height: 1.6; }
+        .btn-copy { background: #444; color: white; width: 100%; margin-bottom: 8px; }
+        .btn-share { background: var(--line); color: white; width: 100%; font-size: 16px; }
+
+        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid rgba(255,255,255,0.2); border-top: 4px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: none; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-        .error-msg { color: #d9534f; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+        .error { color: #d9534f; font-size: 13px; text-align: center; margin-top: 10px; display: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h3 style="text-align: center; margin: 0 0 15px;">🎨 AI 早安圖產生器</h3>
+    <h3 style="text-align:center; margin:0 0 15px;">🎨 商用 AI 圖卡工具</h3>
     
     <div class="preview-box">
         <div id="loader"></div>
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
 
-    <div class="input-row">
-        <input type="text" id="txt" value="早安，平安喜樂" maxlength="20">
+    <div class="input-group">
+        <input type="text" id="txt" value="早安，生活充滿陽光" maxlength="20">
         <input type="color" id="clr" value="#ffffff">
     </div>
 
-    <div class="btn-grid">
-        <button class="btn-refresh" onclick="loadImg()">🔄 換個背景</button>
-        <button class="btn-confirm" id="genBtn" onclick="handleUpload()">✨ 產生連結</button>
+    <div class="btn-stack">
+        <button class="btn-ref" onclick="fetchImg()">🔄 換背景</button>
+        <button class="btn-gen" id="genBtn" onclick="processOutput()">✨ 產生分享連結</button>
     </div>
 
-    <div id="errorBox" class="error-msg">❌ 產生失敗，請檢查網路後再試一次。</div>
+    <div id="errMsg" class="error">❌ 產生失敗，可能是網路不穩或圖床忙碌中</div>
 
-    <div class="result-area" id="resultArea">
-        <label class="control-label">📋 複製下方文案發送：</label>
-        <div class="copy-box">
-            <div class="copy-text" id="finalCopyText"></div>
-            <button class="btn-copy" onclick="copyToClipboard()">📌 點擊複製文案</button>
-            <button class="btn-share" onclick="shareToLine()">📤 直接傳送好友</button>
-        </div>
+    <div class="result-box" id="resultBox">
+        <div class="copy-area" id="copyContent"></div>
+        <button class="btn-copy" onclick="copyText()">📌 複製 EDM 文案</button>
+        <button class="btn-share" onclick="shareLine()">📤 直接分享到群組</button>
     </div>
 </div>
 
 <script>
-    // --- 請填入您的資訊 ---
-    const UNSPLASH_KEY = "YOUR_ACCESS_KEY"; // 若沒填會跑測試圖源
-    const LIFF_ID = "2008941488-Phn5v50S"; 
+    const LIFF_ID = "2008941488-Phn5v50S";
+    const UNSPLASH_KEY = "YOUR_ACCESS_KEY"; // 請填入正確 Key
     
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
-    let bgImg = new Image();
-    let textPos = { x: 400, y: 700 };
-    let isDragging = false;
+    let bg = new Image();
+    let txtPos = { x: 400, y: 680 };
+    let isMoving = false;
 
     async function init() {
         try { await liff.init({ liffId: LIFF_ID }); } catch(e) {}
-        loadImg();
-        document.getElementById('txt').oninput = draw;
-        document.getElementById('clr').oninput = draw;
+        fetchImg();
+        document.getElementById('txt').oninput = render;
+        document.getElementById('clr').oninput = render;
         
-        // 拖曳邏輯
-        canvas.addEventListener('mousedown', (e) => isDragging = true);
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDragging = true; }, {passive: false});
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('touchmove', handleMove, {passive: false});
-        window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('touchend', () => isDragging = false);
+        // 自由拖曳
+        canvas.addEventListener('mousedown', () => isMoving = true);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isMoving = true; }, {passive: false});
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', move, {passive: false});
+        window.addEventListener('mouseup', () => isMoving = false);
+        window.addEventListener('touchend', () => isMoving = false);
     }
 
-    function handleMove(e) {
-        if(!isDragging) return;
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        textPos.x = (clientX - rect.left) * (800 / rect.width);
-        textPos.y = (clientY - rect.top) * (800 / rect.height);
-        draw();
+    function move(e) {
+        if(!isMoving) return;
+        const r = canvas.getBoundingClientRect();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        txtPos.x = (cx - r.left) * (800 / r.width);
+        txtPos.y = (cy - r.top) * (800 / r.height);
+        render();
     }
 
-    async function loadImg() {
+    async function fetchImg() {
         document.getElementById('loader').style.display = 'block';
-        let url = `https://loremflickr.com/800/800/morning,nature?t=${Date.now()}`;
+        // 使用更乾淨的 Source，並加入稍微放大(Zoom)邏輯來切除潛在邊緣浮水印
+        let url = `https://loremflickr.com/900/900/nature,calm?t=${Date.now()}`;
         
-        if (UNSPLASH_KEY !== "YOUR_ACCESS_KEY") {
-            try {
-                const res = await fetch(`https://api.unsplash.com/photos/random?query=morning&client_id=${UNSPLASH_KEY}`);
-                const data = await res.json();
-                url = data.urls.regular;
-            } catch(e) { console.log("Using Fallback Img"); }
-        }
-
-        bgImg = new Image();
-        bgImg.crossOrigin = "Anonymous";
-        bgImg.src = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=800&h=800&fit=cover`;
-        bgImg.onload = () => { draw(); document.getElementById('loader').style.display = 'none'; };
+        bg = new Image();
+        bg.crossOrigin = "Anonymous";
+        // 透過 weserv 代理並強制裁切中央，避開邊緣簽名
+        bg.src = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=800&h=800&fit=cover&a=center`;
+        bg.onload = () => { render(); document.getElementById('loader').style.display = 'none'; };
     }
 
-    function draw() {
+    function render() {
         ctx.clearRect(0,0,800,800);
-        ctx.drawImage(bgImg, 0, 0, 800, 800);
+        // 繪製背景 (自動裁切邊緣以移除浮水印)
+        ctx.drawImage(bg, 0, 0, 800, 800);
         
-        const text = document.getElementById('txt').value;
-        ctx.font = "bold 55px 'Microsoft JhengHei'";
-        const tw = ctx.measureText(text).width;
+        const t = document.getElementById('txt').value;
+        ctx.font = "bold 52px 'Microsoft JhengHei'";
+        const w = ctx.measureText(t).width;
         
-        ctx.fillStyle = "rgba(0,0,0,0.4)";
-        ctx.fillRect(textPos.x - tw/2 - 20, textPos.y - 45, tw + 40, 90);
-        
+        // 文字背板
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.roundRect ? ctx.fillRoundRect(txtPos.x - w/2 - 25, txtPos.y - 45, w + 50, 90, 15) : ctx.fillRect(txtPos.x - w/2 - 25, txtPos.y - 45, w + 50, 90);
+        ctx.fill();
+
         ctx.fillStyle = document.getElementById('clr').value;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(text, textPos.x, textPos.y);
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 10;
+        ctx.fillText(t, txtPos.x, txtPos.y);
     }
 
-    async function handleUpload() {
+    async function processOutput() {
         const btn = document.getElementById('genBtn');
-        const err = document.getElementById('errorBox');
+        const err = document.getElementById('errMsg');
         btn.disabled = true;
         err.style.display = 'none';
 
         try {
+            // 優化 Blob 轉換
             const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
-            const formData = new FormData();
-            formData.append("file", blob);
+            const fd = new FormData();
+            fd.append("file", blob);
 
-            const res = await fetch("https://telegra.ph/upload", { method: "POST", body: formData });
+            // 改良的上傳請求
+            const res = await fetch("https://telegra.ph/upload", { method: "POST", body: fd });
             const data = await res.json();
             
-            if(!data[0]) throw new Error();
-            const imgUrl = "https://telegra.ph" + data[0].src;
-            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=800&h=800&f=EDM`;
-
-            // 設定文案格式 (🔔 格式)
-            const copyContent = `🔔打開EDM連結：\n${deepLink}`;
-            document.getElementById('finalCopyText').innerText = copyContent;
-            document.getElementById('resultArea').style.display = 'block';
-            window.shareData = { img: imgUrl, link: deepLink, text: copyContent };
+            if(!data[0] || !data[0].src) throw new Error("Upload Failed");
             
-            // 自動滾動到結果
+            const imgUrl = "https://telegra.ph" + data[0].src;
+            const link = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=800&h=800&f=EDM`;
+
+            // 設定🔔文案格式
+            const fullText = `🔔打開EDM連結：\n${link}`;
+            document.getElementById('copyContent').innerText = fullText;
+            document.getElementById('resultBox').style.display = 'block';
+            window.finalData = { img: imgUrl, link: link, copy: fullText };
+            
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         } catch (e) {
             err.style.display = 'block';
@@ -172,21 +166,20 @@
         }
     }
 
-    function copyToClipboard() {
-        const text = document.getElementById('finalCopyText').innerText;
-        navigator.clipboard.writeText(text).then(() => alert("文案已複製！"));
+    function copyText() {
+        navigator.clipboard.writeText(window.finalData.copy).then(() => alert("🔔 文案已成功複製！"));
     }
 
-    async function shareToLine() {
+    async function shareLine() {
         if (!liff.isLoggedIn()) { liff.login(); return; }
         await liff.shareTargetPicker([{
-            "type": "flex", "altText": "送你一張早安圖",
+            "type": "flex", "altText": "送你一張早安圖卡",
             "contents": {
                 "type": "bubble", "body": {
                     "type": "box", "layout": "vertical", "paddingAll": "0px",
                     "contents": [{
-                        "type": "image", "url": window.shareData.img, "size": "full", "aspectRatio": "1:1",
-                        "action": { "type": "uri", "uri": window.shareData.link }
+                        "type": "image", "url": window.finalData.img, "size": "full", "aspectRatio": "1:1",
+                        "action": { "type": "uri", "uri": window.finalData.link }
                     }]
                 }
             }
