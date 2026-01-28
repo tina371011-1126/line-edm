@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 活力祝福 V21</title>
+    <title>AI早安圖 活力祝福</title>
     <style>
         :root { --primary: #ff4757; --line: #2ed573; --bg: #fffaf0; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
@@ -27,14 +27,14 @@
 <body>
 
 <div class="card">
-    <div id="status">☀️ 正在載入風景...</div>
+    <div id="status">☀️ 載入亮麗風景中...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
     <div class="ui-group">
         <div class="row">
-            <input type="text" id="mainText" placeholder="寫下祝福..." value="早安！祝你有美好的一天" oninput="draw()">
+            <input type="text" id="mainText" placeholder="寫下祝福..." value="早安！祝您有美好的一天" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         
@@ -45,7 +45,7 @@
 
         <div class="row">
             <button class="btn-alt" onclick="fetchBrightBg()">🔄 換張風景</button>
-            <button class="btn-alt" onclick="reset()">🗑️ 重置白色</button>
+            <button class="btn-alt" onclick="reset()">🗑️ 文字重置</button>
         </div>
 
         <div class="sticker-bar">
@@ -58,20 +58,21 @@
         </div>
 
         <button id="genBtn" onclick="fastGenerate()">🚀 產生並複製 LINE 連結</button>
-        <div id="successMsg" class="success-box">✅ 連結已複製！<br>請直接回 LINE 貼上即可。</div>
+        <div id="successMsg" class="success-box">✅ 連結已加註標語並複製！<br>請直接回 LINE 貼上即可。</div>
     </div>
 </div>
 
 <script>
     // ★ 請在此填入您的專屬資訊 ★
-    const CLOUD_NAME = "dwdkxs8ot"; // 改成 Dashboard 看到的 Cloud name
-    const UPLOAD_PRESET = "morning picture"; // 您截圖中的名稱
+    const CLOUD_NAME = "您的CloudName"; 
+    const UPLOAD_PRESET = "morning picture"; 
     const LIFF_ID = "2008941488-Phn5v50S";
 
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
-    let items = [{ type: 'text', x: 300, y: 500 }];
+    // 預設 y 軸上移至 450，確保安全留在視窗內
+    let items = [{ type: 'text', x: 300, y: 450 }]; 
     let active = null;
 
     function fetchBrightBg() {
@@ -132,7 +133,7 @@
     window.addEventListener('mouseup', () => active = null);
 
     function reset() {
-        items = [{ type: 'text', x: 300, y: 500 }];
+        items = [{ type: 'text', x: 300, y: 450 }];
         document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 60;
         draw();
@@ -158,9 +159,9 @@
             const data = await res.json();
 
             if (data.secure_url) {
-                const lineLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
+                // 修改處：在連結前加上指定文字與換行
+                const lineLink = `🔔打開早安圖連結：\nline://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
                 
-                // 複製到剪貼簿
                 const textArea = document.createElement("textarea");
                 textArea.value = lineLink;
                 document.body.appendChild(textArea);
@@ -176,11 +177,11 @@
                     btn.innerText = "🚀 再次產生並複製";
                 }, 3000);
             } else {
-                alert("上傳失敗：請檢查 Cloud Name 或設定是否為 Unsigned。");
+                alert("上傳失敗，請確認設定。");
                 btn.disabled = false; btn.innerText = "🚀 重新嘗試";
             }
         } catch (e) {
-            alert("網路異常，請確認設定。");
+            alert("網路異常。");
             btn.disabled = false; btn.innerText = "🚀 重新嘗試";
         }
     }
