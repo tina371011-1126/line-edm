@@ -3,26 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>早安圖製作工具 - 文字拖曳版</title>
+    <title>早安圖製作工具 - 修正穩定版</title>
     <style>
         :root { --main: #3672d9; --success: #06C755; }
-        body { font-family: sans-serif; background: #f5f7f9; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        body { font-family: -apple-system, sans-serif; background: #f5f7f9; display: flex; justify-content: center; padding: 20px; margin: 0; }
         .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 420px; }
-        .cvs-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 16px; overflow: hidden; margin-bottom: 15px; border: 1px solid #eee; touch-action: none; }
+        .cvs-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #eee; border-radius: 16px; overflow: hidden; margin-bottom: 15px; border: 1px solid #eee; touch-action: none; }
         #mc { width: 100%; height: 100%; display: block; }
-        input[type="text"] { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; }
+        #loading-mask { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); color:white; display:none; align-items:center; justify-content:center; border-radius:16px; font-weight:bold; }
+        input[type="text"] { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; outline-color: var(--main); }
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        button { border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        button:active { transform: scale(0.98); opacity: 0.9; }
         .b-grey { background: #f0f2f5; color: #555; }
         .b-main { background: linear-gradient(90deg, #62be36, #3672d9); color: white; grid-column: span 2; margin-top: 5px; }
-        .res-area { margin-top: 20px; display: none; background: #fff9f0; border: 1px solid #ffeeba; border-radius: 16px; padding: 18px; }
-        .copy-box { font-size: 13px; color: #666; word-break: break-all; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-top: 10px; line-height: 1.6; }
+        .res-area { margin-top: 20px; display: none; background: #fff9f0; border: 1px solid #ffeeba; border-radius: 16px; padding: 18px; animation: fadeIn 0.4s; }
+        .copy-box { font-size: 13px; color: #444; word-break: break-all; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-top: 10px; line-height: 1.6; white-space: pre-wrap; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 <div class="card">
-    <h3 style="text-align:center; color:var(--main);">🎨 自製早安圖 (文字可拖曳)</h3>
-    <div class="cvs-box"><canvas id="mc" width="600" height="600"></canvas></div>
+    <h3 style="text-align:center; color:var(--main); margin-top:0;">🎨 自製早安圖</h3>
+    <div class="cvs-box">
+        <canvas id="mc" width="600" height="600"></canvas>
+        <div id="loading-mask">圖片載入中...</div>
+    </div>
     <input type="text" id="itxt" value="早安，迎接美好能量" maxlength="20">
     <div class="btn-group">
         <button class="b-grey" onclick="getImg()">🔄 換個背景</button>
@@ -39,56 +45,118 @@
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
     const cvs = document.getElementById('mc'), ctx = cvs.getContext('2d');
+    const loadingMask = document.getElementById('loading-mask');
     let bgImg = new Image(), pos = { x: 300, y: 520 }, isDrag = false, bgId = 10;
 
+    // 初始化與更換背景
     async function getImg() {
-        bgId = Math.floor(Math.random() * 500);
-        bgImg = new Image();
-        bgImg.crossOrigin = "anonymous";
-        bgImg.src = `https://picsum.photos/id/${bgId}/600/600`;
-        bgImg.onload = draw;
+        loadingMask.style.display = 'flex';
+        bgId = Math.floor(Math.random() * 1000);
+        const newImg = new Image();
+        newImg.crossOrigin = "anonymous";
+        // 使用 weserv 代理避免 CORS 污染 Canvas
+        newImg.src = `https://images.weserv.nl/?url=https://picsum.photos/id/${bgId % 500}/600/600&cache=0`;
+        
+        newImg.onload = () => {
+            bgImg = newImg;
+            draw();
+            loadingMask.style.display = 'none';
+        };
+        newImg.onerror = () => {
+            bgImg.src = "https://picsum.photos/600/600"; // 備援圖
+            loadingMask.style.display = 'none';
+        };
     }
 
     function draw() {
+        if (!bgImg.complete) return;
+        ctx.clearRect(0, 0, 600, 600);
         ctx.drawImage(bgImg, 0, 0, 600, 600);
+        
         const txt = document.getElementById('itxt').value;
-        ctx.font = "bold 42px sans-serif";
+        ctx.font = "bold 42px 'Microsoft JhengHei', sans-serif";
         const w = ctx.measureText(txt).width;
+        
+        // 文字底框
         ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(pos.x - w/2 - 20, pos.y - 35, w + 40, 70);
-        ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.roundRect(pos.x - w/2 - 20, pos.y - 35, w + 40, 70, 15);
+        ctx.fill();
+        
+        // 文字內容
+        ctx.fillStyle = "#ffffff"; 
+        ctx.textAlign = "center"; 
+        ctx.textBaseline = "middle";
         ctx.fillText(txt, pos.x, pos.y);
     }
 
-    // 文字拖曳邏輯
+    // 拖曳處理
     function handleMove(e) {
         if (!isDrag) return;
         const rect = cvs.getBoundingClientRect();
         const t = e.touches ? e.touches[0] : e;
         pos.x = (t.clientX - rect.left) * (600 / rect.width);
         pos.y = (t.clientY - rect.top) * (600 / rect.height);
+        
+        // 邊界限制
+        if (pos.x < 50) pos.x = 50; if (pos.x > 550) pos.x = 550;
+        if (pos.y < 50) pos.y = 50; if (pos.y > 550) pos.y = 550;
+        
         draw();
     }
-    cvs.onmousedown = () => isDrag = true;
-    cvs.ontouchstart = (e) => { isDrag = true; e.preventDefault(); };
+
+    cvs.onmousedown = (e) => { isDrag = true; handleMove(e); };
+    cvs.ontouchstart = (e) => { isDrag = true; handleMove(e); e.preventDefault(); };
     window.onmouseup = window.ontouchend = () => isDrag = false;
     window.onmousemove = window.ontouchmove = handleMove;
 
     function resetPos() { pos = { x: 300, y: 520 }; draw(); }
     document.getElementById('itxt').oninput = draw;
 
+    // 產生連結與制式文案
     function generateLink() {
-        const txt = encodeURIComponent(document.getElementById('itxt').value);
-        const finalUrl = `https://liff.line.me/${LIFF_ID}/?id=${bgId}&t=${txt}&x=${Math.round(pos.x)}&y=${Math.round(pos.y)}`;
-        const copyText = `🌞 您收到一個早安祝福！\n點擊下方連結看驚喜：\n${finalUrl}\n\n#早安 #美好的一天`;
+        const txtValue = document.getElementById('itxt').value;
+        const txtEncoded = encodeURIComponent(txtValue);
+        const finalUrl = `https://liff.line.me/${LIFF_ID}/?id=${bgId % 500}&t=${txtEncoded}&x=${Math.round(pos.x)}&y=${Math.round(pos.y)}`;
+        
+        const copyText = `🌞 您收到一個早安祝福！\n\n「${txtValue}」\n\n點擊下方連結看驚喜：\n${finalUrl}`;
         
         document.getElementById('dl').innerText = copyText;
         document.getElementById('rb').style.display = 'block';
+        
+        // 自動滾動到底部
+        document.getElementById('rb').scrollIntoView({ behavior: 'smooth' });
     }
 
     function copyTxt() {
         const content = document.getElementById('dl').innerText;
-        navigator.clipboard.writeText(content).then(() => alert("✅ 已複製文案，現在去貼給好友吧！"));
+        // 優先嘗試 Clipboard API，備援使用 execCommand
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(content).then(() => alert("✅ 已複製文案！"));
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = content;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert("✅ 已複製文案！");
+        }
+    }
+
+    // 擴充 roundRect (支援舊版瀏覽器)
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            this.beginPath();
+            this.moveTo(x + r, y);
+            this.arcTo(x + w, y, x + w, y + h, r);
+            this.arcTo(x + w, y + h, x, y + h, r);
+            this.arcTo(x, y + h, x, y, r);
+            this.arcTo(x, y, x + w, y, r);
+            this.closePath();
+            return this;
+        };
     }
 
     getImg();
