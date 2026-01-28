@@ -3,124 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>早安圖產生器 - 終極穩定版</title>
+    <title>早安圖製作 - Tool</title>
     <style>
-        :root { --main: #3672d9; --success: #06C755; }
-        body { font-family: -apple-system, sans-serif; background: #f5f7f9; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 420px; }
-        h2 { color: var(--main); text-align: center; font-size: 22px; margin-bottom: 20px; }
-        .cvs-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 16px; overflow: hidden; margin-bottom: 15px; border: 1px solid #eee; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .cvs-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 15px; }
         #mc { width: 100%; height: 100%; display: block; touch-action: none; }
-        #ld { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); color:white; display:none; align-items:center; justify-content:center; z-index: 10; font-weight: bold; }
-        input[type="text"] { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        button { border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
-        .b-grey { background: #f0f2f5; color: #555; }
-        .b-main { 
-            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
-            color: white; grid-column: span 2; font-size: 18px; margin-top: 5px;
-        }
-        button:active { transform: scale(0.97); }
-        .res-area { margin-top: 20px; display: none; background: #fff9f0; border: 1px solid #ffeeba; border-radius: 16px; padding: 18px; }
-        .copy-box { font-size: 13px; color: #666; word-break: break-all; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-top: 10px; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-gen { background: #06C755; color: white; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h2>🚀 早安圖產出修正版</h2>
-    <div class="cvs-box">
-        <div id="ld">載入中...</div>
-        <canvas id="mc" width="600" height="600"></canvas>
-    </div>
-    <input type="text" id="itxt" value="早安，迎接美好能量" maxlength="20">
-    <div class="btn-grid">
-        <button class="b-grey" onclick="getImg()">🔄 換個背景</button>
-        <button class="b-grey" onclick="resetPos()">🎯 文字重置</button>
-        <button class="b-main" id="genBtn" onclick="generateLink()">✅ 完成，產生連結</button>
-    </div>
-    <div class="res-area" id="rb">
-        <strong>✨ 連結已就緒：</strong>
-        <div class="copy-box" id="dl"></div>
-        <button style="background:var(--success); color:white; width:100%; margin-top:10px;" onclick="copyTxt()">📌 複製並分享</button>
-    </div>
+    <div class="cvs-box"><canvas id="mc" width="600" height="600"></canvas></div>
+    <input type="text" id="itxt" value="早安，美好的一天">
+    <button onclick="getImg()">🔄 換個背景</button>
+    <button class="btn-gen" onclick="generateLink()">✨ 產生分享連結</button>
+    <div id="res" style="display:none; margin-top:15px; background:#f8f9fa; padding:10px; font-size:12px; word-break:break-all; border:1px solid #eee;"></div>
 </div>
 
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
     const cvs = document.getElementById('mc'), ctx = cvs.getContext('2d');
-    let bgImg = new Image(), pos = { x: 300, y: 520 }, isDrag = false;
+    let bgId = Math.floor(Math.random() * 1000), pos = { x: 300, y: 500 };
 
-    // 1. 抓取背景（使用高穩定性的靜態圖源做備份）
-    async function getImg() {
-        document.getElementById('ld').style.display = 'flex';
-        const keywords = ['morning','sunlight','nature','flowers'];
-        const word = keywords[Math.floor(Math.random() * keywords.length)];
-        bgImg = new Image();
-        bgImg.crossOrigin = "anonymous";
-        // 透過代理載入，解決畫布污染問題
-        bgImg.src = `https://images.weserv.nl/?url=https://source.unsplash.com/featured/600x600?${word}&w=600&h=600&fit=cover`;
-        bgImg.onload = () => { draw(); document.getElementById('ld').style.display = 'none'; };
-        bgImg.onerror = () => {
-            bgImg.src = "https://picsum.photos/600/600"; // 第二備份圖源
+    function getImg() {
+        bgId = Math.floor(Math.random() * 1000);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = `https://picsum.photos/id/${bgId % 500}/600/600`;
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, 600, 600);
+            drawText();
         };
     }
 
-    function draw() {
-        ctx.drawImage(bgImg, 0, 0, 600, 600);
+    function drawText() {
         const txt = document.getElementById('itxt').value;
         ctx.font = "bold 40px sans-serif";
-        const w = ctx.measureText(txt).width;
         ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(pos.x - w/2 - 20, pos.y - 35, w + 40, 70);
-        ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(txt, pos.x, pos.y);
+        const w = ctx.measureText(txt).width;
+        ctx.fillRect(pos.x - w/2 - 20, pos.y - 30, w + 40, 60);
+        ctx.fillStyle = "white"; ctx.textAlign = "center";
+        ctx.fillText(txt, pos.x, pos.y + 12);
     }
 
-    // 2. 終極修正：改用 Unsplash 原始 ID 傳遞（不傳大圖數據，只傳參數）
     function generateLink() {
-        const btn = document.getElementById('genBtn');
-        btn.innerText = "⚡ 處理中...";
-        
-        // 解析目前 Unsplash 圖片的參數（如果有的話）或是直接用目前時間當種子
-        const imgSeed = Math.floor(Math.random() * 1000);
-        const text = encodeURIComponent(document.getElementById('itxt').value);
-        
-        // 核心邏輯：我們傳遞「參數」，讓 Index 端去渲染圖片，而不是傳遞「整張圖」
-        // 這樣可以避開所有上傳失敗的問題
-        const finalUrl = `line://app/${LIFF_ID}/?t=${text}&s=${imgSeed}&px=${Math.round(pos.x)}&py=${Math.round(pos.y)}`;
-
-        document.getElementById('dl').innerText = finalUrl;
-        document.getElementById('rb').style.display = 'block';
-        btn.innerText = "✅ 產生成功";
-        setTimeout(() => btn.innerText = "✅ 完成，產生連結", 2000);
+        const txt = encodeURIComponent(document.getElementById('itxt').value);
+        // 將背景 ID、文字位置、內容全部傳給 Index
+        const url = `line://app/${LIFF_ID}/?id=${bgId % 500}&t=${txt}&x=${Math.round(pos.x)}&y=${Math.round(pos.y)}`;
+        const resDiv = document.getElementById('res');
+        resDiv.innerText = url;
+        resDiv.style.display = 'block';
+        navigator.clipboard.writeText(`早安祝福：\n${url}`);
+        alert("連結已複製，請發送給好友！");
     }
 
-    // 拖曳與基礎功能
-    function setupDrag() {
-        const start = () => isDrag = true;
-        const move = (e) => {
-            if (!isDrag) return;
-            const r = cvs.getBoundingClientRect(), t = e.touches ? e.touches[0] : e;
-            pos.x = (t.clientX - r.left) * (600 / r.width);
-            pos.y = (t.clientY - r.top) * (600 / r.height);
-            draw();
-        };
-        cvs.addEventListener('mousedown', start);
-        cvs.addEventListener('touchstart', (e) => { e.preventDefault(); start(); }, {passive:false});
-        window.addEventListener('mousemove', move);
-        window.addEventListener('touchmove', move, {passive:false});
-        window.addEventListener('mouseup', () => isDrag = false);
-        window.addEventListener('touchend', () => isDrag = false);
-    }
-
-    function resetPos() { pos = { x: 300, y: 520 }; draw(); }
-    function copyTxt() {
-        const txt = `🔔您的早安祝福已送到：\n${document.getElementById('dl').innerText}`;
-        navigator.clipboard.writeText(txt).then(() => alert("文案已複製！請貼到 LINE 分享。"));
-    }
-
-    getImg(); setupDrag();
-    document.getElementById('itxt').oninput = draw;
+    getImg();
+    document.getElementById('itxt').oninput = () => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = `https://picsum.photos/id/${bgId % 500}/600/600`;
+        img.onload = () => { ctx.drawImage(img, 0, 0, 600, 600); drawText(); };
+    };
 </script>
 </body>
 </html>
