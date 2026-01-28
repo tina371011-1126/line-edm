@@ -3,236 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖製作 - 無限版</title>
+    <title>商用 AI 早安圖 - 自由拖曳版</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root { --primary: #62be36; --bg: #f0f2f5; }
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; justify-content: center; }
-        .card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 100%; max-width: 420px; box-sizing: border-box; }
-        h2 { text-align: center; margin: 0 0 15px; font-size: 20px; color: #333; }
+        :root { --line-green: #06C755; --accent: #3672d9; }
+        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: #f3f5f7; margin: 0; padding: 15px; display: flex; justify-content: center; /* 防止手機下拉重新整理 */ overflow-y: auto; overscroll-behavior-y: contain; }
+        .card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 450px; box-sizing: border-box; }
         
-        /* 畫布區 */
-        .preview-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #222; border-radius: 16px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 15px; }
-        #mainCanvas { width: 100%; height: 100%; display: block; }
-        .loader-spin { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid rgba(255,255,255,0.2); border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: none; }
+        /* 畫布容器 */
+        .preview-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #eee; border-radius: 16px; overflow: hidden; border: 2px solid #e0e0e0; margin-bottom: 15px; touch-action: none; /* 關鍵：防止觸控時捲動頁面 */ }
+        #mainCanvas { width: 100%; height: 100%; display: block; cursor: grab; }
+        #mainCanvas:active { cursor: grabbing; }
+        
+        .control-label { font-size: 14px; font-weight: bold; color: #444; margin: 12px 0 8px; display: block; }
+        .input-row { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; }
+        input[type="color"] { width: 50px; height: 48px; border: none; background: none; cursor: pointer; padding: 0; }
+        
+        .sticker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 5px 2px; margin-bottom: 20px; scrollbar-width: none; }
+        .sticker-bar::-webkit-scrollbar { display: none; }
+        .sticker { font-size: 26px; padding: 10px; background: #f7f7f7; border-radius: 14px; cursor: pointer; transition: 0.2s; border: 2px solid transparent; min-width: 30px; text-align: center; }
+        .sticker.active { border-color: var(--accent); background: #eef4ff; transform: scale(1.05); }
+
+        .btn-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin-top: 20px; }
+        button { border: none; padding: 14px; border-radius: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; }
+        .btn-refresh { background: #e1e5ea; color: #333; }
+        .btn-confirm { background: linear-gradient(135deg, #62be36, #3672d9); color: white; box-shadow: 0 4px 12px rgba(98, 190, 54, 0.3); }
+        .btn-share { background: var(--line-green); color: white; width: 100%; display: none; margin-top: 15px; font-size: 18px; padding: 16px; }
+        button:active { transform: scale(0.97); opacity: 0.9; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .status-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 15px; display: none; text-align: center; }
+        .link-result { margin-top: 15px; padding: 12px; background: #f8f9fa; border: 1px solid #eee; border-radius: 10px; font-size: 12px; color: #555; word-break: break-all; display: none; font-family: monospace; }
+        
+        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; z-index: 10; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-
-        /* 控制區 */
-        .control-group { margin-bottom: 12px; }
-        label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 6px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; font-size: 16px; }
-        
-        .custom-row { display: flex; gap: 10px; align-items: center; }
-        input[type="color"] { width: 50px; height: 45px; border: none; padding: 0; background: none; cursor: pointer; }
-        
-        /* 貼圖選單 */
-        .sticker-list { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; margin-bottom: 10px; }
-        .sticker-item { font-size: 24px; padding: 8px; background: #f8f9fa; border-radius: 10px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; flex-shrink: 0; }
-        .sticker-item.active { border-color: var(--primary); background: #eef9eb; }
-
-        /* 按鈕區 */
-        .btn-stack { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { border: none; padding: 15px; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.2s; }
-        .btn-random { background: #6c5ce7; color: white; }
-        .btn-main { background: linear-gradient(135deg, #d4c84a, #62be36, #3672d9); color: white; grid-column: span 2; margin-top: 5px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); }
-        .btn-share { background: #06C755; color: white; width: 100%; display: none; margin-top: 15px; font-size: 17px; }
-        
-        button:active { transform: scale(0.96); opacity: 0.9; }
-        button:disabled { filter: grayscale(1); cursor: not-allowed; }
-
-        #resultArea { margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 15px; display: none; }
-        .link-text { font-size: 11px; color: #888; word-break: break-all; margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; }
-        .loading-text { text-align: center; color: var(--primary); font-weight: bold; font-size: 14px; display: none; margin: 10px 0; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>🎨 AI 早安圖大師</h2>
+    <h3 style="text-align: center; margin-top: 5px; color: #333;">✨ AI 早安圖 (自由拖曳版)</h3>
+    <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 15px;">💡 提示：文字與貼圖都可以用手指拖曳移動喔！</p>
     
     <div class="preview-box">
-        <div id="imgLoader" class="loader-spin"></div>
+        <div id="loader"></div>
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
 
-    <div class="control-group">
-        <label>1. 輸入問候語與選擇顏色</label>
-        <div class="custom-row">
-            <input type="text" id="morningText" value="早安！平安喜樂" placeholder="在此輸入文字...">
-            <input type="color" id="textColor" value="#ffffff">
-        </div>
+    <span class="control-label">✍️ 編輯文字與顏色</span>
+    <div class="input-row">
+        <input type="text" id="txt" value="早安，順心如意" maxlength="20">
+        <input type="color" id="clr" value="#ffffff">
     </div>
 
-    <label>2. 選擇裝飾貼圖</label>
-    <div class="sticker-list" id="stickerList">
-        <div class="sticker-item active" data-emoji="">❌</div>
-        <div class="sticker-item" data-emoji="☀️">☀️</div>
-        <div class="sticker-item" data-emoji="🌸">🌸</div>
-        <div class="sticker-item" data-emoji="☕">☕</div>
-        <div class="sticker-item" data-emoji="🦋">🦋</div>
-        <div class="sticker-item" data-emoji="🍀">🍀</div>
-        <div class="sticker-item" data-emoji="🐱">🐱</div>
-        <div class="sticker-item" data-emoji="✨">✨</div>
+    <span class="control-label">🎨 選擇裝飾貼圖</span>
+    <div class="sticker-bar">
+        <div class="sticker active" data-v="">無</div>
+        <div class="sticker" data-v="☀️">☀️</div>
+        <div class="sticker" data-v="🌸">🌸</div>
+        <div class="sticker" data-v="🍀">🍀</div>
+        <div class="sticker" data-v="☕">☕</div>
+        <div class="sticker" data-v="💖">💖</div>
+        <div class="sticker" data-v="🦋">🦋</div>
+        <div class="sticker" data-v="🌈">🌈</div>
     </div>
 
-    <div class="btn-stack">
-        <button class="btn-random" id="randomBtn" onclick="fetchRandomImage()">🔄 換個 AI 背景</button>
-        <button class="btn-main" id="finalBtn" onclick="generateAndUpload()">✨ 產出並分享到 LINE</button>
+    <div class="btn-grid">
+        <button class="btn-refresh" onclick="loadUnsplashImg()">🔄 換背景</button>
+        <button class="btn-confirm" id="genBtn" onclick="handleUpload()">✅ 完成，產生連結</button>
     </div>
 
-    <div id="globalLoading" class="loading-text">🚀 正在生成無限制連結...</div>
-
-    <div id="resultArea">
-        <button id="shareBtn" class="btn-share" onclick="directShare()">📤 傳送給 LINE 好友</button>
-        <div class="link-text" id="finalLink"></div>
-    </div>
+    <div id="status" class="status-box"></div>
+    <div id="linkResult" class="link-result"></div>
+    <button id="shareBtn" class="btn-share" onclick="shareToLine()">📤 一鍵分享到 LINE</button>
 </div>
 
 <script>
-    const LIFF_ID = "2008941488-Phn5v50S"; 
+    // ==============================
+    // 重要：請填入您的 Unsplash Access Key
+    // ==============================
+    const UNSPLASH_KEY = "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw"; 
+    const LIFF_ID = "2008941488-Phn5v50S";
+    
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
-    const imgLoader = document.getElementById('imgLoader');
-    let currentBaseImage = new Image();
-    let currentSticker = "";
+    let bgImg = new Image();
+    
+    // --- 狀態管理 (位置與拖曳) ---
+    let currentEmoji = "";
+    let textPos = { x: 400, y: 650 };    // 文字預設位置
+    let stickerPos = { x: 700, y: 120 }; // 貼圖預設位置
+    
+    let isDragging = null; // 'text' 或 'sticker'
+    let dragStart = { x: 0, y: 0 };
+    let itemStart = { x: 0, y: 0 };
 
     async function init() {
-        try { await liff.init({ liffId: LIFF_ID }); } catch (e) {}
-        fetchRandomImage();
+        try { await liff.init({ liffId: LIFF_ID }); } catch(e) {}
+        loadUnsplashImg(); // 初始載入圖片
         
-        // 監聽所有變動
-        document.getElementById('morningText').oninput = drawAll;
-        document.getElementById('textColor').oninput = drawAll;
+        // 事件監聽：輸入框
+        document.getElementById('txt').oninput = draw;
+        document.getElementById('clr').oninput = draw;
         
-        // 貼圖選擇邏輯
-        document.querySelectorAll('.sticker-item').forEach(item => {
-            item.onclick = function() {
-                document.querySelectorAll('.sticker-item').forEach(i => i.classList.remove('active'));
+        // 事件監聽：貼圖選擇
+        document.querySelectorAll('.sticker').forEach(s => {
+            s.onclick = function() {
+                document.querySelectorAll('.sticker').forEach(i => i.classList.remove('active'));
                 this.classList.add('active');
-                currentSticker = this.dataset.emoji;
-                drawAll();
-            };
+                currentEmoji = this.dataset.v;
+                draw();
+            }
         });
+
+        // 事件監聽：Canvas 拖曳 (滑鼠 + 觸控)
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('mouseup', handleEnd);
+        window.addEventListener('touchend', handleEnd);
     }
 
-    // 取得隨機圖 (使用 LoremFlickr + 跨域代理)
-    function fetchRandomImage() {
-        const btn = document.getElementById('randomBtn');
-        btn.disabled = true;
-        imgLoader.style.display = 'block';
-
-        const keywords = ['nature', 'morning', 'flowers', 'sunrise', 'garden'];
-        const tag = keywords[Math.floor(Math.random() * keywords.length)];
-        const rawUrl = `https://loremflickr.com/800/800/${tag}`;
-        const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(rawUrl)}&w=800&h=800&fit=cover&t=${Date.now()}`;
-
-        currentBaseImage = new Image();
-        currentBaseImage.crossOrigin = "Anonymous";
-        currentBaseImage.src = proxyUrl;
-        currentBaseImage.onload = () => {
-            drawAll();
-            imgLoader.style.display = 'none';
-            btn.disabled = false;
+    // --- Canvas 拖曳邏輯 ---
+    function getCanvasCoordinates(event) {
+        const rect = canvas.getBoundingClientRect();
+        // 考慮 Canvas 實際顯示大小與解析度的比例
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        let clientX, clientY;
+        if (event.touches && event.touches.length > 0) {
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+        } else {
+            clientX = event.clientX;
+            clientY = event.clientY;
+        }
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
-    function drawAll() {
-        if (!currentBaseImage.complete) return;
-        ctx.clearRect(0, 0, 800, 800);
-        
-        // 1. 畫背景
-        ctx.drawImage(currentBaseImage, 0, 0, 800, 800);
-        
-        // 2. 畫裝飾貼圖 (固定在右上方)
-        if (currentSticker) {
-            ctx.font = "120px serif";
-            ctx.textAlign = "right";
-            ctx.fillText(currentSticker, 760, 150);
+    function handleStart(e) {
+        if (e.type === 'touchstart') e.preventDefault(); // 防止捲動
+        const mousePos = getCanvasCoordinates(e);
+
+        // 簡單碰撞檢測 (判定點擊範圍)
+        // 檢測貼圖 (假設約 150x150 大小)
+        if (currentEmoji && Math.abs(mousePos.x - stickerPos.x) < 80 && Math.abs(mousePos.y - stickerPos.y) < 80) {
+            isDragging = 'sticker';
+            itemStart = { ...stickerPos };
+        } 
+        // 檢測文字 (假設約 600x100 大小，中心點判定)
+        else if (Math.abs(mousePos.x - textPos.x) < 300 && Math.abs(mousePos.y - textPos.y) < 60) {
+            isDragging = 'text';
+            itemStart = { ...textPos };
         }
 
-        // 3. 畫文字底層陰影框
-        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-        ctx.fillRect(0, 620, 800, 180);
+        if (isDragging) {
+            dragStart = mousePos;
+        }
+    }
 
-        // 4. 畫自訂文字
-        const text = document.getElementById('morningText').value || "早安";
-        const color = document.getElementById('textColor').value;
+    function handleMove(e) {
+        if (!isDragging) return;
+        if (e.type === 'touchmove') e.preventDefault();
         
-        ctx.fillStyle = color;
+        const mousePos = getCanvasCoordinates(e);
+        const dx = mousePos.x - dragStart.x;
+        const dy = mousePos.y - dragStart.y;
+
+        if (isDragging === 'sticker') {
+            stickerPos.x = itemStart.x + dx;
+            stickerPos.y = itemStart.y + dy;
+        } else if (isDragging === 'text') {
+            textPos.x = itemStart.x + dx;
+            textPos.y = itemStart.y + dy;
+        }
+        draw();
+    }
+
+    function handleEnd() {
+        isDragging = null;
+    }
+
+    // --- 繪圖與 API 邏輯 ---
+    async function loadUnsplashImg() {
+        const loader = document.getElementById('loader');
+        loader.style.display = 'block';
+        // 如果沒有 Key，使用備用圖源以便測試
+        if (UNSPLASH_KEY === "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw") {
+             // alert("請記得填入 Unsplash API Key 才能獲得商用圖！目前使用測試圖源。");
+             var url = `https://loremflickr.com/800/800/morning,sunshine?t=${Date.now()}`;
+        } else {
+             var themes = ['morning', 'nature', 'sunlight', 'calm', 'flowers'];
+             var query = themes[Math.floor(Math.random()*themes.length)];
+             var url = `https://api.unsplash.com/photos/random?query=${query}&orientation=squarish&client_id=${UNSPLASH_KEY}`;
+        }
+        
+        try {
+            let imgUrl = url;
+            // 如果是 Unsplash API，需要解析 JSON
+            if (UNSPLASH_KEY !== "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw") {
+                const res = await fetch(url);
+                const data = await res.json();
+                imgUrl = data.urls.regular;
+            }
+
+            bgImg = new Image();
+            bgImg.crossOrigin = "Anonymous";
+            // 使用代理確保跨域正常
+            bgImg.src = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl)}&w=800&h=800&fit=cover`;
+            bgImg.onload = () => {
+                draw();
+                loader.style.display = 'none';
+            };
+            bgImg.onerror = () => { throw new Error("圖片載入失敗"); }
+        } catch (e) {
+            alert("無法載入圖片，請檢查網路或 API Key。");
+            loader.style.display = 'none';
+            // 載入失敗時繪製一個純色背景避免空白
+            ctx.fillStyle = "#ddd"; ctx.fillRect(0,0,800,800); draw();
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0,0,800,800);
+        // 1. 背景
+        if (bgImg.complete && bgImg.naturalWidth > 0) {
+            ctx.drawImage(bgImg, 0, 0, 800, 800);
+        } else {
+            ctx.fillStyle = "#eee"; ctx.fillRect(0,0,800,800);
+        }
+
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
+
+        // 2. 貼圖 (可拖曳)
+        if (currentEmoji) {
+            ctx.font = "120px serif";
+            ctx.shadowColor = "rgba(0,0,0,0.3)";
+            ctx.shadowBlur = 5;
+            ctx.fillText(currentEmoji, stickerPos.x, stickerPos.y);
+            ctx.shadowBlur = 0; // 重置陰影
+        }
+
+        // 3. 文字 (可拖曳)
+        const text = document.getElementById('txt').value || "早安";
         ctx.font = "bold 60px -apple-system, 'Microsoft JhengHei', sans-serif";
+        
+        // 繪製文字背景框 (跟隨文字位置)
+        const textWidth = ctx.measureText(text).width;
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        // 簡單計算背景框位置
+        ctx.fillRect(textPos.x - textWidth/2 - 20, textPos.y - 50, textWidth + 40, 100);
+
+        // 繪製文字本體
+        ctx.fillStyle = document.getElementById('clr').value;
         ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 10;
-        ctx.fillText(text, 400, 710);
+        ctx.shadowBlur = 8;
+        ctx.fillText(text, textPos.x, textPos.y);
     }
 
-    async function generateAndUpload() {
-        const btn = document.getElementById('finalBtn');
-        const loader = document.getElementById('globalLoading');
-        btn.disabled = true;
-        loader.style.display = 'block';
+    async function handleUpload() {
+        const status = document.getElementById('status');
+        const linkResult = document.getElementById('linkResult');
+        const shareBtn = document.getElementById('shareBtn');
+        const genBtn = document.getElementById('genBtn');
+        
+        status.style.display = 'block';
+        status.innerText = "⏳ 正在處理圖片並上傳，請稍候...";
+        status.style.background = "#fff3cd"; color: "#856404";
+        genBtn.disabled = true;
+        linkResult.style.display = 'none';
+        shareBtn.style.display = 'none';
 
         try {
-            // 1. 畫布轉 Blob
-            const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
-            
-            // 2. 使用 Telegraph 上傳 (無限制額度)
+            // 轉為 Blob
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
             const formData = new FormData();
             formData.append("file", blob);
-            
-            const res = await fetch("https://telegra.ph/upload", {
-                method: "POST",
-                body: formData
-            });
+
+            // 上傳至 Telegraph
+            const res = await fetch("https://telegra.ph/upload", { method: "POST", body: formData });
             const data = await res.json();
             
-            if (!data[0] || !data[0].src) throw new Error("Upload Error");
-
-            const imgUrl = "https://telegra.ph" + data[0].src;
+            if (!data || !data[0] || !data[0].src) throw new Error("Telegraph Upload Failed");
+            const finalImg = "https://telegra.ph" + data[0].src;
             
-            // 3. 產生 Deep Link
-            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=800&h=800&f=AI_Master`;
+            // 產生 Deep Link
+            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(finalImg)}&w=800&h=800&f=AI_Draggable`;
 
-            window.currentData = { imgUrl, deepLink };
+            window.shareData = { img: finalImg, link: deepLink };
 
-            document.getElementById('finalLink').innerText = "連結已生成！點擊上方按鈕發送。";
-            document.getElementById('resultArea').style.display = 'block';
-            document.getElementById('shareBtn').style.display = 'block';
+            status.innerText = "✅ 成功！您可以點擊下方按鈕分享，或複製連結。";
+            status.style.background = "#d4edda"; status.style.color = "#155724";
             
+            // 顯示產出的連結 (修復點)
+            linkResult.innerText = deepLink;
+            linkResult.style.display = 'block';
+            shareBtn.style.display = 'block';
         } catch (e) {
-            alert("上傳失敗，請檢查網路連接");
             console.error(e);
+            status.innerText = "❌ 產生失敗，請檢查網路或稍後再試。";
+            status.style.background = "#f8d7da"; status.style.color = "#721c24";
         } finally {
-            btn.disabled = false;
-            loader.style.display = 'none';
+            genBtn.disabled = false;
         }
     }
 
-    async function directShare() {
+    async function shareToLine() {
         if (!liff.isLoggedIn()) { liff.login(); return; }
+        if (!window.shareData) { alert("請先完成生成步驟"); return; }
+        
         try {
-            await liff.shareTargetPicker([{
+            const res = await liff.shareTargetPicker([{
                 "type": "flex",
-                "altText": "送你一張早安圖",
+                "altText": "您收到一張早安圖卡",
                 "contents": {
                     "type": "bubble", "size": "mega",
                     "body": {
                         "type": "box", "layout": "vertical", "paddingAll": "0px",
                         "contents": [{
-                            "type": "image", "url": window.currentData.imgUrl, "size": "full", 
-                            "aspectMode": "fit", "aspectRatio": "1:1",
-                            "action": { "type": "uri", "uri": window.currentData.deepLink }
+                            "type": "image", "url": window.shareData.img, "size": "full", "aspectRatio": "1:1",
+                            "action": { "type": "uri", "uri": window.shareData.link }
                         }]
                     }
                 }
             }]);
-            liff.closeWindow();
-        } catch (e) { alert("分享失敗"); }
+            if (res) liff.closeWindow();
+        } catch (e) { 
+            alert("分享功能無法使用，請確認 LIFF 設定或直接複製連結。"); 
+        }
     }
 
     init();
 </script>
-
 </body>
 </html>
