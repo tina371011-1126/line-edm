@@ -12,6 +12,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI早安圖</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --primary: #ff4757; --line: #2ed573; --bg: #fffaf0; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
@@ -35,14 +36,14 @@
 <body>
 
 <div class="card">
-    <div id="status">☀️ 正在載入風景...</div>
+    <div id="status">☀️ 正在同步 LINE 資訊...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
     <div class="ui-group">
         <div class="row">
-            <input type="text" id="mainText" placeholder="寫下祝福..." value="早安！祝您有美好的一天" oninput="draw()">
+            <input type="text" id="mainText" placeholder="寫下祝福..." value="早安！祝你有美好的一天" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         
@@ -71,10 +72,10 @@
 </div>
 
 <script>
-    // 帳號資訊已自動填入
     const CLOUD_NAME = "dwdkxs8ot"; 
     const UPLOAD_PRESET = "morning picture"; 
     const LIFF_ID = "2008941488-Phn5v50S";
+    let userName = "神秘好友"; // 預設名稱
 
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
@@ -82,12 +83,29 @@
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
 
+    // 初始化 LIFF 並取得暱稱
+    async function initLIFF() {
+        try {
+            await liff.init({ liffId: LIFF_ID });
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                userName = profile.displayName;
+                document.getElementById('status').innerText = `🎨 您好，${userName}！開始製作吧`;
+            } else {
+                liff.login();
+            }
+        } catch (err) {
+            console.error('LIFF 初始化失敗', err);
+            document.getElementById('status').innerText = "✨ 文字可移動、滑桿可縮放";
+        }
+        fetchBrightBg();
+    }
+
     function fetchBrightBg() {
-        document.getElementById('status').innerText = "☀️ 挑選活力背景中...";
         bg = new Image();
         bg.crossOrigin = "anonymous";
         bg.src = `https://picsum.photos/600/600?bright,sunny,nature&sig=${Math.random()}`;
-        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動、滑桿可縮放"; };
+        bg.onload = () => draw();
     }
 
     function draw() {
@@ -112,6 +130,7 @@
         });
     }
 
+    // 拖動邏輯
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -140,7 +159,6 @@
 
     function reset() {
         items = [{ type: 'text', x: 300, y: 500 }];
-        document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 45;
         draw();
     }
@@ -150,7 +168,7 @@
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
-        btn.disabled = true; btn.innerText = "⚡ 處理中...";
+        btn.disabled = true; btn.innerText = "⚡ 正在準備連結...";
         
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.4);
@@ -165,10 +183,15 @@
             const data = await res.json();
 
             if (data.secure_url) {
-                // GA4 事件追蹤
-                gtag('event', 'generate_morning_card', { 'image_url': data.secure_url });
+                // GA4 追蹤：記錄產圖者姓名
+                gtag('event', 'generate_morning_card', { 
+                    'sharer_name': userName,
+                    'image_url': data.secure_url 
+                });
 
-                const finalContent = `🔔打開早安圖連結：\nline://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
+                // 連結末端帶上分享者暱稱參數
+                const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(userName)}`;
+                const finalContent = `🔔打開早安圖連結：\n${finalLink}`;
                 
                 const textArea = document.createElement("textarea");
                 textArea.value = finalContent;
@@ -179,21 +202,15 @@
                 
                 btn.innerText = "✨ 複製成功！";
                 sMsg.style.display = 'block';
-                
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.innerText = "🚀 產生並複製 LINE 連結";
-                }, 3000);
-            } else {
-                alert("上傳失敗，請確認 Cloudinary 設定。");
-                btn.disabled = false; btn.innerText = "🚀 重新嘗試";
+                setTimeout(() => { btn.disabled = false; btn.innerText = "🚀 產生並複製 LINE 連結"; }, 3000);
             }
         } catch (e) {
-            alert("網路異常。");
+            alert("網路異常");
             btn.disabled = false; btn.innerText = "🚀 重新嘗試";
         }
     }
-    fetchBrightBg();
+
+    initLIFF();
 </script>
 </body>
 </html>
