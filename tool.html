@@ -3,37 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 風景祝福圖 V10</title>
+    <title>AI 風景祝福圖 V11 - 穩定版</title>
     <style>
         :root { --primary: #28a745; }
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; overflow-x: hidden; }
         .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; box-sizing: border-box; }
         
         #canvasContainer { 
             position: relative; margin: 10px auto; background: #000; border-radius: 12px; overflow: hidden; 
             width: 100%; aspect-ratio: 1 / 1; touch-action: none; border: 4px solid #fff;
         }
-        canvas { width: 100%; height: 100%; display: block; }
+        canvas { width: 100%; height: 100%; display: block; cursor: move; }
 
         .ui-group { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
         .row { display: flex; gap: 8px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
         
         .sticker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #eee; }
         .sticker { font-size: 24px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; min-width: 40px; text-align: center; border: 1px solid #eee; }
         .no-sticker { background: #fee; color: #d33; font-weight: bold; border-color: #fcc; }
 
-        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
+        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         .btn-secondary { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
         
-        #msg { font-size: 12px; color: #666; text-align: center; margin-bottom: 5px; }
+        #msg { font-size: 13px; color: #555; text-align: center; margin-bottom: 5px; font-weight: 500; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="msg">系統初始化中...</div>
+    <div id="msg">☀️ 祝福圖片編輯中</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
@@ -50,12 +50,12 @@
         </div>
 
         <div class="row">
-            <button class="btn-secondary" onclick="fetchLandscape()">🔄 換風景圖</button>
-            <button class="btn-secondary" onclick="resetToWhite()">🗑️ 重置白色</button>
+            <button class="btn-secondary" onclick="fetchLandscape()">🔄 更換風景背景</button>
+            <button class="btn-secondary" onclick="resetToWhite()">🗑️ 重置 (白色)</button>
         </div>
 
         <div class="sticker-bar">
-            <div class="sticker no-sticker" onclick="clearStickers()">🚫</div>
+            <div class="sticker no-sticker" title="不使用貼圖" onclick="clearStickers()">🚫</div>
             <div class="sticker" onclick="addEmoji('☀️')">☀️</div>
             <div class="sticker" onclick="addEmoji('🌸')">🌸</div>
             <div class="sticker" onclick="addEmoji('☕')">☕</div>
@@ -76,27 +76,36 @@
     let items = [{ type: 'text', x: 400, y: 700 }];
     let dragTarget = null;
 
-    // 1. LIFF 初始化
     liff.init({ liffId: LIFF_ID }).then(() => {
-        document.getElementById('msg').innerText = "LINE 已就緒";
         fetchLandscape();
     });
 
-    // 2. 獲取風景圖片 (鎖定 nature/landscape 分類)
     function fetchLandscape() {
-        document.getElementById('msg').innerText = "正在搜尋絕美風景...";
+        document.getElementById('msg').innerText = "🌅 正在搜尋絕美風景...";
         bg = new Image();
         bg.crossOrigin = "anonymous";
-        // 使用 Unsplash source 模式，這比 API 模式穩定，不會有額度限制
-        bg.src = `https://source.unsplash.com/800x800/?nature,landscape,sunrise&sig=${Math.random()}`;
-        bg.onload = () => { draw(); document.getElementById('msg').innerText = "拖動文字可調整位置"; };
-        bg.onerror = () => { document.getElementById('msg').innerText = "連線稍慢，請再試一次"; };
+        // 隨機關鍵字增加多樣性
+        const keywords = ['landscape','nature','mountains','sunrise','flowers'];
+        const randomKey = keywords[Math.floor(Math.random() * keywords.length)];
+        
+        // 使用備援機制：如果 Unsplash 失敗，就嘗試 Picsum
+        bg.src = `https://source.unsplash.com/800x800/?${randomKey}&sig=${Math.random()}`;
+        
+        bg.onload = () => { 
+            draw(); 
+            document.getElementById('msg').innerText = "✨ 就緒：文字可隨意移動"; 
+        };
+        
+        bg.onerror = () => {
+            // 備援方案
+            bg.src = `https://picsum.photos/800/800?nature,landscape&random=${Math.random()}`;
+            document.getElementById('msg').innerText = "已啟用備援背景方案";
+        };
     }
 
-    // 3. 繪圖核心
     function draw() {
         ctx.clearRect(0,0,800,800);
-        if(bg.complete) ctx.drawImage(bg, 0, 0, 800, 800);
+        if(bg.complete && bg.src) ctx.drawImage(bg, 0, 0, 800, 800);
         
         const txtValue = document.getElementById('mainText').value || "早安";
         const txtColor = document.getElementById('mainColor').value;
@@ -106,18 +115,19 @@
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(item.type === 'text') {
                 ctx.font = `bold ${txtSize}px "Microsoft JhengHei", sans-serif`;
-                ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
+                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 10;
                 ctx.strokeStyle = "black"; ctx.lineWidth = 8;
                 ctx.strokeText(txtValue, item.x, item.y);
                 ctx.fillStyle = txtColor; ctx.shadowBlur = 0;
                 ctx.fillText(txtValue, item.x, item.y);
             } else {
-                ctx.font = "100px serif"; ctx.fillText(item.emoji, item.x, item.y);
+                ctx.font = "100px serif"; 
+                ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 5;
+                ctx.fillText(item.emoji, item.x, item.y);
             }
         });
     }
 
-    // 4. 文字移動與邊界鎖定
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -138,7 +148,6 @@
         if(!dragTarget) return;
         if(e.cancelable) e.preventDefault();
         const p = getMousePos(e);
-        // 邊界限制：不跑出 800x800 範圍
         dragTarget.x = Math.max(80, Math.min(720, p.x));
         dragTarget.y = Math.max(80, Math.min(720, p.y));
         draw();
@@ -151,21 +160,21 @@
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', () => dragTarget = null);
 
-    // 5. 功能按鈕
     function resetToWhite() {
         items = [{ type: 'text', x: 400, y: 700 }];
         document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 75;
         draw();
+        document.getElementById('msg').innerText = "已重置：文字回歸白色原位";
     }
+
     function addEmoji(e) { items.push({ type: 'emoji', x: 400, y: 400, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    // 6. 分享至 LINE
     async function shareToLine() {
         if (!liff.isLoggedIn()) { liff.login(); return; }
         const btn = document.getElementById('shareBtn');
-        btn.disabled = true; btn.innerText = "圖片生成中...";
+        btn.disabled = true; btn.innerText = "🚀 準備分享中...";
 
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
@@ -173,19 +182,22 @@
             fd.append("file", base64);
             fd.append("upload_preset", "ml_default");
 
+            // 上傳穩定性強化
             const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { method: "POST", body: fd });
             const data = await res.json();
 
-            if (liff.isApiAvailable('shareTargetPicker')) {
-                await liff.shareTargetPicker([{
-                    type: "image",
-                    originalContentUrl: data.secure_url,
-                    previewImageUrl: data.secure_url
-                }]);
-                btn.innerText = "✅ 已成功分享";
-            }
+            if (data.secure_url) {
+                if (liff.isApiAvailable('shareTargetPicker')) {
+                    await liff.shareTargetPicker([{
+                        type: "image",
+                        originalContentUrl: data.secure_url,
+                        previewImageUrl: data.secure_url
+                    }]);
+                    btn.innerText = "✅ 分享完成";
+                }
+            } else { throw new Error(); }
         } catch (e) {
-            alert("傳送失敗，請稍後再試");
+            alert("網路稍慢，請再次點擊分享。");
         } finally {
             btn.disabled = false;
             btn.innerText = "📤 一鍵轉傳給好友";
