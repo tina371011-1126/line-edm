@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 祝福圖 V15 - 極速複製</title>
+    <title>AI 祝福圖 V16 - LINE 協議版</title>
     <style>
         :root { --primary: #28a745; --line: #00b900; }
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
@@ -20,13 +20,13 @@
         button:disabled { background: #aaa; }
         .btn-secondary { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
         #status { font-size: 13px; color: #555; text-align: center; margin-bottom: 5px; }
-        .success-box { display: none; margin-top: 15px; padding: 12px; background: #e8f5e9; border: 1px solid var(--line); border-radius: 10px; text-align: center; color: #1b5e20; font-size: 14px; font-weight: bold; }
+        .success-box { display: none; margin-top: 15px; padding: 12px; background: #e8f5e9; border: 1px solid var(--line); border-radius: 10px; text-align: center; color: #1b5e20; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="status">🖼️ 正在挑選風景...</div>
+    <div id="status">🖼️ 風景圖準備中...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
@@ -53,7 +53,10 @@
             <div class="sticker" onclick="addEmoji('🙏')">🙏</div>
         </div>
         <button id="genBtn" onclick="generateAndCopy()">🚀 產生並複製連結</button>
-        <div id="successMsg" class="success-box">✅ 連結已複製，請直接去 LINE 貼上！</div>
+        <div id="successMsg" class="success-box">
+            ✅ 連結已複製！<br>
+            格式：line://app/...
+        </div>
     </div>
 </div>
 
@@ -74,7 +77,7 @@
             bg = new Image();
             bg.crossOrigin = "anonymous";
             bg.src = data.urls.regular + "&w=800&h=800&fit=crop";
-            bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可自由拖動"; };
+            bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動"; };
         } catch (e) {
             bg.src = `https://picsum.photos/800/800?nature&sig=${Math.random()}`;
         }
@@ -101,7 +104,6 @@
         });
     }
 
-    // 移動邏輯
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -137,15 +139,15 @@
     function addEmoji(e) { items.push({ type: 'emoji', x: 400, y: 400, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    // 🚀 極速產生並複製 line://app/ 連結
     async function generateAndCopy() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
-        btn.disabled = true; btn.innerText = "⚡ 正在生成連結...";
+        btn.disabled = true; btn.innerText = "⚡ 處理中...";
         sMsg.style.display = 'none';
 
         try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.6);
+            // 優化點：進一步降低畫質至 0.5 確保 2 秒內完成上傳
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", "ml_default");
@@ -154,23 +156,22 @@
             const data = await res.json();
 
             if (data.secure_url) {
-                // 直接生成 LIFF 的連結格式
-                const lineLiffUrl = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=800&h=800`;
+                // 強制轉換為 line://app/ 連結格式，確保在 LINE 內部開啟
+                const lineInternalUrl = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=800&h=800`;
                 
-                // 自動複製到剪貼簿
-                await navigator.clipboard.writeText(`☀️ 早安祝福圖片：\n${lineLiffUrl}`);
+                // 執行複製
+                await navigator.clipboard.writeText(`☀️ 送您一張祝福圖片：\n${lineInternalUrl}`);
                 
-                btn.innerText = "✅ 已複製到剪貼簿";
+                btn.innerText = "✅ 連結已複製";
                 sMsg.style.display = 'block';
                 
-                // 3秒後恢復按鈕狀態
                 setTimeout(() => {
                     btn.disabled = false;
-                    btn.innerText = "🚀 再次產生並複製連結";
+                    btn.innerText = "🚀 產生並複製連結";
                 }, 3000);
             }
         } catch (e) {
-            alert("目前上傳量較大，請再試一次。");
+            alert("目前連線稍慢，請再次點擊產生按鈕。");
             btn.disabled = false; btn.innerText = "🚀 再次嘗試";
         }
     }
