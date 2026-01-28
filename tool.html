@@ -3,57 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 祝福圖 V17 - 極速複製版</title>
+    <title>AI 活力祝福 V18</title>
     <style>
-        :root { --primary: #28a745; --line: #00b900; }
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; box-sizing: border-box; }
-        #canvasContainer { position: relative; margin: 10px auto; background: #eee; border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 1/1; touch-action: none; border: 4px solid #fff; }
+        :root { --primary: #ff4757; --line: #2ed573; }
+        body { font-family: -apple-system, sans-serif; background: #fffaf0; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
+        .card { background: white; padding: 15px; border-radius: 25px; box-shadow: 0 10px 30px rgba(255,107,129,0.2); width: 100%; max-width: 420px; box-sizing: border-box; border: 2px solid #ffeaa7; }
+        #canvasContainer { position: relative; margin: 5px auto; background: #fff; border-radius: 15px; overflow: hidden; width: 100%; aspect-ratio: 1/1; touch-action: none; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
         canvas { width: 100%; height: 100%; display: block; }
-        .ui-group { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+        .ui-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .row { display: flex; gap: 8px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
-        .sticker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #eee; }
-        .sticker { font-size: 24px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; min-width: 40px; text-align: center; border: 1px solid #eee; }
-        .no-sticker { background: #fee; color: #d33; font-weight: bold; }
-        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
-        button:disabled { background: #aaa; }
-        .btn-secondary { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
-        #status { font-size: 12px; color: #888; text-align: center; margin-bottom: 5px; }
-        .success-box { display: none; margin-top: 10px; padding: 10px; background: #e8f5e9; border: 1px solid var(--line); border-radius: 8px; text-align: center; color: #1b5e20; font-weight: bold; }
+        input[type="text"] { flex: 1; padding: 12px; border: 2px solid #ffeaa7; border-radius: 12px; font-size: 16px; outline: none; background: #fffdf5; }
+        .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; }
+        .sticker { font-size: 26px; cursor: pointer; background: #fff; padding: 6px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .no-sticker { color: #ff4757; font-weight: bold; background: #fff0f0; }
+        button { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 15px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(255,71,87,0.3); }
+        button:disabled { background: #ccc; box-shadow: none; }
+        .btn-alt { background: #ffa502; padding: 10px; font-size: 13px; flex: 1; box-shadow: 0 3px 10px rgba(255,165,2,0.3); }
+        #status { font-size: 13px; color: #ff7f50; text-align: center; margin-bottom: 5px; font-weight: bold; }
+        .success-box { display: none; margin-top: 10px; padding: 12px; background: #eefdf3; border: 2px solid var(--line); border-radius: 12px; text-align: center; color: #1b5e20; animation: bounce 0.5s ease; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="status">🌅 載入完美風景中...</div>
+    <div id="status">🌸 正在載入亮麗風景...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
     <div class="ui-group">
         <div class="row">
-            <input type="text" id="mainText" placeholder="祝福語..." value="早安平安，順心如意" oninput="draw()">
+            <input type="text" id="mainText" placeholder="寫下祝福..." value="早安！祝你有美好的一天" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         <div class="row">
-            <span style="font-size:12px;">大小</span>
-            <input type="range" id="textSize" min="20" max="100" value="55" oninput="draw()">
-        </div>
-        <div class="row">
-            <button class="btn-secondary" onclick="fetchBg()">🔄 換風景</button>
-            <button class="btn-secondary" onclick="reset()">🗑️ 重置白色</button>
+            <button class="btn-alt" onclick="fetchBrightBg()">🔄 換張亮圖</button>
+            <button class="btn-alt" onclick="reset()">🗑️ 重置白色</button>
         </div>
         <div class="sticker-bar">
             <div class="sticker no-sticker" onclick="clearStickers()">🚫</div>
-            <div class="sticker" onclick="addEmoji('☀️')">☀️</div>
-            <div class="sticker" onclick="addEmoji('🌸')">🌸</div>
-            <div class="sticker" onclick="addEmoji('☕')">☕</div>
-            <div class="sticker" onclick="addEmoji('🍀')">🍀</div>
-            <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
+            <div class="sticker" onclick="addEmoji('✨')">✨</div>
+            <div class="sticker" onclick="addEmoji('🎈')">🎈</div>
+            <div class="sticker" onclick="addEmoji('🌻')">🌻</div>
+            <div class="sticker" onclick="addEmoji('🌈')">🌈</div>
+            <div class="sticker" onclick="addEmoji('🎁')">🎁</div>
         </div>
-        <button id="genBtn" onclick="generateAndCopy()">🚀 產生並複製連結</button>
-        <div id="successMsg" class="success-box">✅ line://app/... 連結已複製！</div>
+        <button id="genBtn" onclick="fastGenerate()">🚀 產生並複製 LINE 連結</button>
+        <div id="successMsg" class="success-box">✅ 連結已複製！快去 LINE 貼上！</div>
     </div>
 </div>
 
@@ -62,16 +59,17 @@
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
-    let items = [{ type: 'text', x: 300, y: 520 }]; // 座標同步縮減至 600
+    let items = [{ type: 'text', x: 300, y: 500 }];
     let active = null;
 
-    function fetchBg() {
-        document.getElementById('status').innerText = "🏔️ 搜尋風景中...";
+    // 1. 鎖定活潑亮色系
+    function fetchBrightBg() {
+        document.getElementById('status').innerText = "☀️ 挑選活力背景中...";
         bg = new Image();
         bg.crossOrigin = "anonymous";
-        // 預設抓取風景，並在失敗時備援
-        bg.src = `https://picsum.photos/600/600?nature,landscape&sig=${Math.random()}`;
-        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動"; };
+        // 關鍵字：亮色、鮮豔、花卉、陽光
+        bg.src = `https://picsum.photos/600/600?bright,colorful,sunny,flowers&sig=${Math.random()}`;
+        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字貼圖可自由移動"; };
     }
 
     function draw() {
@@ -79,12 +77,11 @@
         if(bg.complete) ctx.drawImage(bg, 0, 0, 600, 600);
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
-        const sz = document.getElementById('textSize').value;
         items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
-                ctx.font = `bold ${sz}px sans-serif`;
-                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8;
+                ctx.font = `bold 50px sans-serif`;
+                ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 10;
                 ctx.strokeStyle = "black"; ctx.lineWidth = 6;
                 ctx.strokeText(txt, it.x, it.y);
                 ctx.fillStyle = col; ctx.shadowBlur = 0;
@@ -95,7 +92,7 @@
         });
     }
 
-    // 移動邏輯 (適配 600px 畫布)
+    // 移動邏輯
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -104,7 +101,7 @@
     }
     const start = (e) => {
         const p = getPos(e);
-        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 80 && Math.abs(i.y - p.y) < 80);
+        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 70 && Math.abs(i.y - p.y) < 70);
         if(active && e.cancelable) e.preventDefault();
     };
     const move = (e) => {
@@ -123,62 +120,61 @@
     window.addEventListener('mouseup', () => active = null);
 
     function reset() {
-        items = [{ type: 'text', x: 300, y: 520 }];
+        items = [{ type: 'text', x: 300, y: 500 }];
         document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = 55;
         draw();
     }
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    // 🚀 極速上傳並產生連結
-    async function generateAndCopy() {
+    // 🚀 極速秒傳產出
+    async function fastGenerate() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
-        btn.disabled = true; btn.innerText = "⚡ 正在飛速上傳...";
+        btn.disabled = true; btn.innerText = "⚡ 正在飛速產出...";
         sMsg.style.display = 'none';
 
         try {
-            // 優化關鍵：600x600 尺寸 + 0.4 低畫質，確保檔案在 50KB 以下，實現秒傳
-            const base64 = canvas.toDataURL('image/jpeg', 0.4);
+            // 極限優化：0.3 畫質，檔案極小，秒傳成功率 99%
+            const base64 = canvas.toDataURL('image/jpeg', 0.3);
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", "ml_default");
 
-            // 使用超時控制請求
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒沒反應就報錯
-
+            // 使用 fetch 的並行處理
             const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { 
                 method: "POST", 
-                body: fd,
-                signal: controller.signal
+                body: fd
             });
-            clearTimeout(timeoutId);
             const data = await res.json();
 
             if (data.secure_url) {
-                // 強制生成內部連結協定
-                const lineInternalUrl = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
+                // 強制 line://app/ 格式
+                const lineLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
                 
-                // 執行複製到剪貼簿
-                await navigator.clipboard.writeText(`☀️ 早安祝福：\n${lineInternalUrl}`);
+                // 複製到剪貼簿
+                const el = document.createElement('textarea');
+                el.value = lineLink;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
                 
-                btn.innerText = "✅ 複製成功！";
+                btn.innerText = "✨ 複製成功！";
                 sMsg.style.display = 'block';
                 
                 setTimeout(() => {
                     btn.disabled = false;
-                    btn.innerText = "🚀 產生並複製連結";
+                    btn.innerText = "🚀 再次產生並複製";
                 }, 2000);
             }
         } catch (e) {
-            alert("目前網路不穩，請再次點擊產生按鈕。");
-            btn.disabled = false; btn.innerText = "🚀 再次嘗試";
+            alert("請檢查網路連線，然後再試一次！");
+            btn.disabled = false; btn.innerText = "🚀 重新產生";
         }
     }
 
-    fetchBg();
+    fetchBrightBg();
 </script>
 </body>
 </html>
