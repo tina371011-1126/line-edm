@@ -3,163 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>早安圖製作工具 - 修正穩定版</title>
+    <title>EDM 連結產生器 v5</title>
     <style>
-        :root { --main: #3672d9; --success: #06C755; }
-        body { font-family: -apple-system, sans-serif; background: #f5f7f9; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 420px; }
-        .cvs-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #eee; border-radius: 16px; overflow: hidden; margin-bottom: 15px; border: 1px solid #eee; touch-action: none; }
-        #mc { width: 100%; height: 100%; display: block; }
-        #loading-mask { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); color:white; display:none; align-items:center; justify-content:center; border-radius:16px; font-weight:bold; }
-        input[type="text"] { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; outline-color: var(--main); }
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
-        button:active { transform: scale(0.98); opacity: 0.9; }
-        .b-grey { background: #f0f2f5; color: #555; }
-        .b-main { background: linear-gradient(90deg, #62be36, #3672d9); color: white; grid-column: span 2; margin-top: 5px; }
-        .res-area { margin-top: 20px; display: none; background: #fff9f0; border: 1px solid #ffeeba; border-radius: 16px; padding: 18px; animation: fadeIn 0.4s; }
-        .copy-box { font-size: 13px; color: #444; word-break: break-all; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-top: 10px; line-height: 1.6; white-space: pre-wrap; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
+        h2 { color: #3672d9; text-align: center; font-size: 20px; margin-bottom: 5px; }
+        p { font-size: 12px; color: #777; text-align: center; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        
+        /* --- 主要按鈕樣式修改處 --- */
+        button { 
+            /* 修改為符合圖片的柔和漸層 */
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
+            
+            color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3); transition: opacity 0.3s; 
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+        
+        .result-area { margin-top: 20px; display: none; }
+        .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 15px; display: block; }
+        .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; position: relative; margin-top: 5px; line-height: 1.5; }
+        
+        /* --- 複製按鈕樣式修改處 --- */
+        .copy-btn { 
+            /* 同步修改為柔和漸層 */
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
+            
+            color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; width: auto; margin-top: 0; box-shadow: none; 
+        }
+        
+        .preview-text { color: #3672d9; font-weight: bold; }
     </style>
 </head>
 <body>
 <div class="card">
-    <h3 style="text-align:center; color:var(--main); margin-top:0;">🎨 自製早安圖</h3>
-    <div class="cvs-box">
-        <canvas id="mc" width="600" height="600"></canvas>
-        <div id="loading-mask">圖片載入中...</div>
-    </div>
-    <input type="text" id="itxt" value="早安，迎接美好能量" maxlength="20">
-    <div class="btn-group">
-        <button class="b-grey" onclick="getImg()">🔄 換個背景</button>
-        <button class="b-grey" onclick="resetPos()">🎯 位置重置</button>
-        <button class="b-main" onclick="generateLink()">✅ 完成，產生連結</button>
-    </div>
-    <div class="res-area" id="rb">
-        <strong>📋 產出成功！請複製文案：</strong>
-        <div class="copy-box" id="dl"></div>
-        <button style="background:var(--success); color:white; width:100%; margin-top:10px;" onclick="copyTxt()">👉 一鍵複製所有文案</button>
+    <h2>🚀 EDM 連結產生器</h2>
+    <p>產出已包含轉傳追蹤與自動換行</p>
+    <input type="url" id="imgUrl" placeholder="請貼上圖片網址">
+    <button id="genBtn" onclick="generate()">產生連結</button>
+    <div id="resultArea" class="result-area">
+        <span class="link-label">1. LINE 專用 (強制喚回):</span>
+        <div class="link-box">
+            <button class="copy-btn" onclick="copyText('deepLink')">複製內容</button>
+            <span class="preview-text">🔔打開EDM連結：</span><br>
+            <span id="deepLink">---</span>
+        </div>
+        <span class="link-label">2. 萬用短網址 (外部使用):</span>
+        <div class="link-box">
+            <button class="copy-btn" onclick="copyText('shortLink')">複製內容</button>
+            <span class="preview-text">🔔打開EDM連結：</span><br>
+            <span id="shortLink">---</span>
+        </div>
     </div>
 </div>
-
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
-    const cvs = document.getElementById('mc'), ctx = cvs.getContext('2d');
-    const loadingMask = document.getElementById('loading-mask');
-    let bgImg = new Image(), pos = { x: 300, y: 520 }, isDrag = false, bgId = 10;
-
-    // 初始化與更換背景
-    async function getImg() {
-        loadingMask.style.display = 'flex';
-        bgId = Math.floor(Math.random() * 1000);
-        const newImg = new Image();
-        newImg.crossOrigin = "anonymous";
-        // 使用 weserv 代理避免 CORS 污染 Canvas
-        newImg.src = `https://images.weserv.nl/?url=https://picsum.photos/id/${bgId % 500}/600/600&cache=0`;
-        
-        newImg.onload = () => {
-            bgImg = newImg;
-            draw();
-            loadingMask.style.display = 'none';
-        };
-        newImg.onerror = () => {
-            bgImg.src = "https://picsum.photos/600/600"; // 備援圖
-            loadingMask.style.display = 'none';
-        };
+    const PROXY = 'https://corsproxy.io/?';
+    async function generate() {
+        const rawImgUrl = document.getElementById('imgUrl').value.trim();
+        if(!rawImgUrl) return alert("請輸入網址");
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true; btn.innerText = "極速縮短中...";
+        try {
+            const shortImgUrl = await getShortUrl(rawImgUrl);
+            const dims = await getImageDimensions(rawImgUrl);
+            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
+            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
+            const finalShort = await getShortUrl(liffBase);
+            document.getElementById('deepLink').innerText = deepLink;
+            document.getElementById('shortLink').innerText = finalShort;
+            document.getElementById('resultArea').style.display = 'block';
+        } catch (e) { alert("產生失敗"); } finally { btn.disabled = false; btn.innerText = "產生連結"; }
     }
-
-    function draw() {
-        if (!bgImg.complete) return;
-        ctx.clearRect(0, 0, 600, 600);
-        ctx.drawImage(bgImg, 0, 0, 600, 600);
-        
-        const txt = document.getElementById('itxt').value;
-        ctx.font = "bold 42px 'Microsoft JhengHei', sans-serif";
-        const w = ctx.measureText(txt).width;
-        
-        // 文字底框
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.roundRect(pos.x - w/2 - 20, pos.y - 35, w + 40, 70, 15);
-        ctx.fill();
-        
-        // 文字內容
-        ctx.fillStyle = "#ffffff"; 
-        ctx.textAlign = "center"; 
-        ctx.textBaseline = "middle";
-        ctx.fillText(txt, pos.x, pos.y);
+    async function getShortUrl(longUrl) {
+        try {
+            const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
+            const response = await fetch(PROXY + encodeURIComponent(api));
+            const data = await response.json();
+            return data.shorturl || longUrl;
+        } catch (e) { return longUrl; }
     }
-
-    // 拖曳處理
-    function handleMove(e) {
-        if (!isDrag) return;
-        const rect = cvs.getBoundingClientRect();
-        const t = e.touches ? e.touches[0] : e;
-        pos.x = (t.clientX - rect.left) * (600 / rect.width);
-        pos.y = (t.clientY - rect.top) * (600 / rect.height);
-        
-        // 邊界限制
-        if (pos.x < 50) pos.x = 50; if (pos.x > 550) pos.x = 550;
-        if (pos.y < 50) pos.y = 50; if (pos.y > 550) pos.y = 550;
-        
-        draw();
+    function getImageDimensions(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({w: img.width, h: img.height});
+            img.onerror = () => resolve({w: 800, h: 800});
+            img.src = url;
+        });
     }
-
-    cvs.onmousedown = (e) => { isDrag = true; handleMove(e); };
-    cvs.ontouchstart = (e) => { isDrag = true; handleMove(e); e.preventDefault(); };
-    window.onmouseup = window.ontouchend = () => isDrag = false;
-    window.onmousemove = window.ontouchmove = handleMove;
-
-    function resetPos() { pos = { x: 300, y: 520 }; draw(); }
-    document.getElementById('itxt').oninput = draw;
-
-    // 產生連結與制式文案
-    function generateLink() {
-        const txtValue = document.getElementById('itxt').value;
-        const txtEncoded = encodeURIComponent(txtValue);
-        const finalUrl = `https://liff.line.me/${LIFF_ID}/?id=${bgId % 500}&t=${txtEncoded}&x=${Math.round(pos.x)}&y=${Math.round(pos.y)}`;
-        
-        const copyText = `🌞 您收到一個早安祝福！\n\n「${txtValue}」\n\n點擊下方連結看驚喜：\n${finalUrl}`;
-        
-        document.getElementById('dl').innerText = copyText;
-        document.getElementById('rb').style.display = 'block';
-        
-        // 自動滾動到底部
-        document.getElementById('rb').scrollIntoView({ behavior: 'smooth' });
+    function copyText(id) {
+        const url = document.getElementById(id).innerText;
+        const fullText = `🔔打開EDM連結：\n${url}`;
+        navigator.clipboard.writeText(fullText).then(() => alert("已複製！"));
     }
-
-    function copyTxt() {
-        const content = document.getElementById('dl').innerText;
-        // 優先嘗試 Clipboard API，備援使用 execCommand
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(content).then(() => alert("✅ 已複製文案！"));
-        } else {
-            const textArea = document.createElement("textarea");
-            textArea.value = content;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            alert("✅ 已複製文案！");
-        }
-    }
-
-    // 擴充 roundRect (支援舊版瀏覽器)
-    if (!CanvasRenderingContext2D.prototype.roundRect) {
-        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-            if (w < 2 * r) r = w / 2;
-            if (h < 2 * r) r = h / 2;
-            this.beginPath();
-            this.moveTo(x + r, y);
-            this.arcTo(x + w, y, x + w, y + h, r);
-            this.arcTo(x + w, y + h, x, y + h, r);
-            this.arcTo(x, y + h, x, y, r);
-            this.arcTo(x, y, x + w, y, r);
-            this.closePath();
-            return this;
-        };
-    }
-
-    getImg();
 </script>
 </body>
 </html>
