@@ -33,9 +33,10 @@
         .btn-alt { background: #ffa502; padding: 10px; font-size: 13px; flex: 1; border-radius: 10px; color: white; border: none; cursor: pointer; }
         #status { font-size: 12px; color: #ff7f50; text-align: center; margin-bottom: 5px; font-weight: bold; }
         .success-box { display: none; margin-top: 10px; padding: 12px; background: #eefdf3; border: 2px solid var(--line); border-radius: 12px; text-align: center; color: #1b5e20; font-weight: bold; }
-        /* 穩定性修復：手動複製框 */
-        #manualArea { display: none; margin-top: 10px; border: 1px dashed #ffa502; padding: 10px; border-radius: 10px; background: #fff9ee; }
-        #manualText { width: 100%; height: 50px; font-size: 12px; border: 1px solid #ddd; margin-top: 5px; }
+        
+        /* 修正後的備用區 */
+        #manualArea { display: none; margin-top: 10px; border: 2px dashed #ffa502; padding: 12px; border-radius: 15px; background: #fff9ee; text-align: center; }
+        .btn-copy-manual { background: #ffa502; color: white; padding: 12px; border-radius: 12px; width: 100%; font-weight: bold; border: none; cursor: pointer; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -73,8 +74,9 @@
         <div id="successMsg" class="success-box">✅ 已成功複製連結！<br>請直接去 LINE 貼上即可。</div>
         
         <div id="manualArea">
-            <p style="font-size:11px; margin:0; color:#e67e22;">若沒自動複製，請點下方框框全選複製：</p>
-            <textarea id="manualText" readonly onclick="this.select()"></textarea>
+            <p style="font-size:13px; margin-bottom:8px; color:#e67e22; font-weight:bold;">自動複製失敗，請點下方按鈕：</p>
+            <button class="btn-copy-manual" onclick="manualCopyAction()">📋 點我複製文字連結</button>
+            <textarea id="hiddenText" style="position:absolute; left:-9999px;"></textarea>
         </div>
     </div>
 </div>
@@ -90,6 +92,7 @@
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
     let currentUserNickname = "神秘好友";
+    let generatedContent = ""; // 儲存產出的內容
 
     const getUrlParam = (name) => new URLSearchParams(window.location.search).get(name);
 
@@ -104,7 +107,7 @@
                 currentUserNickname = profile.displayName;
                 document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
             }
-        } catch (err) { console.log("LIFF Init Error"); }
+        } catch (err) { console.log("LIFF Error"); }
         fetchBrightBg();
     }
 
@@ -112,7 +115,7 @@
         bg = new Image();
         bg.crossOrigin = "anonymous";
         bg.src = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
-        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可拖曳移動"; };
+        bg.onload = () => draw();
     }
 
     function draw() {
@@ -136,7 +139,7 @@
         });
     }
 
-    // 拖曳 logic
+    // 拖曳 logic (省略細節)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -167,20 +170,18 @@
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    // 【修正後的關鍵上傳函式】
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
         const mArea = document.getElementById('manualArea');
-        const mText = document.getElementById('manualText');
+        const hText = document.getElementById('hiddenText');
 
         btn.disabled = true;
-        btn.innerText = "⚡ 正在生成圖片連結...";
+        btn.innerText = "⏳ 正在處理中...";
         sMsg.style.display = 'none';
         mArea.style.display = 'none';
 
         try {
-            // 壓縮至 0.4 畫質以提高穩定性
             const base64 = canvas.toDataURL('image/jpeg', 0.4);
             const fd = new FormData();
             fd.append("file", base64);
@@ -190,42 +191,55 @@
                 method: "POST",
                 body: fd
             });
-
-            if (!response.ok) throw new Error("Upload Failed");
             
             const data = await response.json();
             const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
-            const finalContent = `🔔打開早安圖連結：\n${finalLink}`;
+            generatedContent = `🔔打開早安圖連結：\n${finalLink}`;
+            hText.value = generatedContent; // 存入隱藏框
 
-            // 追蹤事件
-            gtag('event', 'generate_morning_card', { 'sharer_id': currentUserNickname });
+            gtag('event', 'generate_card', { 'sharer_id': currentUserNickname });
 
-            // 穩定複製嘗試
-            try {
-                if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(finalContent);
-                    sMsg.style.display = 'block';
-                } else {
-                    throw new Error("Clipboard API Unavailable");
-                }
-            } catch (err) {
-                // 備援：若 Clipboard API 被擋，顯示文字框讓使用者點擊
+            // 執行複製動作
+            if (await copyToClipboard(generatedContent)) {
+                sMsg.style.display = 'block';
+                btn.innerText = "✨ 複製成功！";
+            } else {
                 mArea.style.display = 'block';
-                mText.value = finalContent;
-                btn.innerText = "請複製下方文字";
+                btn.innerText = "請點擊下方按鈕複製";
             }
 
             btn.disabled = false;
-            if (sMsg.style.display === 'block') btn.innerText = "✨ 複製成功！再試一張？";
-
         } catch (e) {
-            console.error(e);
-            alert("目前網路連線較慢，請稍後再試。");
+            alert("目前連線擁擠，請重試");
             btn.disabled = false;
-            btn.innerText = "🚀 重新嘗試產生";
+            btn.innerText = "🚀 重新嘗試";
         }
     }
-    
+
+    // 核心複製函式
+    async function copyToClipboard(text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } else {
+                throw new Error();
+            }
+        } catch (err) {
+            return false;
+        }
+    }
+
+    // 手動點擊複製
+    function manualCopyAction() {
+        const hText = document.getElementById('hiddenText');
+        hText.select();
+        hText.setSelectionRange(0, 99999); // 手機端相容
+        document.execCommand("copy");
+        alert("文字已成功複製！請回 LINE 貼上。");
+        document.getElementById('successMsg').style.display = 'block';
+    }
+
     initApp();
 </script>
 </body>
