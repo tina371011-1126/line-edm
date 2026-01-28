@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 祝福圖 V13 - 極速版</title>
+    <title>AI 祝福圖 V14 - 穩定極速版</title>
     <style>
         :root { --primary: #28a745; --accent: #00b900; }
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; box-sizing: border-box; }
-        #canvasContainer { position: relative; margin: 10px auto; background: #000; border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 1/1; touch-action: none; border: 4px solid #fff; }
+        #canvasContainer { position: relative; margin: 10px auto; background: #eee; border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 1/1; touch-action: none; border: 4px solid #fff; }
         canvas { width: 100%; height: 100%; display: block; }
         .ui-group { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
         .row { display: flex; gap: 8px; align-items: center; }
@@ -27,14 +27,14 @@
 <body>
 
 <div class="card">
-    <div id="status">🌅 挑選精美風景中...</div>
+    <div id="status">☁️ 正在連線圖庫...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
 
     <div class="ui-group">
         <div class="row">
-            <input type="text" id="mainText" placeholder="祝福語..." value="早安平安，順心如意" oninput="draw()">
+            <input type="text" id="mainText" placeholder="祝福語..." value="早安平安，事事順心" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         <div class="row">
@@ -42,7 +42,7 @@
             <input type="range" id="textSize" min="30" max="150" value="75" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-secondary" onclick="fetchLandscape()">🔄 換張風景</button>
+            <button class="btn-secondary" onclick="fetchLandscape()">🔄 更換風景</button>
             <button class="btn-secondary" onclick="reset()">🗑️ 重置白色</button>
         </div>
         <div class="sticker-bar">
@@ -53,37 +53,52 @@
             <div class="sticker" onclick="addEmoji('🍀')">🍀</div>
             <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
         </div>
-        <button id="genBtn" onclick="generateLink()">🚀 極速產生連結 (3秒)</button>
+        <button id="genBtn" onclick="generateLink()">🚀 產生複製連結</button>
     </div>
 
     <div id="resPanel" class="result-panel">
-        <strong style="color: #1b5e20;">✅ 連結已就緒</strong>
+        <strong style="color: #1b5e20;">✅ 連結已生成</strong>
         <span id="liffUrl">...</span>
-        <button onclick="copyLink()" style="background: var(--accent); width: 100%;">📋 複製連結分享</button>
+        <button onclick="copyLink()" style="background: var(--accent); width: 100%;">📋 複製連結</button>
     </div>
 </div>
 
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
+    const UNSPLASH_KEY = "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw";
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
     let items = [{ type: 'text', x: 400, y: 700 }];
     let active = null;
 
-    // 1. 只抓風景 (無人像關鍵字優化)
-    function fetchLandscape() {
-        document.getElementById('status').innerText = "🏔️ 搜尋絕美風景...";
-        bg = new Image();
-        bg.crossOrigin = "anonymous";
-        // 加入 -person 排除人像，鎖定 landscape
-        bg.src = `https://source.unsplash.com/800x800/?landscape,nature,mountains,sunrise,-person&sig=${Math.random()}`;
-        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 就緒：文字可移動"; };
+    // 1. 使用官方 API 抓取風景 (更穩定)
+    async function fetchLandscape() {
+        const status = document.getElementById('status');
+        status.innerText = "🖼️ 挑選風景中...";
+        try {
+            // 直接呼叫 API 取得隨機風景圖 JSON
+            const res = await fetch(`https://api.unsplash.com/photos/random?query=nature,landscape,sunrise&client_id=${UNSPLASH_KEY}`);
+            const data = await res.json();
+            
+            bg = new Image();
+            bg.crossOrigin = "anonymous";
+            // 使用 regular 尺寸確保載入速度與畫質平衡
+            bg.src = data.urls.regular + "&w=800&h=800&fit=crop";
+            bg.onload = () => {
+                draw();
+                status.innerText = "✨ 文字可移動，滿意請產生連結";
+            };
+        } catch (e) {
+            status.innerText = "⚠️ API 繁忙，嘗試備援方案...";
+            // 備援：若 API 失敗，改用 Picsum
+            bg.src = `https://picsum.photos/800/800?nature,landscape&sig=${Math.random()}`;
+        }
     }
 
     function draw() {
         ctx.clearRect(0,0,800,800);
-        if(bg.complete) ctx.drawImage(bg, 0, 0, 800, 800);
+        if(bg.complete && bg.src) ctx.drawImage(bg, 0, 0, 800, 800);
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
@@ -129,7 +144,7 @@
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    // 3. 按鈕功能
+    // 3. 基礎功能
     function reset() {
         items = [{ type: 'text', x: 400, y: 700 }];
         document.getElementById('mainColor').value = "#ffffff";
@@ -139,25 +154,17 @@
     function addEmoji(e) { items.push({ type: 'emoji', x: 400, y: 400, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    // 4. 極速上傳與連結生成
+    // 4. 上傳與生成 (優化 3 秒體驗)
     async function generateLink() {
         const btn = document.getElementById('genBtn');
         btn.disabled = true; btn.innerText = "⚡ 處理中...";
-        
         try {
-            // 優化點：降低畫質至 0.6 以換取極速上傳速度
-            const base64 = canvas.toDataURL('image/jpeg', 0.6);
+            const base64 = canvas.toDataURL('image/jpeg', 0.6); // 降低畫質加速上傳
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", "ml_default");
 
-            // 並行啟動網路請求
-            const uploadPromise = fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { 
-                method: "POST", 
-                body: fd 
-            });
-
-            const res = await uploadPromise;
+            const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { method: "POST", body: fd });
             const data = await res.json();
 
             if (data.secure_url) {
@@ -167,8 +174,8 @@
                 btn.innerText = "✅ 完成";
             }
         } catch (e) {
-            alert("網路異常，請重試");
-            btn.disabled = false; btn.innerText = "🚀 再次嘗試";
+            alert("網路稍慢，請重試一次");
+            btn.disabled = false; btn.innerText = "🚀 再次產生連結";
         }
     }
 
