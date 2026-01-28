@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 風景祝福圖 V11 - 穩定版</title>
+    <title>AI 風景祝福圖 V12 - 複製連結版</title>
     <style>
-        :root { --primary: #28a745; }
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; overflow-x: hidden; }
+        :root { --primary: #28a745; --accent: #00b900; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; box-sizing: border-box; }
         
         #canvasContainer { 
             position: relative; margin: 10px auto; background: #000; border-radius: 12px; overflow: hidden; 
             width: 100%; aspect-ratio: 1 / 1; touch-action: none; border: 4px solid #fff;
         }
-        canvas { width: 100%; height: 100%; display: block; cursor: move; }
+        canvas { width: 100%; height: 100%; display: block; }
 
         .ui-group { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
         .row { display: flex; gap: 8px; align-items: center; }
@@ -23,17 +23,22 @@
         .sticker { font-size: 24px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; min-width: 40px; text-align: center; border: 1px solid #eee; }
         .no-sticker { background: #fee; color: #d33; font-weight: bold; border-color: #fcc; }
 
-        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
+        button:disabled { background: #ccc; }
         .btn-secondary { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
         
-        #msg { font-size: 13px; color: #555; text-align: center; margin-bottom: 5px; font-weight: 500; }
+        #status { font-size: 13px; color: #555; text-align: center; margin-bottom: 5px; }
+        
+        /* 結果面板 */
+        .result-panel { display: none; margin-top: 15px; padding: 15px; background: #e8f5e9; border: 2px dashed var(--accent); border-radius: 12px; animation: slideUp 0.3s ease; }
+        #liffUrl { font-size: 11px; word-break: break-all; background: #fff; display: block; padding: 10px; margin: 8px 0; border: 1px solid #c3e6cb; border-radius: 6px; color: #155724; }
+        @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="msg">☀️ 祝福圖片編輯中</div>
+    <div id="status">🌅 正在載入風景背景...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
@@ -50,131 +55,113 @@
         </div>
 
         <div class="row">
-            <button class="btn-secondary" onclick="fetchLandscape()">🔄 更換風景背景</button>
-            <button class="btn-secondary" onclick="resetToWhite()">🗑️ 重置 (白色)</button>
+            <button class="btn-secondary" onclick="fetchBg()">🔄 換一張圖</button>
+            <button class="btn-secondary" onclick="reset()">🗑️ 重置白色</button>
         </div>
 
         <div class="sticker-bar">
-            <div class="sticker no-sticker" title="不使用貼圖" onclick="clearStickers()">🚫</div>
+            <div class="sticker no-sticker" onclick="clearStickers()">🚫</div>
             <div class="sticker" onclick="addEmoji('☀️')">☀️</div>
             <div class="sticker" onclick="addEmoji('🌸')">🌸</div>
             <div class="sticker" onclick="addEmoji('☕')">☕</div>
             <div class="sticker" onclick="addEmoji('🍀')">🍀</div>
-            <div class="sticker" onclick="addEmoji('🙏')">🙏</div>
+            <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
         </div>
 
-        <button id="shareBtn" onclick="shareToLine()">📤 一鍵轉傳給好友</button>
+        <button id="genBtn" onclick="generateLink()">🚀 產生複製連結</button>
+    </div>
+
+    <div id="resPanel" class="result-panel">
+        <strong style="color: #1b5e20;">✅ 連結已生成！</strong>
+        <span id="liffUrl">連結載入中...</span>
+        <button onclick="copyLink()" style="background: var(--accent); width: 100%;">📋 複製連結去貼給好友</button>
     </div>
 </div>
 
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
     let items = [{ type: 'text', x: 400, y: 700 }];
-    let dragTarget = null;
+    let active = null;
 
-    liff.init({ liffId: LIFF_ID }).then(() => {
-        fetchLandscape();
-    });
-
-    function fetchLandscape() {
-        document.getElementById('msg').innerText = "🌅 正在搜尋絕美風景...";
+    // 1. 初始化圖片
+    function fetchBg() {
+        document.getElementById('status').innerText = "🌅 搜尋風景中...";
         bg = new Image();
         bg.crossOrigin = "anonymous";
-        // 隨機關鍵字增加多樣性
-        const keywords = ['landscape','nature','mountains','sunrise','flowers'];
-        const randomKey = keywords[Math.floor(Math.random() * keywords.length)];
-        
-        // 使用備援機制：如果 Unsplash 失敗，就嘗試 Picsum
-        bg.src = `https://source.unsplash.com/800x800/?${randomKey}&sig=${Math.random()}`;
-        
-        bg.onload = () => { 
-            draw(); 
-            document.getElementById('msg').innerText = "✨ 就緒：文字可隨意移動"; 
-        };
-        
-        bg.onerror = () => {
-            // 備援方案
-            bg.src = `https://picsum.photos/800/800?nature,landscape&random=${Math.random()}`;
-            document.getElementById('msg').innerText = "已啟用備援背景方案";
-        };
+        bg.src = `https://picsum.photos/800/800?nature,landscape&sig=${Math.random()}`;
+        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可自由移動"; };
     }
 
+    // 2. 繪圖
     function draw() {
         ctx.clearRect(0,0,800,800);
-        if(bg.complete && bg.src) ctx.drawImage(bg, 0, 0, 800, 800);
+        if(bg.complete) ctx.drawImage(bg, 0, 0, 800, 800);
         
-        const txtValue = document.getElementById('mainText').value || "早安";
-        const txtColor = document.getElementById('mainColor').value;
-        const txtSize = document.getElementById('textSize').value;
+        const txt = document.getElementById('mainText').value || "早安";
+        const col = document.getElementById('mainColor').value;
+        const sz = document.getElementById('textSize').value;
 
-        items.forEach(item => {
+        items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            if(item.type === 'text') {
-                ctx.font = `bold ${txtSize}px "Microsoft JhengHei", sans-serif`;
+            if(it.type === 'text') {
+                ctx.font = `bold ${sz}px sans-serif`;
                 ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 10;
                 ctx.strokeStyle = "black"; ctx.lineWidth = 8;
-                ctx.strokeText(txtValue, item.x, item.y);
-                ctx.fillStyle = txtColor; ctx.shadowBlur = 0;
-                ctx.fillText(txtValue, item.x, item.y);
+                ctx.strokeText(txt, it.x, it.y);
+                ctx.fillStyle = col; ctx.shadowBlur = 0;
+                ctx.fillText(txt, it.x, it.y);
             } else {
-                ctx.font = "100px serif"; 
-                ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 5;
-                ctx.fillText(item.emoji, item.x, item.y);
+                ctx.font = "100px serif"; ctx.fillText(it.emoji, it.x, it.y);
             }
         });
     }
 
-    function getMousePos(e) {
-        const rect = canvas.getBoundingClientRect();
+    // 3. 移動邏輯 (邊界防範)
+    function getPos(e) {
+        const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        return {
-            x: (cx - rect.left) * (800 / rect.width),
-            y: (cy - rect.top) * (800 / rect.height)
-        };
+        return { x: (cx - r.left) * (800 / r.width), y: (cy - r.top) * (800 / r.height) };
     }
 
-    const onStart = (e) => {
-        const p = getMousePos(e);
-        dragTarget = [...items].reverse().find(i => Math.abs(i.x - p.x) < 100 && Math.abs(i.y - p.y) < 100);
-        if(dragTarget && e.cancelable) e.preventDefault();
+    const start = (e) => {
+        const p = getPos(e);
+        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 100 && Math.abs(i.y - p.y) < 100);
+        if(active && e.cancelable) e.preventDefault();
     };
-
-    const onMove = (e) => {
-        if(!dragTarget) return;
+    const move = (e) => {
+        if(!active) return;
         if(e.cancelable) e.preventDefault();
-        const p = getMousePos(e);
-        dragTarget.x = Math.max(80, Math.min(720, p.x));
-        dragTarget.y = Math.max(80, Math.min(720, p.y));
+        const p = getPos(e);
+        active.x = Math.max(80, Math.min(720, p.x));
+        active.y = Math.max(80, Math.min(720, p.y));
         draw();
     };
 
-    canvas.addEventListener('touchstart', onStart, {passive: false});
-    window.addEventListener('touchmove', onMove, {passive: false});
-    window.addEventListener('touchend', () => dragTarget = null);
-    canvas.addEventListener('mousedown', onStart);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', () => dragTarget = null);
+    canvas.addEventListener('touchstart', start, {passive: false});
+    window.addEventListener('touchmove', move, {passive: false});
+    window.addEventListener('touchend', () => active = null);
+    canvas.addEventListener('mousedown', start);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', () => active = null);
 
-    function resetToWhite() {
+    // 4. 重置與貼圖
+    function reset() {
         items = [{ type: 'text', x: 400, y: 700 }];
         document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 75;
         draw();
-        document.getElementById('msg').innerText = "已重置：文字回歸白色原位";
     }
-
     function addEmoji(e) { items.push({ type: 'emoji', x: 400, y: 400, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    async function shareToLine() {
-        if (!liff.isLoggedIn()) { liff.login(); return; }
-        const btn = document.getElementById('shareBtn');
-        btn.disabled = true; btn.innerText = "🚀 準備分享中...";
+    // 5. 生成連結與複製 (line://app/ 格式)
+    async function generateLink() {
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true; btn.innerText = "⏳ 正在產生圖片連結...";
 
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
@@ -182,27 +169,31 @@
             fd.append("file", base64);
             fd.append("upload_preset", "ml_default");
 
-            // 上傳穩定性強化
             const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { method: "POST", body: fd });
             const data = await res.json();
 
             if (data.secure_url) {
-                if (liff.isApiAvailable('shareTargetPicker')) {
-                    await liff.shareTargetPicker([{
-                        type: "image",
-                        originalContentUrl: data.secure_url,
-                        previewImageUrl: data.secure_url
-                    }]);
-                    btn.innerText = "✅ 分享完成";
-                }
-            } else { throw new Error(); }
+                // 生成 line://app/ 連結
+                const finalUrl = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=800&h=800`;
+                document.getElementById('liffUrl').innerText = finalUrl;
+                document.getElementById('resPanel').style.display = 'block';
+                btn.innerText = "✅ 產生完成";
+            }
         } catch (e) {
-            alert("網路稍慢，請再次點擊分享。");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "📤 一鍵轉傳給好友";
+            alert("系統繁忙，請稍後再試。");
+            btn.disabled = false; btn.innerText = "🚀 再次產生連結";
         }
     }
+
+    function copyLink() {
+        const url = document.getElementById('liffUrl').innerText;
+        const fullMsg = `☀️ 送你一張早安祝福圖片：\n${url}`;
+        navigator.clipboard.writeText(fullMsg).then(() => {
+            alert("連結已複製！現在可以去 LINE 貼上給好友了。");
+        });
+    }
+
+    fetchBg();
 </script>
 </body>
 </html>
