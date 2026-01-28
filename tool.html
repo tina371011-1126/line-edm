@@ -3,56 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖編輯產生器</title>
+    <title>AI 早安圖產生器 V2</title>
     <style>
         :root { --primary: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); }
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; touch-action: manipulation; }
         .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; }
         
-        /* 畫布編輯區：修正顯示問題 */
         #canvasContainer { 
             position: relative; 
             margin: 15px auto; 
-            background: #333; 
+            background: #000; 
             border-radius: 8px; 
             overflow: hidden; 
-            touch-action: none; 
             width: 100%;
             aspect-ratio: 1 / 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            touch-action: none; 
         }
-        canvas { width: 100%; height: 100%; object-fit: contain; }
+        canvas { width: 100%; height: 100%; cursor: move; }
 
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-        input, select { padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 14px; }
+        .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        input[type="range"] { flex: 1; accent-color: #62be36; }
         
-        .sticker-box { display: flex; gap: 10px; overflow-x: auto; padding: 10px 5px; margin-bottom: 10px; border-top: 1px solid #eee; white-space: nowrap; }
-        .sticker-item { font-size: 28px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; min-width: 45px; display: inline-block; text-align: center; border: 1px solid #eee; }
+        .sticker-box { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #eee; }
+        .sticker-item { font-size: 24px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; min-width: 40px; border: 1px solid #eee; }
 
-        button { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin: 5px 0; font-size: 16px; }
-        .btn-secondary { background: #555; font-size: 14px; }
+        button { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin: 5px 0; font-size: 16px; transition: 0.3s; }
+        button:disabled { background: #ccc; }
+        .btn-sm { background: #555; padding: 8px; font-size: 13px; width: auto; flex: 1; }
         
-        .result-area { display: none; background: #e8f0fe; padding: 15px; border-radius: 10px; margin-top: 15px; word-break: break-all; border: 2px dashed #3672d9; }
-        #finalLiffUrl { font-size: 12px; background: white; padding: 10px; border-radius: 5px; margin: 10px 0; display: block; }
+        .result-area { display: none; background: #e8f0fe; padding: 15px; border-radius: 10px; margin-top: 15px; border: 2px dashed #3672d9; }
+        code { font-size: 10px; word-break: break-all; background: #fff; display: block; padding: 10px; margin: 10px 0; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: #3672d9; margin-bottom: 5px;">🚀 早安圖產生器</h2>
-    <p style="font-size: 13px; color: #777; margin-bottom: 15px;">編輯文字與貼圖，一鍵轉傳 Line</p>
-
+    <h2 style="color: #3672d9; margin: 0 0 10px;">🎨 早安圖編輯器</h2>
+    
     <div id="canvasContainer">
         <canvas id="editorCanvas" width="800" height="800"></canvas>
     </div>
 
     <div class="controls">
-        <button class="btn-secondary" onclick="fetchRandomImage()">🔄 換張隨機圖</button>
-        <button class="btn-secondary" onclick="resetElements()">🗑️ 全部重置</button>
-        <input type="text" id="textInput" placeholder="輸入文字..." oninput="draw()">
-        <input type="color" id="colorPicker" value="#ffffff" onchange="draw()">
+        <div class="row">
+            <input type="text" id="textInput" placeholder="輸入祝福文字..." oninput="draw()">
+            <input type="color" id="colorPicker" value="#ffffff" onchange="draw()">
+        </div>
+        <div class="row">
+            <span style="font-size:12px; color:#666">大小:</span>
+            <input type="range" id="sizePicker" min="20" max="120" value="60" oninput="updateSize()">
+        </div>
+        <div class="row">
+            <button class="btn-sm" onclick="fetchRandomImage()">🔄 換背景</button>
+            <button class="btn-sm" onclick="resetAll()">🗑️ 重置</button>
+        </div>
     </div>
 
     <div class="sticker-box">
@@ -61,16 +67,15 @@
         <div class="sticker-item" onclick="addSticker('☕')">☕</div>
         <div class="sticker-item" onclick="addSticker('🍀')">🍀</div>
         <div class="sticker-item" onclick="addSticker('🌹')">🌹</div>
-        <div class="sticker-item" onclick="addSticker('😊')">😊</div>
         <div class="sticker-item" onclick="addSticker('🙏')">🙏</div>
     </div>
 
-    <button id="genBtn" onclick="uploadAndGenerate()">✨ 產生並複製分享連結</button>
+    <button id="genBtn" onclick="uploadImg()">✨ 製作完成，獲取連結</button>
 
     <div id="resultArea" class="result-area">
         <strong style="color:#222">🎉 製作完成！</strong>
-        <span id="finalLiffUrl">連結產生中...</span>
-        <button onclick="copyLink()">📋 複製發送到 LINE</button>
+        <code id="finalLink">產生中...</code>
+        <button onclick="copyToLine()">📋 複製並發送到 LINE</button>
     </div>
 </div>
 
@@ -79,138 +84,134 @@
     const canvas = document.getElementById('editorCanvas');
     const ctx = canvas.getContext('2d');
     let bgImg = new Image();
-    // 預設主文字
-    let elements = [{ type: 'text', x: 400, y: 700, size: 50 }];
+    let elements = [{ type: 'text', x: 400, y: 700, size: 60 }]; 
     let isDragging = false;
-    let selectedElement = null;
+    let selectedEl = null;
 
-    // 修正 1：改用穩定的圖庫並強制設定 crossOrigin
     function fetchRandomImage() {
-        document.getElementById('genBtn').disabled = true;
-        document.getElementById('genBtn').innerText = "圖片讀取中...";
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true;
+        btn.innerText = "讀取圖片中...";
         
-        const randomId = Math.floor(Math.random() * 1000);
         const newImg = new Image();
-        newImg.crossOrigin = "anonymous"; 
-        // 使用 Lorem Picsum 產出自然風景類的圖
-        newImg.src = `https://picsum.photos/800/800?random=${randomId}`;
-        
+        newImg.crossOrigin = "anonymous";
+        newImg.src = `https://picsum.photos/800/800?random=${Math.random()}`;
         newImg.onload = () => {
             bgImg = newImg;
             draw();
-            document.getElementById('genBtn').disabled = false;
-            document.getElementById('genBtn').innerText = "✨ 產生並複製分享連結";
+            btn.disabled = false;
+            btn.innerText = "✨ 製作完成，獲取連結";
         };
-        newImg.onerror = () => alert("圖庫連線失敗，請重試");
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 繪製背景
-        if (bgImg.complete) {
-            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-        }
+        if (bgImg.src) ctx.drawImage(bgImg, 0, 0, 800, 800);
 
-        // 繪製所有元素
-        const mainText = document.getElementById('textInput').value || "早安，祝你有美好的一天";
-        const mainColor = document.getElementById('colorPicker').value;
+        const txt = document.getElementById('textInput').value || "早安平安，事事順心";
+        const color = document.getElementById('colorPicker').value;
 
-        elements.forEach((el, index) => {
+        elements.forEach(el => {
             ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
             if (el.type === 'text') {
-                ctx.fillStyle = mainColor;
+                el.size = parseInt(document.getElementById('sizePicker').value);
                 ctx.font = `bold ${el.size}px "Microsoft JhengHei", sans-serif`;
-                ctx.strokeStyle = "rgba(0,0,0,0.7)";
-                ctx.lineWidth = 6;
-                ctx.strokeText(mainText, el.x, el.y);
-                ctx.fillText(mainText, el.x, el.y);
-            } else if (el.type === 'sticker') {
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 8;
+                ctx.strokeText(txt, el.x, el.y);
+                ctx.fillStyle = color;
+                ctx.fillText(txt, el.x, el.y);
+            } else {
                 ctx.font = `${el.size}px serif`;
                 ctx.fillText(el.text, el.x, el.y);
             }
         });
     }
 
+    function updateSize() { draw(); }
+
     function addSticker(emoji) {
         elements.push({ type: 'sticker', x: 400, y: 400, text: emoji, size: 80 });
         draw();
     }
 
-    function resetElements() {
+    function resetAll() {
         elements = [elements[0]];
         document.getElementById('textInput').value = "";
         draw();
     }
 
-    // 修正 2：改進手機觸控拖拉邏輯
-    function handleStart(e) {
-        e.preventDefault();
+    // --- 拖拉與邊界檢查功能 ---
+    function getPos(e) {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.clientX || e.touches[0].clientX;
         const clientY = e.clientY || e.touches[0].clientY;
-        const x = (clientX - rect.left) * (canvas.width / rect.width);
-        const y = (clientY - rect.top) * (canvas.height / rect.height);
-
-        selectedElement = [...elements].reverse().find(el => 
-            Math.abs(el.x - x) < 60 && Math.abs(el.y - y) < 60
-        );
-        if (selectedElement) isDragging = true;
+        return {
+            x: (clientX - rect.left) * (800 / rect.width),
+            y: (clientY - rect.top) * (800 / rect.height)
+        };
     }
 
-    function handleMove(e) {
-        if (!isDragging || !selectedElement) return;
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.clientX || e.touches[0].clientX;
-        const clientY = e.clientY || e.touches[0].clientY;
-        selectedElement.x = (clientX - rect.left) * (canvas.width / rect.width);
-        selectedElement.y = (clientY - rect.top) * (canvas.height / rect.height);
+    function startDrag(e) {
+        const pos = getPos(e);
+        selectedEl = [...elements].reverse().find(el => Math.abs(el.x - pos.x) < 60 && Math.abs(el.y - pos.y) < 60);
+        if (selectedEl) isDragging = true;
+    }
+
+    function moveDrag(e) {
+        if (!isDragging || !selectedEl) return;
+        const pos = getPos(e);
+        
+        // 邊界限制邏輯：限制在 0-800 像素內
+        selectedEl.x = Math.max(50, Math.min(750, pos.x));
+        selectedEl.y = Math.max(50, Math.min(750, pos.y));
         draw();
     }
 
-    canvas.addEventListener('mousedown', handleStart);
-    canvas.addEventListener('touchstart', handleStart, {passive: false});
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('touchmove', handleMove, {passive: false});
+    canvas.addEventListener('mousedown', startDrag);
+    canvas.addEventListener('touchstart', startDrag, {passive: false});
+    window.addEventListener('mousemove', moveDrag);
+    window.addEventListener('touchmove', moveDrag, {passive: false});
     window.addEventListener('mouseup', () => isDragging = false);
     window.addEventListener('touchend', () => isDragging = false);
 
-    // 修正 3：上傳與連結產生
-    async function uploadAndGenerate() {
+    // --- 上傳邏輯 ---
+    async function uploadImg() {
         const btn = document.getElementById('genBtn');
         btn.disabled = true;
-        btn.innerText = "🚀 正在合成圖片...";
+        btn.innerText = "正在處理...";
 
         try {
-            const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
-            const formData = new FormData();
-            formData.append('image', blob);
+            // 轉為 jpeg 並減少質量確保上傳成功
+            const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+            
+            const fd = new FormData();
+            fd.append('image', base64);
+            fd.append('type', 'base64');
 
-            // 使用 Imgur API 上傳
             const res = await fetch('https://api.imgur.com/3/image', {
                 method: 'POST',
                 headers: { Authorization: 'Client-ID 7f33887d163353e' },
-                body: formData
+                body: fd
             });
-            const json = await res.json();
-            if (!json.success) throw new Error("上傳失敗");
+            const data = await res.json();
+            if (!data.success) throw new Error();
 
-            const finalImgUrl = json.data.link;
-            const liffUrl = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(finalImgUrl)}&w=800&h=800&f=AI`;
-            
-            document.getElementById('finalLiffUrl').innerText = liffUrl;
+            const finalUrl = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.data.link)}&w=800&h=800&f=custom`;
+            document.getElementById('finalLink').innerText = finalUrl;
             document.getElementById('resultArea').style.display = 'block';
-            btn.innerText = "✨ 產生完成";
+            btn.innerText = "✨ 產生成功";
         } catch (e) {
-            alert("錯誤: " + e.message);
+            alert("上傳失敗，請稍後再試或換一張圖");
             btn.disabled = false;
-            btn.innerText = "✨ 產生並複製分享連結";
+            btn.innerText = "✨ 製作完成，獲取連結";
         }
     }
 
-    function copyLink() {
-        const url = document.getElementById('finalLiffUrl').innerText;
-        navigator.clipboard.writeText(`☀️送您一張早安祝福：\n${url}`).then(() => alert("已複製！去貼給好友吧！"));
+    function copyToLine() {
+        const url = document.getElementById('finalLink').innerText;
+        navigator.clipboard.writeText(`☀️ 送您一張祝福圖片：\n${url}`).then(() => alert("已複製！快去傳給好友吧"));
     }
 
     fetchRandomImage();
