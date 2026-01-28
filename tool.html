@@ -3,44 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>早安圖產生器 V8</title>
+    <title>AI 早安圖 V9 - 穩定分享版</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        #canvasContainer { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 10px; overflow: hidden; touch-action: none; border: 3px solid #fff; }
+        :root { --primary: #28a745; }
+        body { font-family: -apple-system, sans-serif; background: #f4f4f7; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        #canvasContainer { position: relative; width: 100%; aspect-ratio: 1/1; background: #333; border-radius: 12px; overflow: hidden; touch-action: none; border: 4px solid #fff; }
         canvas { width: 100%; height: 100%; display: block; }
-        .ui { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-        .row { display: flex; gap: 8px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
-        .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; }
-        .sticker { font-size: 20px; cursor: pointer; background: #eee; padding: 8px; border-radius: 8px; min-width: 35px; text-align: center; }
-        .no-sticker { background: #ffcccc; color: #d00; font-weight: bold; }
-        button { background: #28a745; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .ui { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+        .row { display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
+        .sticker-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; border-top: 1px solid #eee; }
+        .sticker { font-size: 24px; cursor: pointer; background: #f8f9fa; padding: 8px; border-radius: 10px; border: 1px solid #eee; min-width: 42px; text-align: center; }
+        .no-sticker { background: #fee; color: #d33; font-weight: bold; }
+        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; }
         button:disabled { background: #ccc; }
-        .btn-alt { background: #6c757d; font-size: 13px; flex: 1; }
-        #status { font-size: 12px; color: #666; text-align: center; }
-        .result { display: none; margin-top: 15px; padding: 10px; background: #eef9f0; border-radius: 10px; border: 1px dashed #28a745; }
+        .btn-alt { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
+        #msg { font-size: 12px; color: #777; text-align: center; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="status">正在從 Unsplash 載入背景...</div>
+    <div id="msg">正在初始化 LINE 系統...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="800" height="800"></canvas>
     </div>
 
     <div class="ui">
         <div class="row">
-            <input type="text" id="mainText" placeholder="輸入祝福語" value="早安平安，事事順心" oninput="draw()">
+            <input type="text" id="mainText" placeholder="祝福語" value="早安平安，順心如意" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         <div class="row">
-            <span style="font-size:12px">文字大小</span>
+            <span style="font-size:12px">大小</span>
             <input type="range" id="textSize" min="30" max="150" value="70" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-alt" onclick="fetchImg()">🔄 換圖</button>
+            <button class="btn-alt" onclick="fetchImg()">🔄 換張圖</button>
             <button class="btn-alt" onclick="reset()">🗑️ 重置白色</button>
         </div>
         <div class="sticker-bar">
@@ -51,39 +51,45 @@
             <div class="sticker" onclick="addSticker('🍀')">🍀</div>
             <div class="sticker" onclick="addSticker('🙏')">🙏</div>
         </div>
-        <button id="subBtn" onclick="upload()">✨ 產生分享連結</button>
-    </div>
-
-    <div id="res" class="result">
-        <span id="url" style="font-size: 10px; word-break: break-all; display: block;"></span>
-        <button onclick="copyLink()" style="width: 100%; margin-top: 5px;">📋 複製連結發送到 LINE</button>
+        <button id="shareBtn" onclick="shareToFriends()">📤 一鍵傳送給 LINE 好友</button>
     </div>
 </div>
 
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
-    const UNSPLASH_KEY = "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw";
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
     let items = [{ type: 'text', x: 400, y: 700 }];
     let active = null;
 
-    async function fetchImg() {
-        document.getElementById('status').innerText = "Unsplash 圖片載入中...";
-        try {
-            const r = await fetch(`https://api.unsplash.com/photos/random?query=nature,morning&client_id=${UNSPLASH_KEY}`);
-            const d = await r.json();
-            bg = new Image();
-            bg.crossOrigin = "anonymous";
-            bg.src = d.urls.regular + "&w=800&h=800&fit=crop";
-            bg.onload = () => { draw(); document.getElementById('status').innerText = "就緒：文字可移動"; };
-        } catch (e) { document.getElementById('status').innerText = "API 額度已滿，請稍後"; }
+    // 1. LIFF 初始化
+    liff.init({ liffId: LIFF_ID }).then(() => {
+        document.getElementById('msg').innerText = "LINE 系統就緒";
+        fetchImg();
+    }).catch(err => {
+        document.getElementById('msg').innerText = "系統啟動失敗";
+    });
+
+    // 2. 使用最穩定的 Picsum 載入圖片 (避免 Unsplash 額度問題)
+    function fetchImg() {
+        document.getElementById('msg').innerText = "正在挑選精美背景...";
+        bg = new Image();
+        bg.crossOrigin = "anonymous";
+        bg.src = `https://picsum.photos/800/800?random=${Math.random()}`;
+        bg.onload = () => {
+            draw();
+            document.getElementById('msg').innerText = "就緒：文字可隨意移動";
+        };
+        bg.onerror = () => {
+            document.getElementById('msg').innerText = "圖片載入失敗，請重試";
+        };
     }
 
     function draw() {
         ctx.clearRect(0,0,800,800);
-        if(bg.src) ctx.drawImage(bg,0,0,800,800);
+        if(bg.complete) ctx.drawImage(bg,0,0,800,800);
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
@@ -102,16 +108,7 @@
         });
     }
 
-    function reset() {
-        items = [{ type: 'text', x: 400, y: 700 }];
-        document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = 70;
-        draw();
-    }
-
-    function addSticker(e) { items.push({ type: 'sticker', x: 400, y: 400, emoji: e }); draw(); }
-    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
-
+    // 3. 移動邏輯與邊界檢查 (修正無法移動問題)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -140,10 +137,25 @@
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    async function upload() {
-        const b = document.getElementById('subBtn');
-        b.disabled = true; b.innerText = "上傳中...";
+    // 4. 重置與貼圖
+    function reset() {
+        items = [{ type: 'text', x: 400, y: 700 }];
+        document.getElementById('mainColor').value = "#ffffff";
+        document.getElementById('textSize').value = 70;
+        draw();
+    }
+    function addSticker(e) { items.push({ type: 'sticker', x: 400, y: 400, emoji: e }); draw(); }
+    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
+
+    // 5. 核心分享功能：修正轉傳失敗
+    async function shareToFriends() {
+        if (!liff.isLoggedIn()) { liff.login(); return; }
+        const btn = document.getElementById('shareBtn');
+        btn.disabled = true;
+        btn.innerText = "正在處理圖片...";
+
         try {
+            // 將畫布轉為 Base64 並上傳 (這裡建議用 Cloudinary 或是直接傳 URL)
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
             const fd = new FormData();
             fd.append("file", base64);
@@ -151,19 +163,27 @@
 
             const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { method: "POST", body: fd });
             const d = await res.json();
-            const link = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(d.secure_url)}&w=800&h=800`;
-            document.getElementById('url').innerText = link;
-            document.getElementById('res').style.display = 'block';
-            b.innerText = "✅ 產生成功";
-        } catch (e) { alert("上傳失敗"); b.disabled = false; b.innerText = "再次嘗試"; }
-    }
+            
+            if (!d.secure_url) throw new Error("上傳失敗");
 
-    function copyLink() {
-        const u = document.getElementById('url').innerText;
-        navigator.clipboard.writeText(`☀️ 早安祝福圖片：\n${u}`).then(() => alert("連結已複製"));
+            // 調用 LINE 分享選單
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                await liff.shareTargetPicker([
+                    {
+                        type: "image",
+                        originalContentUrl: d.secure_url,
+                        previewImageUrl: d.secure_url
+                    }
+                ]);
+                btn.innerText = "✅ 已分享";
+            }
+        } catch (e) {
+            alert("目前分享功能忙碌中，請稍後再試。");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "📤 一鍵傳送給 LINE 好友";
+        }
     }
-
-    fetchImg();
 </script>
 </body>
 </html>
