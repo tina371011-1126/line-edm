@@ -3,181 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>極速 AI 早安產生器</title>
+    <title>AI 商用早安圖工具</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root { --main: #06C755; --bg: #f2f4f7; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; overscroll-behavior: none; }
-        .card { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); width: 100%; max-width: 440px; box-sizing: border-box; }
+        :root { --main: #06C755; --bg: #f5f7fa; }
+        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
+        .card { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 440px; }
         
-        /* 畫布與載入器 */
-        .cvs-wrapper { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; touch-action: none; }
+        /* 畫布區塊 */
+        .cvs-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; touch-action: none; }
         #mc { width: 100%; height: 100%; display: block; }
-        #ld { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 20px; font-size: 14px; display: none; }
+        #ld { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; font-size: 14px; display: none; z-index: 10; }
 
-        /* 控制項 */
+        /* 控制列 */
         .row { display: flex; gap: 8px; margin-bottom: 10px; }
-        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
-        input[type="color"] { width: 45px; height: 45px; border: none; background: none; cursor: pointer; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
+        input[type="color"] { width: 45px; height: 48px; border: none; background: none; cursor: pointer; }
 
-        .sticker-row { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; margin-bottom: 15px; -webkit-overflow-scrolling: touch; }
-        .stk { font-size: 24px; padding: 8px; background: #f0f0f0; border-radius: 10px; cursor: pointer; border: 2px solid transparent; flex-shrink: 0; }
+        /* 貼圖列 */
+        .stk-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
+        .stk { font-size: 24px; padding: 8px; background: #f0f0f0; border-radius: 10px; cursor: pointer; flex-shrink: 0; border: 2px solid transparent; }
         .stk.active { border-color: var(--main); background: #e8f9ed; }
 
-        .btn-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { border: none; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; }
-        .b-ref { background: #eee; }
-        .b-gen { background: linear-gradient(135deg, #06C755, #3672d9); color: white; }
+        /* 按鈕組 */
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        button { border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .b-grey { background: #eee; color: #333; }
+        .b-blue { background: #3672d9; color: white; }
+        .b-main { background: var(--main); color: white; grid-column: span 2; padding: 15px; font-size: 16px; margin-top: 10px; }
         
         /* 結果區 */
-        .res { margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px; display: none; }
-        .copy-box { background: #f8f9fa; padding: 12px; border-radius: 10px; font-size: 13px; color: #333; margin-bottom: 10px; word-break: break-all; white-space: pre-wrap; }
-        .b-copy { background: #333; color: white; width: 100%; margin-bottom: 8px; }
-        .b-share { background: var(--main); color: white; width: 100%; }
+        .res-area { margin-top: 15px; background: #fff9e6; border: 1px solid #ffeeba; border-radius: 12px; padding: 15px; display: none; }
+        .copy-text { font-size: 13px; color: #856404; word-break: break-all; white-space: pre-wrap; margin-bottom: 10px; line-height: 1.5; }
+        .b-copy { background: #555; color: white; width: 100%; }
         
-        .err { color: #d9534f; text-align: center; font-size: 13px; margin-top: 8px; display: none; }
+        .err { color: #d9534f; text-align: center; font-size: 13px; margin-top: 8px; display: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="cvs-wrapper">
-        <div id="ld">🚀 加速處理中...</div>
+    <div class="cvs-box">
+        <div id="ld">🚀 處理中...</div>
         <canvas id="mc" width="800" height="800"></canvas>
     </div>
 
     <div class="row">
-        <input type="text" id="itxt" value="早安！願你今天充滿能量" maxlength="20">
+        <input type="text" id="itxt" value="早安，生活充滿喜悅" maxlength="20">
         <input type="color" id="iclr" value="#ffffff">
     </div>
 
-    <div class="sticker-row" id="stkBar">
+    <div class="stk-bar">
+        <div class="stk active" data-v="">🚫 無</div>
         <div class="stk" data-v="☀️">☀️</div>
         <div class="stk" data-v="🌸">🌸</div>
         <div class="stk" data-v="☕">☕</div>
         <div class="stk" data-v="🍀">🍀</div>
+        <div class="stk" data-v="🌈">🌈</div>
         <div class="stk" data-v="🐱">🐱</div>
-        <div class="stk" data-v="🦋">🦋</div>
     </div>
 
-    <div class="btn-box">
-        <button class="b-ref" onclick="getImg()">🔄 換背景</button>
-        <button class="b-gen" id="gb" onclick="up()">✨ 3秒生成</button>
+    <div class="btn-grid">
+        <button class="b-grey" onclick="getImg()">🔄 換背景</button>
+        <button class="b-grey" onclick="resetItems()">🎯 重置位置</button>
+        <button class="b-blue" onclick="uploadImg()">✨ 產生文案</button>
+        <button class="b-main" onclick="shareToLine()">📤 分享給好友 (LIFF)</button>
     </div>
 
-    <div id="eb" class="err">產生超時，請點擊重試</div>
+    <div id="eb" class="err">❌ 產生失敗，請檢查網路後再試一次</div>
 
-    <div class="res" id="rb">
-        <div class="copy-box" id="ct"></div>
-        <button class="b-copy" onclick="copy()">📌 複製文案</button>
-        <button class="b-share" onclick="share()">📤 發送到 LINE</button>
+    <div class="res-area" id="rb">
+        <div class="copy-text" id="ct"></div>
+        <button class="b-copy" onclick="copyText()">📌 複製早安圖連結文案</button>
     </div>
 </div>
 
 <script>
-    const LIFF_ID = "2008941488-Phn5v50S";
-    const KEY = "YOUR_UNSPLASH_KEY"; // 填入後更清晰
+    // 已填入您的 Access Key
+    const KEY = "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw"; 
+    const LIFF_ID = "2008941488-Phn5v50S"; 
 
     const cvs = document.getElementById('mc'), ctx = cvs.getContext('2d');
-    let img = new Image(), items = [], active = null;
-
-    // 初始化兩個預設物件
-    items.push({ id: 't', x: 400, y: 700, type: 'text' });
-    items.push({ id: 's', x: 700, y: 120, type: 'stk', v: '☀️' });
+    let img = new Image();
+    let items = [
+        { id: 'txt', x: 400, y: 700 },
+        { id: 'stk', x: 720, y: 100, v: '' }
+    ];
+    let activeItem = null;
 
     async function init() {
         try { await liff.init({ liffId: LIFF_ID }); } catch(e){}
         getImg();
         document.getElementById('itxt').oninput = draw;
         document.getElementById('iclr').oninput = draw;
+        
         document.querySelectorAll('.stk').forEach(s => {
-            s.onclick = () => { items[1].v = s.dataset.v; draw(); };
+            s.onclick = () => {
+                document.querySelectorAll('.stk').forEach(i => i.classList.remove('active'));
+                s.classList.add('active');
+                items[1].v = s.dataset.v;
+                draw();
+            };
         });
 
-        // 觸控與滑鼠
+        // 自由拖曳邏輯
         const start = (e) => {
             const p = getP(e);
-            // 優先檢查貼圖碰撞
-            if(Math.hypot(p.x-items[1].x, p.y-items[1].y) < 80) active = items[1];
-            else if(Math.hypot(p.x-items[0].x, p.y-items[0].y) < 150) active = items[0];
+            if(items[1].v && Math.hypot(p.x-items[1].x, p.y-items[1].y) < 80) activeItem = items[1];
+            else if(Math.abs(p.x-items[0].x) < 300 && Math.abs(p.y-items[0].y) < 60) activeItem = items[0];
         };
         const move = (e) => {
-            if(!active) return;
-            const p = getP(e); active.x = p.x; active.y = p.y; draw();
+            if(!activeItem) return;
+            const p = getP(e); activeItem.x = p.x; activeItem.y = p.y; draw();
         };
         cvs.addEventListener('mousedown', start);
         cvs.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, {passive:false});
         window.addEventListener('mousemove', move);
-        window.addEventListener('touchmove', e => { if(active) e.preventDefault(); move(e); }, {passive:false});
-        window.addEventListener('mouseup', () => active = null);
-        window.addEventListener('touchend', () => active = null);
+        window.addEventListener('touchmove', e => { if(activeItem) e.preventDefault(); move(e); }, {passive:false});
+        window.addEventListener('mouseup', () => activeItem = null);
+        window.addEventListener('touchend', () => activeItem = null);
     }
 
     function getP(e) {
-        const r = cvs.getBoundingClientRect(), 
-              t = e.touches ? e.touches[0] : e;
+        const r = cvs.getBoundingClientRect(), t = e.touches ? e.touches[0] : e;
         return { x: (t.clientX - r.left) * (800/r.width), y: (t.clientY - r.top) * (800/r.height) };
+    }
+
+    function resetItems() {
+        items[0].x = 400; items[0].y = 700;
+        items[1].x = 720; items[1].y = 100;
+        draw();
     }
 
     async function getImg() {
         document.getElementById('ld').style.display = 'block';
-        // 使用極速代理 + 1.1倍縮放裁切 (移除邊緣浮水印)
-        const seed = Date.now();
-        const raw = (KEY === "YOUR_UNSPLASH_KEY") 
-            ? `https://loremflickr.com/800/800/morning?t=${seed}`
-            : `https://source.unsplash.com/featured/800x800/?morning,nature&sig=${seed}`;
-        
+        // 使用您的 Key 抓取 Unsplash 圖片，並使用代理伺服器裁切掉邊緣
+        const res = await fetch(`https://api.unsplash.com/photos/random?query=morning,nature&client_id=${KEY}`);
+        const data = await res.json();
+        const rawUrl = data.urls.regular;
+
         img = new Image();
         img.crossOrigin = "anonymous";
-        // fit=cover & w=880 (比800大) 實現自動去水印裁切
-        img.src = `https://images.weserv.nl/?url=${encodeURIComponent(raw)}&w=880&h=880&fit=cover&a=center&output=jpg&q=80`;
+        // w=880 & fit=cover 自動移除邊緣 40px 以確保無浮水印
+        img.src = `https://images.weserv.nl/?url=${encodeURIComponent(rawUrl)}&w=880&h=880&fit=cover&a=center`;
         img.onload = () => { draw(); document.getElementById('ld').style.display = 'none'; };
     }
 
     function draw() {
-        ctx.drawImage(img, -40, -40, 880, 880); // 稍微位移以配合 1.1 倍裁切
+        // 背景裁切繪製，完美去水印
+        ctx.drawImage(img, -40, -40, 880, 880); 
         
-        // 畫貼圖
-        ctx.font = "110px serif"; ctx.textAlign = "center";
-        ctx.fillText(items[1].v, items[1].x, items[1].y);
+        // 繪製貼圖 (如果有選的話)
+        if(items[1].v) {
+            ctx.font = "120px serif"; ctx.textAlign = "center";
+            ctx.fillText(items[1].v, items[1].x, items[1].y);
+        }
 
-        // 畫文字
-        const t = document.getElementById('itxt').value, c = document.getElementById('iclr').value;
-        ctx.font = "bold 52px sans-serif";
-        const w = ctx.measureText(t).width;
+        // 繪製文字與背板
+        const val = document.getElementById('itxt').value, clr = document.getElementById('iclr').value;
+        ctx.font = "bold 52px 'Microsoft JhengHei', sans-serif";
+        const tw = ctx.measureText(val).width;
         ctx.fillStyle = "rgba(0,0,0,0.4)";
-        ctx.fillRect(items[0].x - w/2 - 20, items[0].y - 45, w + 40, 90);
-        ctx.fillStyle = c;
-        ctx.fillText(t, items[0].x, items[0].y + 5);
+        ctx.fillRect(items[0].x - tw/2 - 25, items[0].y - 45, tw + 50, 95);
+        ctx.fillStyle = clr;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(val, items[0].x, items[0].y + 5);
     }
 
-    async function up() {
-        const b = document.getElementById('gb'), e = document.getElementById('eb');
-        b.disabled = true; e.style.display = 'none';
+    async function uploadImg() {
+        document.getElementById('ld').style.display = 'block';
+        document.getElementById('eb').style.display = 'none';
         try {
-            const blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.75));
+            const blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.8));
             const fd = new FormData(); fd.append("file", blob);
-            
-            // 限制上傳超時，確保 3 秒體驗
             const res = await fetch("https://telegra.ph/upload", { method: "POST", body: fd });
             const d = await res.json();
             const url = "https://telegra.ph" + d[0].src;
-            const lnk = `line://app/${LIFF_ID}/?i=${encodeURIComponent(url)}&w=800&h=800&f=FAST`;
+            const lnk = `line://app/${LIFF_ID}/?i=${encodeURIComponent(url)}&w=800&h=800&f=EDM`;
             
-            document.getElementById('ct').innerText = `🔔打開EDM連結：\n${lnk}`;
+            window.lastResult = { u: url, l: lnk, text: `🔔打開EDM連結：\n${lnk}` };
+            document.getElementById('ct').innerText = window.lastResult.text;
             document.getElementById('rb').style.display = 'block';
-            window.sd = { u: url, l: lnk, t: `🔔打開EDM連結：\n${lnk}` };
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        } catch(err) { e.style.display = 'block'; } finally { b.disabled = false; }
+        } catch(e) { document.getElementById('eb').style.display = 'block'; }
+        finally { document.getElementById('ld').style.display = 'none'; }
     }
 
-    function copy() { navigator.clipboard.writeText(window.sd.t).then(() => alert("已複製！")); }
-    async function share() {
+    function copyText() {
+        navigator.clipboard.writeText(window.lastResult.text).then(() => alert("🔔 文案已複製！可以貼到群組了"));
+    }
+
+    async function shareToLine() {
+        if(!window.lastResult) { await uploadImg(); }
         await liff.shareTargetPicker([{
-            "type": "flex", "altText": "早安圖卡",
+            "type": "flex", "altText": "送你一張早安圖卡",
             "contents": { "type": "bubble", "body": { "type": "box", "layout": "vertical", "paddingAll": "0px",
-                "contents": [{ "type": "image", "url": window.sd.u, "size": "full", "aspectRatio": "1:1",
-                    "action": { "type": "uri", "uri": window.sd.l } }] } }
+                "contents": [{ "type": "image", "url": window.lastResult.u, "size": "full", "aspectRatio": "1:1",
+                    "action": { "type": "uri", "uri": window.lastResult.l } }] } }
         }]);
     }
     init();
