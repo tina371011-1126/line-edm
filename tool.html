@@ -3,100 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDM 連結產生器 v5</title>
+    <title>AI 早安圖編輯產生器</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 380px; }
-        h2 { color: #3672d9; text-align: center; font-size: 20px; margin-bottom: 5px; }
-        p { font-size: 12px; color: #777; text-align: center; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        :root { --primary: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        h2 { color: #3672d9; margin: 0; }
         
-        /* --- 主要按鈕樣式修改處 --- */
-        button { 
-            /* 修改為符合圖片的柔和漸層 */
-            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
-            
-            color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 16px; box-shadow: 0 4px 10px rgba(54, 114, 217, 0.3); transition: opacity 0.3s; 
-        }
-        button:hover { opacity: 0.9; }
-        button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+        /* 編輯區域 */
+        #canvasContainer { position: relative; margin: 15px 0; background: #eee; border-radius: 8px; overflow: hidden; touch-action: none; cursor: crosshair; line-height: 0; }
+        canvas { max-width: 100%; height: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; width: 100%; box-sizing: border-box; }
         
-        .result-area { margin-top: 20px; display: none; }
-        .link-label { font-size: 12px; font-weight: bold; color: #555; margin-top: 15px; display: block; }
-        .link-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; word-break: break-all; font-size: 13px; font-family: monospace; position: relative; margin-top: 5px; line-height: 1.5; }
+        .sticker-box { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; border-top: 1px solid #eee; }
+        .sticker-item { font-size: 30px; cursor: pointer; background: #f8f9fa; padding: 5px; border-radius: 5px; min-width: 40px; }
+
+        button { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; margin: 5px 0; transition: 0.3s; }
+        button:active { transform: scale(0.98); }
+        .btn-secondary { background: #666; }
         
-        /* --- 複製按鈕樣式修改處 --- */
-        .copy-btn { 
-            /* 同步修改為柔和漸層 */
-            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
-            
-            color: white; border: none; padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer; float: right; margin-bottom: 5px; width: auto; margin-top: 0; box-shadow: none; 
-        }
-        
-        .preview-text { color: #3672d9; font-weight: bold; }
+        .result-area { display: none; background: #e8f0fe; padding: 15px; border-radius: 10px; margin-top: 15px; word-break: break-all; }
+        .link-box { font-size: 12px; background: white; padding: 10px; border-radius: 5px; margin-top: 10px; border: 1px solid #cce; }
     </style>
 </head>
 <body>
+
 <div class="card">
-    <h2>🚀 EDM 連結產生器</h2>
-    <p>產出已包含轉傳追蹤與自動換行</p>
-    <input type="url" id="imgUrl" placeholder="請貼上圖片網址">
-    <button id="genBtn" onclick="generate()">產生連結</button>
+    <h2>☀️ 早安圖連結產生器</h2>
+    <p style="font-size: 12px; color: #666;">隨機 AI 圖庫 × 自由編輯 × 轉傳追蹤</p>
+
+    <div id="canvasContainer">
+        <canvas id="editorCanvas" width="800" height="800"></canvas>
+    </div>
+
+    <div class="controls">
+        <button class="btn-secondary" onclick="fetchRandomImage()">🔄 換一張隨機圖</button>
+        <button class="btn-secondary" onclick="resetElements()">🗑️ 重置所有裝飾</button>
+        <input type="text" id="textInput" placeholder="輸入早安問候語..." oninput="updateText()">
+        <input type="color" id="colorPicker" value="#ffffff" onchange="draw()">
+    </div>
+
+    <div class="sticker-box">
+        <div class="sticker-item" onclick="addSticker('☀️')">☀️</div>
+        <div class="sticker-item" onclick="addSticker('🌸')">🌸</div>
+        <div class="sticker-item" onclick="addSticker('☕')">☕</div>
+        <div class="sticker-item" onclick="addSticker('🍀')">🍀</div>
+        <div class="sticker-item" onclick="addSticker('🌹')">🌹</div>
+        <div class="sticker-item" onclick="addSticker('🙏')">🙏</div>
+        <div class="sticker-item" onclick="addSticker('✨')">✨</div>
+    </div>
+
+    <button id="genBtn" onclick="uploadAndGenerate()">🚀 產生並轉為 LIFF 連結</button>
+
     <div id="resultArea" class="result-area">
-        <span class="link-label">1. LINE 專用 (強制喚回):</span>
-        <div class="link-box">
-            <button class="copy-btn" onclick="copyText('deepLink')">複製內容</button>
-            <span class="preview-text">🔔打開EDM連結：</span><br>
-            <span id="deepLink">---</span>
-        </div>
-        <span class="link-label">2. 萬用短網址 (外部使用):</span>
-        <div class="link-box">
-            <button class="copy-btn" onclick="copyText('shortLink')">複製內容</button>
-            <span class="preview-text">🔔打開EDM連結：</span><br>
-            <span id="shortLink">---</span>
-        </div>
+        <strong>✅ 連結已產生！</strong>
+        <div class="link-box" id="finalLiffUrl">連結載入中...</div>
+        <button style="margin-top:10px" onclick="copyLink()">複製連結轉傳</button>
     </div>
 </div>
+
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
-    const PROXY = 'https://corsproxy.io/?';
-    async function generate() {
-        const rawImgUrl = document.getElementById('imgUrl').value.trim();
-        if(!rawImgUrl) return alert("請輸入網址");
-        const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "極速縮短中...";
-        try {
-            const shortImgUrl = await getShortUrl(rawImgUrl);
-            const dims = await getImageDimensions(rawImgUrl);
-            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
-            const deepLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(shortImgUrl)}&w=${dims.w}&h=${dims.h}&f=Direct`;
-            const finalShort = await getShortUrl(liffBase);
-            document.getElementById('deepLink').innerText = deepLink;
-            document.getElementById('shortLink').innerText = finalShort;
-            document.getElementById('resultArea').style.display = 'block';
-        } catch (e) { alert("產生失敗"); } finally { btn.disabled = false; btn.innerText = "產生連結"; }
+    const canvas = document.getElementById('editorCanvas');
+    const ctx = canvas.getContext('2d');
+    let bgImg = new Image();
+    let elements = [
+        { type: 'text', x: 400, y: 700, text: '早安，祝您有個美好的一天', size: 40, color: '#ffffff' }
+    ];
+    let isDragging = false;
+    let selectedElement = null;
+
+    // 1. 初始化圖庫 (使用 Unsplash 免費圖庫)
+    function fetchRandomImage() {
+        const keywords = ['nature', 'morning', 'flowers', 'sunrise'];
+        const randomKey = keywords[Math.floor(Math.random() * keywords.length)];
+        bgImg.crossOrigin = "anonymous";
+        bgImg.src = `https://images.unsplash.com/photo-1470252649358-96947c03389b?auto=format&fit=crop&w=800&q=80&sig=${Math.random()}`;
+        bgImg.onload = draw;
     }
-    async function getShortUrl(longUrl) {
-        try {
-            const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
-            const response = await fetch(PROXY + encodeURIComponent(api));
-            const data = await response.json();
-            return data.shorturl || longUrl;
-        } catch (e) { return longUrl; }
-    }
-    function getImageDimensions(url) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve({w: img.width, h: img.height});
-            img.onerror = () => resolve({w: 800, h: 800});
-            img.src = url;
+
+    // 2. 畫布繪製邏輯
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (bgImg.src) {
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        }
+        
+        elements.forEach(el => {
+            if (el.type === 'text') {
+                ctx.fillStyle = document.getElementById('colorPicker').value;
+                ctx.font = `bold ${el.size}px "Microsoft JhengHei", sans-serif`;
+                ctx.textAlign = "center";
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 4;
+                ctx.strokeText(el.text, el.x, el.y);
+                ctx.fillText(el.text, el.x, el.y);
+            } else if (el.type === 'sticker') {
+                ctx.font = `${el.size}px serif`;
+                ctx.fillText(el.text, el.x, el.y);
+            }
         });
     }
-    function copyText(id) {
-        const url = document.getElementById(id).innerText;
-        const fullText = `🔔打開EDM連結：\n${url}`;
-        navigator.clipboard.writeText(fullText).then(() => alert("已複製！"));
+
+    function updateText() {
+        elements[0].text = document.getElementById('textInput').value || '早安，祝您有個美好的一天';
+        draw();
     }
+
+    function addSticker(emoji) {
+        elements.push({ type: 'sticker', x: 400, y: 400, text: emoji, size: 80 });
+        draw();
+    }
+
+    function resetElements() {
+        elements = [elements[0]]; // 只保留主文字
+        draw();
+    }
+
+    // 3. 拖拉功能
+    canvas.onmousedown = canvas.ontouchstart = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = e.clientX || e.touches[0].clientX;
+        const clientY = e.clientY || e.touches[0].clientY;
+        const mouseX = (clientX - rect.left) * scaleX;
+        const mouseY = (clientY - rect.top) * scaleY;
+
+        selectedElement = elements.findLast(el => 
+            Math.abs(el.x - mouseX) < 100 && Math.abs(el.y - mouseY) < 100
+        );
+        if (selectedElement) isDragging = true;
+    };
+
+    window.onmousemove = window.ontouchmove = (e) => {
+        if (!isDragging || !selectedElement) return;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+        const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+        selectedElement.x = (clientX - rect.left) * (canvas.width / rect.width);
+        selectedElement.y = (clientY - rect.top) * (canvas.height / rect.height);
+        draw();
+    };
+
+    window.onmouseup = window.ontouchend = () => isDragging = false;
+
+    // 4. 上傳圖片並對接 LIFF
+    async function uploadAndGenerate() {
+        const btn = document.getElementById('genBtn');
+        btn.disabled = true;
+        btn.innerText = "正在合成並上傳...";
+
+        try {
+            // 將畫布轉為 Blob
+            const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
+            
+            // 使用 Imgur 或類似 API 上傳 (此處以匿名上傳範例，實務上建議用您自己的伺服器)
+            const formData = new FormData();
+            formData.append('image', blob);
+
+            const uploadRes = await fetch('https://api.imgur.com/3/image', {
+                method: 'POST',
+                headers: { Authorization: 'Client-ID 7f33887d163353e' }, // 建議更換為您的 Client-ID
+                body: formData
+            });
+            const data = await uploadRes.json();
+            const finalImgUrl = data.data.link;
+
+            // 產生 LIFF 連結
+            const liffBase = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(finalImgUrl)}&w=800&h=800&f=AI_Gen`;
+            
+            // 縮網址 (可選)
+            document.getElementById('finalLiffUrl').innerText = liffBase;
+            document.getElementById('resultArea').style.display = 'block';
+            btn.innerText = "產生成功！";
+        } catch (e) {
+            alert("上傳失敗，請檢查網路：" + e.message);
+            btn.disabled = false;
+            btn.innerText = "🚀 產生並轉為 LIFF 連結";
+        }
+    }
+
+    function copyLink() {
+        const link = document.getElementById('finalLiffUrl').innerText;
+        navigator.clipboard.writeText(`☀️送您一張早安祝福：\n${link}`).then(() => alert("已複製連結，趕快去 LINE 群組分享吧！"));
+    }
+
+    fetchRandomImage();
 </script>
 </body>
 </html>
