@@ -8,10 +8,10 @@
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5');
     </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI早安圖</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --primary: #ff4757; --line: #2ed573; --bg: #fffaf0; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
@@ -27,39 +27,37 @@
         .sticker { font-size: 26px; cursor: pointer; background: #fff; padding: 6px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; }
         button { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 15px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(255,71,87,0.3); }
         button:disabled { background: #ccc; }
-        .btn-alt { background: #ffa502; padding: 10px; font-size: 12px; flex: 1; border-radius: 10px; color: white; border: none; cursor: pointer; }
+        .btn-alt { background: #ffa502; padding: 10px; font-size: 13px; flex: 1; border-radius: 10px; color: white; border: none; cursor: pointer; }
         #status { font-size: 12px; color: #ff7f50; text-align: center; margin-bottom: 5px; font-weight: bold; }
         .success-box { display: none; margin-top: 10px; padding: 12px; background: #eefdf3; border: 2px solid var(--line); border-radius: 12px; text-align: center; color: #1b5e20; font-weight: bold; }
-        #fallbackArea { display: none; margin-top: 10px; }
-        #copyTextarea { width: 100%; height: 60px; font-size: 12px; border: 1px dashed #ccc; padding: 8px; border-radius: 8px; background: #f9f9f9; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="status">✨ 直接開始製作您的早安圖 ✨</div>
+    <div id="status">☀️ 正在載入風景...</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
     <div class="ui-group">
         <div class="row">
-            <input type="text" id="mainText" placeholder="輸入祝福..." value="早安！祝你有美好的一天" oninput="draw()">
+            <input type="text" id="mainText" placeholder="寫下祝福..." value="早安！祝您有美好的一天" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         
         <div class="row">
-            <span class="label-text">字體大小</span>
-            <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
+            <span class="label-text">文字大小</span>
+            <input type="range" id="textSize" min="20" max="120" value="45" oninput="draw()">
         </div>
 
         <div class="row">
             <button class="btn-alt" onclick="fetchBrightBg()">🔄 換張風景</button>
-            <button class="btn-alt" onclick="reset()">🗑️ 重置白色</button>
-            <button id="loginBtn" class="btn-alt" onclick="handleLogin()" style="background:#06c755;">👤 顯示我名字</button>
+            <button class="btn-alt" onclick="reset()">🗑️ 重置</button>
         </div>
 
         <div class="sticker-bar">
+            <div class="sticker" style="color:red; background:#fff0f0;" onclick="clearStickers()">🚫</div>
             <div class="sticker" onclick="addEmoji('✨')">✨</div>
             <div class="sticker" onclick="addEmoji('🌻')">🌻</div>
             <div class="sticker" onclick="addEmoji('🌈')">🌈</div>
@@ -68,51 +66,28 @@
         </div>
 
         <button id="genBtn" onclick="fastGenerate()">🚀 產生並複製 LINE 連結</button>
-        
-        <div id="successMsg" class="success-box">✅ 已複製！請回 LINE 貼上即可</div>
-        
-        <div id="fallbackArea">
-            <p style="font-size:11px; margin:5px 0; color:#888;">若自動複製失敗，請點擊下方框框手動複製：</p>
-            <textarea id="copyTextarea" readonly onclick="this.select(); document.execCommand('copy'); alert('已全選文字，請點選複製並貼到 LINE');"></textarea>
-        </div>
+        <div id="successMsg" class="success-box">✅ 連結已加註標語並複製！<br>請回 LINE 直接貼上即可。</div>
     </div>
 </div>
 
 <script>
+    // 帳號資訊已自動填入
     const CLOUD_NAME = "dwdkxs8ot"; 
     const UPLOAD_PRESET = "morning picture"; 
     const LIFF_ID = "2008941488-Phn5v50S";
-    let userName = "神秘好友";
 
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
-    let items = [{ type: 'text', x: 300, y: 500 }];
+    let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
 
-    // 1. 初始化 LIFF (但不強迫登入)
-    async function initApp() {
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile();
-                userName = profile.displayName;
-                document.getElementById('status').innerText = `🎨 您好，${userName}`;
-                document.getElementById('loginBtn').style.display = 'none'; // 已登入則隱藏
-            }
-        } catch (err) {
-            console.log("非 LINE 環境或初始化失敗，繼續靜態運作");
-        }
-        fetchBrightBg();
-    }
-
-    function handleLogin() { liff.login(); }
-
     function fetchBrightBg() {
+        document.getElementById('status').innerText = "☀️ 挑選活力背景中...";
         bg = new Image();
         bg.crossOrigin = "anonymous";
         bg.src = `https://picsum.photos/600/600?bright,sunny,nature&sig=${Math.random()}`;
-        bg.onload = () => draw();
+        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動、滑桿可縮放"; };
     }
 
     function draw() {
@@ -126,7 +101,7 @@
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
                 ctx.font = `bold ${sz}px "Microsoft JhengHei", sans-serif`;
-                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 12;
+                ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
                 ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(2, sz/8);
                 ctx.strokeText(txt, it.x, it.y);
                 ctx.fillStyle = col; ctx.shadowBlur = 0;
@@ -137,7 +112,6 @@
         });
     }
 
-    // 拖曳 logic (省略不改，維持原樣)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -166,21 +140,20 @@
 
     function reset() {
         items = [{ type: 'text', x: 300, y: 500 }];
+        document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 45;
         draw();
     }
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
+    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
-        const fArea = document.getElementById('fallbackArea');
-        const fText = document.getElementById('copyTextarea');
-
         btn.disabled = true; btn.innerText = "⚡ 處理中...";
         
         try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.5);
+            const base64 = canvas.toDataURL('image/jpeg', 0.4);
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", UPLOAD_PRESET);
@@ -192,36 +165,35 @@
             const data = await res.json();
 
             if (data.secure_url) {
-                gtag('event', 'generate_card', { 'sharer_name': userName });
+                // GA4 事件追蹤
+                gtag('event', 'generate_morning_card', { 'image_url': data.secure_url });
 
-                const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(userName)}`;
-                const finalContent = `🔔打開早安圖連結：\n${finalLink}`;
+                const finalContent = `🔔打開早安圖連結：\nline://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
                 
-                // 執行複製
-                fText.value = finalContent;
-                try {
-                    await navigator.clipboard.writeText(finalContent);
-                    btn.innerText = "✨ 複製成功！";
-                    sMsg.style.display = 'block';
-                    fArea.style.display = 'none';
-                } catch (err) {
-                    // 若失敗則顯示手動區域
-                    btn.innerText = "請手動複製下方文字";
-                    fArea.style.display = 'block';
-                }
-
+                const textArea = document.createElement("textarea");
+                textArea.value = finalContent;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                btn.innerText = "✨ 複製成功！";
+                sMsg.style.display = 'block';
+                
                 setTimeout(() => {
                     btn.disabled = false;
-                    btn.innerText = "🚀 再次產生並複製";
+                    btn.innerText = "🚀 產生並複製 LINE 連結";
                 }, 3000);
+            } else {
+                alert("上傳失敗，請確認 Cloudinary 設定。");
+                btn.disabled = false; btn.innerText = "🚀 重新嘗試";
             }
         } catch (e) {
-            alert("上傳異常");
-            btn.disabled = false;
+            alert("網路異常。");
+            btn.disabled = false; btn.innerText = "🚀 重新嘗試";
         }
     }
-
-    initApp();
+    fetchBrightBg();
 </script>
 </body>
 </html>
