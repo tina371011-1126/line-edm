@@ -29,16 +29,15 @@
         button:disabled { background: #ccc; }
         .btn-alt { background: #ffa502; padding: 10px; font-size: 12px; flex: 1; border-radius: 10px; color: white; border: none; cursor: pointer; }
         #status { font-size: 12px; color: #ff7f50; text-align: center; margin-bottom: 5px; font-weight: bold; }
-        /* 備援複製區 */
-        #fallbackCopy { display: none; margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 10px; }
-        #copyText { width: 100%; height: 60px; font-size: 12px; border: 1px dashed #ccc; padding: 5px; box-sizing: border-box; }
         .success-box { display: none; margin-top: 10px; padding: 12px; background: #eefdf3; border: 2px solid var(--line); border-radius: 12px; text-align: center; color: #1b5e20; font-weight: bold; }
+        #fallbackArea { display: none; margin-top: 10px; }
+        #copyTextarea { width: 100%; height: 60px; font-size: 12px; border: 1px dashed #ccc; padding: 8px; border-radius: 8px; background: #f9f9f9; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="status">✨ 文字可拖曳移動 ✨</div>
+    <div id="status">✨ 直接開始製作您的早安圖 ✨</div>
     <div id="canvasContainer">
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
@@ -57,7 +56,7 @@
         <div class="row">
             <button class="btn-alt" onclick="fetchBrightBg()">🔄 換張風景</button>
             <button class="btn-alt" onclick="reset()">🗑️ 重置白色</button>
-            <button class="btn-alt" onclick="forceLogin()" style="background:#06c755;">👤 同步名稱</button>
+            <button id="loginBtn" class="btn-alt" onclick="handleLogin()" style="background:#06c755;">👤 顯示我名字</button>
         </div>
 
         <div class="sticker-bar">
@@ -70,12 +69,12 @@
 
         <button id="genBtn" onclick="fastGenerate()">🚀 產生並複製 LINE 連結</button>
         
-        <div id="fallbackCopy">
-            <p style="font-size:11px; margin:0 0 5px; color:#666;">若沒自動複製，請點擊下方框框「全選並複製」：</p>
-            <textarea id="copyText" readonly onclick="this.select()"></textarea>
+        <div id="successMsg" class="success-box">✅ 已複製！請回 LINE 貼上即可</div>
+        
+        <div id="fallbackArea">
+            <p style="font-size:11px; margin:5px 0; color:#888;">若自動複製失敗，請點擊下方框框手動複製：</p>
+            <textarea id="copyTextarea" readonly onclick="this.select(); document.execCommand('copy'); alert('已全選文字，請點選複製並貼到 LINE');"></textarea>
         </div>
-
-        <div id="successMsg" class="success-box">✅ 已複製！請回 LINE 貼上</div>
     </div>
 </div>
 
@@ -91,20 +90,23 @@
     let items = [{ type: 'text', x: 300, y: 500 }];
     let active = null;
 
-    // 免強制登入初始化
-    async function initLIFF() {
+    // 1. 初始化 LIFF (但不強迫登入)
+    async function initApp() {
         try {
             await liff.init({ liffId: LIFF_ID });
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 userName = profile.displayName;
                 document.getElementById('status').innerText = `🎨 您好，${userName}`;
+                document.getElementById('loginBtn').style.display = 'none'; // 已登入則隱藏
             }
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.log("非 LINE 環境或初始化失敗，繼續靜態運作");
+        }
         fetchBrightBg();
     }
 
-    function forceLogin() { liff.login(); }
+    function handleLogin() { liff.login(); }
 
     function fetchBrightBg() {
         bg = new Image();
@@ -135,7 +137,7 @@
         });
     }
 
-    // 拖曳邏輯...
+    // 拖曳 logic (省略不改，維持原樣)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -164,7 +166,6 @@
 
     function reset() {
         items = [{ type: 'text', x: 300, y: 500 }];
-        document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 45;
         draw();
     }
@@ -173,13 +174,13 @@
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
-        const fallback = document.getElementById('fallbackCopy');
-        const copyText = document.getElementById('copyText');
+        const fArea = document.getElementById('fallbackArea');
+        const fText = document.getElementById('copyTextarea');
 
         btn.disabled = true; btn.innerText = "⚡ 處理中...";
         
         try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.4);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", UPLOAD_PRESET);
@@ -196,16 +197,17 @@
                 const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(userName)}`;
                 const finalContent = `🔔打開早安圖連結：\n${finalLink}`;
                 
-                // 優先使用 Clipboard API
-                if (navigator.clipboard && navigator.clipboard.writeText) {
+                // 執行複製
+                fText.value = finalContent;
+                try {
                     await navigator.clipboard.writeText(finalContent);
                     btn.innerText = "✨ 複製成功！";
                     sMsg.style.display = 'block';
-                } else {
-                    // 備援：顯示手動複製區
-                    copyText.value = finalContent;
-                    fallback.style.display = 'block';
+                    fArea.style.display = 'none';
+                } catch (err) {
+                    // 若失敗則顯示手動區域
                     btn.innerText = "請手動複製下方文字";
+                    fArea.style.display = 'block';
                 }
 
                 setTimeout(() => {
@@ -214,12 +216,12 @@
                 }, 3000);
             }
         } catch (e) {
-            alert("上傳異常，請檢查網路");
-            btn.disabled = false; btn.innerText = "🚀 重新嘗試";
+            alert("上傳異常");
+            btn.disabled = false;
         }
     }
 
-    initLIFF();
+    initApp();
 </script>
 </body>
 </html>
