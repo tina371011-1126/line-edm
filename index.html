@@ -3,93 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>您收到一個早安祝福</title>
+    <title>早安祝福</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
-        #preview { width: 100%; max-width: 500px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); margin-bottom: 20px; }
-        .btn-share { background: #06C755; color: white; padding: 15px 30px; border: none; border-radius: 30px; font-weight: bold; font-size: 18px; cursor: pointer; width: 100%; max-width: 300px; }
+        #pv { width: 100%; max-width: 500px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .btn { background: #06C755; color: white; padding: 15px 30px; border: none; border-radius: 30px; font-weight: bold; font-size: 18px; cursor: pointer; margin-top: 20px; width: 80%; }
+        #ld { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; z-index: 99; }
     </style>
 </head>
 <body>
-    <h3>🌞 早安分享</h3>
+    <div id="ld">🚀 正在還原早安祝福...</div>
+    <h3>🌞 收到一份祝福</h3>
     <canvas id="pc" width="600" height="600" style="display:none;"></canvas>
-    <img id="preview" src="" alt="載入中...">
-    <br>
-    <button class="btn-share" onclick="sendShare()">📤 分享給好友</button>
+    <img id="pv" src="">
+    <button class="btn" id="sbtn" onclick="sendShare()">📤 轉傳這份祝福</button>
 
 <script>
     const params = new URLSearchParams(window.location.search);
-    const bgId = params.get('id') || "10";
-    const txt = params.get('t') || "早安";
-    const px = parseInt(params.get('x')) || 300;
-    const py = parseInt(params.get('y')) || 500;
+    const bgId = params.get('id') || "10", txt = params.get('t') || "早安", px = parseInt(params.get('x')) || 300, py = parseInt(params.get('y')) || 520;
 
     async function init() {
         await liff.init({ liffId: "2008941488-Phn5v50S" });
-        renderImage();
-    }
-
-    function renderImage() {
-        const cvs = document.getElementById('pc');
-        const ctx = cvs.getContext('2d');
-        const img = new Image();
+        const cvs = document.getElementById('pc'), ctx = cvs.getContext('2d'), img = new Image();
         img.crossOrigin = "anonymous";
         img.src = `https://picsum.photos/id/${bgId}/600/600`;
-        
         img.onload = () => {
             ctx.drawImage(img, 0, 0, 600, 600);
-            ctx.font = "bold 40px sans-serif";
+            ctx.font = "bold 42px sans-serif";
             ctx.fillStyle = "rgba(0,0,0,0.5)";
             const w = ctx.measureText(txt).width;
-            ctx.fillRect(px - w/2 - 20, py - 30, w + 40, 60);
-            ctx.fillStyle = "white"; ctx.textAlign = "center";
-            ctx.fillText(txt, px, py + 12);
-            
-            // 將 Canvas 轉回圖片顯示
-            document.getElementById('preview').src = cvs.toDataURL('image/jpeg', 0.8);
+            ctx.fillRect(px - w/2 - 20, py - 35, w + 40, 70);
+            ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(txt, px, py);
+            document.getElementById('pv').src = cvs.toDataURL('image/jpeg', 0.8);
+            document.getElementById('ld').style.display = 'none';
         };
     }
 
     async function sendShare() {
-        // 先將目前的畫面轉為圖片 URL (透過 Imgur 轉化以供 LINE 氣泡顯示)
-        const blob = await (await fetch(document.getElementById('preview').src)).blob();
-        const fd = new FormData(); fd.append("image", blob);
-        
-        const res = await fetch("https://api.imgur.com/3/image", {
-            method: "POST",
-            headers: { Authorization: "Client-ID 5300f283832d734" },
-            body: fd
-        });
-        const d = await res.json();
-        const finalImg = d.data.link;
+        const sbtn = document.getElementById('sbtn');
+        sbtn.innerText = "⏳ 處理中...";
+        try {
+            // 1. 將圖片傳至 Imgur 作為氣泡圖源
+            const blob = await (await fetch(document.getElementById('pv').src)).blob();
+            const fd = new FormData(); fd.append("image", blob);
+            const res = await fetch("https://api.imgur.com/3/image", {
+                method: "POST",
+                headers: { Authorization: "Client-ID 5300f283832d734" },
+                body: fd
+            });
+            const d = await res.json();
+            const imgUrl = d.data.link;
 
-        if (liff.isApiAvailable('shareTargetPicker')) {
-            await liff.shareTargetPicker([{
-                "type": "flex",
-                "altText": "您收到一個早安祝福",
-                "contents": {
-                  "type": "bubble",
-                  "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                      { "type": "image", "url": finalImg, "size": "full", "aspectMode": "cover", "aspectRatio": "1:1" }
-                    ],
-                    "paddingAll": "0px"
-                  },
-                  "footer": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                      { "type": "button", "action": { "type": "uri", "label": "我也要製作", "uri": `line://app/2008941488-Phn5v50S` }, "style": "primary", "color": "#06C755" }
-                    ]
-                  }
-                }
-            }]);
-        }
+            // 2. 呼叫分享視窗
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                await liff.shareTargetPicker([{
+                    "type": "flex",
+                    "altText": "送你一張早安祝福圖",
+                    "contents": {
+                        "type": "bubble",
+                        "body": { "type": "box", "layout": "vertical", "paddingAll": "0px", "contents": [
+                            { "type": "image", "url": imgUrl, "size": "full", "aspectRatio": "1:1", "aspectMode": "cover" }
+                        ]},
+                        "footer": { "type": "box", "layout": "vertical", "contents": [
+                            { "type": "button", "action": { "type": "uri", "label": "我也要製作", "uri": "line://app/2008941488-Phn5v50S" }, "style": "primary", "color": "#3672d9" }
+                        ]}
+                    }
+                }]);
+            }
+        } catch (e) { alert("轉傳失敗，請稍後再試。"); }
+        sbtn.innerText = "📤 轉傳這份祝福";
     }
-
     init();
 </script>
 </body>
