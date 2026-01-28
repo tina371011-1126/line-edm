@@ -19,8 +19,29 @@
         :root { --primary: #ff4757; --line: #2ed573; --bg: #fffaf0; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 15px; border-radius: 25px; box-shadow: 0 10px 30px rgba(255,107,129,0.2); width: 100%; max-width: 420px; box-sizing: border-box; border: 2px solid #ffeaa7; }
-        #canvasContainer { position: relative; margin: 5px auto; background: #eee; border-radius: 15px; overflow: hidden; width: 100%; aspect-ratio: 1/1; touch-action: none; border: 2px solid #fff; }
-        canvas { width: 100%; height: 100%; display: block; }
+        
+        /* 核心修改：禁止長按與選取圖片 */
+        #canvasContainer { 
+            position: relative; 
+            margin: 5px auto; 
+            background: #eee; 
+            border-radius: 15px; 
+            overflow: hidden; 
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            touch-action: none; 
+            border: 2px solid #fff;
+            -webkit-touch-callout: none; /* 禁止 iOS 長按彈出選單 */
+            -webkit-user-select: none;   /* 禁止選取 */
+            user-select: none;
+        }
+        canvas { 
+            width: 100%; 
+            height: 100%; 
+            display: block; 
+            pointer-events: auto; /* 確保拖曳文字功能正常 */
+        }
+
         .ui-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
         .row { display: flex; gap: 8px; align-items: center; }
         input[type="text"] { flex: 1; padding: 12px; border: 2px solid #ffeaa7; border-radius: 12px; font-size: 16px; outline: none; }
@@ -33,8 +54,6 @@
         .btn-alt { background: #ffa502; padding: 10px; font-size: 13px; flex: 1; border-radius: 10px; color: white; border: none; cursor: pointer; }
         #status { font-size: 12px; color: #ff7f50; text-align: center; margin-bottom: 5px; font-weight: bold; }
         .success-box { display: none; margin-top: 10px; padding: 12px; background: #eefdf3; border: 2px solid var(--line); border-radius: 12px; text-align: center; color: #1b5e20; font-weight: bold; }
-        
-        /* 修正後的備用區 */
         #manualArea { display: none; margin-top: 10px; border: 2px dashed #ffa502; padding: 12px; border-radius: 15px; background: #fff9ee; text-align: center; }
         .btn-copy-manual { background: #ffa502; color: white; padding: 12px; border-radius: 12px; width: 100%; font-weight: bold; border: none; cursor: pointer; font-size: 16px; }
     </style>
@@ -92,7 +111,13 @@
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
     let currentUserNickname = "神秘好友";
-    let generatedContent = ""; // 儲存產出的內容
+    let generatedContent = "";
+
+    // 核心修改：JavaScript 層級封鎖右鍵/長按選單
+    canvas.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        return false;
+    });
 
     const getUrlParam = (name) => new URLSearchParams(window.location.search).get(name);
 
@@ -139,7 +164,6 @@
         });
     }
 
-    // 拖曳 logic (省略細節)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -195,11 +219,10 @@
             const data = await response.json();
             const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
             generatedContent = `🔔打開早安圖連結：\n${finalLink}`;
-            hText.value = generatedContent; // 存入隱藏框
+            hText.value = generatedContent;
 
             gtag('event', 'generate_card', { 'sharer_id': currentUserNickname });
 
-            // 執行複製動作
             if (await copyToClipboard(generatedContent)) {
                 sMsg.style.display = 'block';
                 btn.innerText = "✨ 複製成功！";
@@ -207,36 +230,29 @@
                 mArea.style.display = 'block';
                 btn.innerText = "請點擊下方按鈕複製";
             }
-
             btn.disabled = false;
         } catch (e) {
-            alert("目前連線擁擠，請重試");
+            alert("連線不穩，請重試");
             btn.disabled = false;
             btn.innerText = "🚀 重新嘗試";
         }
     }
 
-    // 核心複製函式
     async function copyToClipboard(text) {
         try {
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(text);
                 return true;
-            } else {
-                throw new Error();
-            }
-        } catch (err) {
-            return false;
-        }
+            } else throw new Error();
+        } catch (err) { return false; }
     }
 
-    // 手動點擊複製
     function manualCopyAction() {
         const hText = document.getElementById('hiddenText');
         hText.select();
-        hText.setSelectionRange(0, 99999); // 手機端相容
+        hText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        alert("文字已成功複製！請回 LINE 貼上。");
+        alert("連結已成功複製！請回 LINE 貼上分享。");
         document.getElementById('successMsg').style.display = 'block';
     }
 
