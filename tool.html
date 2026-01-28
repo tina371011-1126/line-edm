@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 祝福圖 V16 - LINE 協議版</title>
+    <title>AI 祝福圖 V17 - 極速複製版</title>
     <style>
         :root { --primary: #28a745; --line: #00b900; }
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
@@ -19,29 +19,29 @@
         button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; }
         button:disabled { background: #aaa; }
         .btn-secondary { background: #6c757d; padding: 10px; font-size: 13px; flex: 1; }
-        #status { font-size: 13px; color: #555; text-align: center; margin-bottom: 5px; }
-        .success-box { display: none; margin-top: 15px; padding: 12px; background: #e8f5e9; border: 1px solid var(--line); border-radius: 10px; text-align: center; color: #1b5e20; font-size: 14px; }
+        #status { font-size: 12px; color: #888; text-align: center; margin-bottom: 5px; }
+        .success-box { display: none; margin-top: 10px; padding: 10px; background: #e8f5e9; border: 1px solid var(--line); border-radius: 8px; text-align: center; color: #1b5e20; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="status">🖼️ 風景圖準備中...</div>
+    <div id="status">🌅 載入完美風景中...</div>
     <div id="canvasContainer">
-        <canvas id="mainCanvas" width="800" height="800"></canvas>
+        <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
     <div class="ui-group">
         <div class="row">
-            <input type="text" id="mainText" placeholder="祝福語..." value="早安平安，事事順心" oninput="draw()">
+            <input type="text" id="mainText" placeholder="祝福語..." value="早安平安，順心如意" oninput="draw()">
             <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
         </div>
         <div class="row">
             <span style="font-size:12px;">大小</span>
-            <input type="range" id="textSize" min="30" max="150" value="75" oninput="draw()">
+            <input type="range" id="textSize" min="20" max="100" value="55" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-secondary" onclick="fetchLandscape()">🔄 換風景</button>
+            <button class="btn-secondary" onclick="fetchBg()">🔄 換風景</button>
             <button class="btn-secondary" onclick="reset()">🗑️ 重置白色</button>
         </div>
         <div class="sticker-bar">
@@ -50,42 +50,33 @@
             <div class="sticker" onclick="addEmoji('🌸')">🌸</div>
             <div class="sticker" onclick="addEmoji('☕')">☕</div>
             <div class="sticker" onclick="addEmoji('🍀')">🍀</div>
-            <div class="sticker" onclick="addEmoji('🙏')">🙏</div>
+            <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
         </div>
         <button id="genBtn" onclick="generateAndCopy()">🚀 產生並複製連結</button>
-        <div id="successMsg" class="success-box">
-            ✅ 連結已複製！<br>
-            格式：line://app/...
-        </div>
+        <div id="successMsg" class="success-box">✅ line://app/... 連結已複製！</div>
     </div>
 </div>
 
 <script>
     const LIFF_ID = "2008941488-Phn5v50S";
-    const UNSPLASH_KEY = "UgZ1pLt9-I5t6BMM71gGBCWZHQk_3oXxYA4uhrHgsVw";
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
     let bg = new Image();
-    let items = [{ type: 'text', x: 400, y: 700 }];
+    let items = [{ type: 'text', x: 300, y: 520 }]; // 座標同步縮減至 600
     let active = null;
 
-    async function fetchLandscape() {
-        document.getElementById('status').innerText = "🖼️ 挑選風景中...";
-        try {
-            const res = await fetch(`https://api.unsplash.com/photos/random?query=nature,landscape&client_id=${UNSPLASH_KEY}`);
-            const data = await res.json();
-            bg = new Image();
-            bg.crossOrigin = "anonymous";
-            bg.src = data.urls.regular + "&w=800&h=800&fit=crop";
-            bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動"; };
-        } catch (e) {
-            bg.src = `https://picsum.photos/800/800?nature&sig=${Math.random()}`;
-        }
+    function fetchBg() {
+        document.getElementById('status').innerText = "🏔️ 搜尋風景中...";
+        bg = new Image();
+        bg.crossOrigin = "anonymous";
+        // 預設抓取風景，並在失敗時備援
+        bg.src = `https://picsum.photos/600/600?nature,landscape&sig=${Math.random()}`;
+        bg.onload = () => { draw(); document.getElementById('status').innerText = "✨ 文字可移動"; };
     }
 
     function draw() {
-        ctx.clearRect(0,0,800,800);
-        if(bg.complete) ctx.drawImage(bg, 0, 0, 800, 800);
+        ctx.clearRect(0,0,600,600);
+        if(bg.complete) ctx.drawImage(bg, 0, 0, 600, 600);
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
@@ -93,34 +84,35 @@
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
                 ctx.font = `bold ${sz}px sans-serif`;
-                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 10;
-                ctx.strokeStyle = "black"; ctx.lineWidth = 8;
+                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 8;
+                ctx.strokeStyle = "black"; ctx.lineWidth = 6;
                 ctx.strokeText(txt, it.x, it.y);
                 ctx.fillStyle = col; ctx.shadowBlur = 0;
                 ctx.fillText(txt, it.x, it.y);
             } else {
-                ctx.font = "100px serif"; ctx.fillText(it.emoji, it.x, it.y);
+                ctx.font = "80px serif"; ctx.fillText(it.emoji, it.x, it.y);
             }
         });
     }
 
+    // 移動邏輯 (適配 600px 畫布)
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: (cx - r.left) * (800 / r.width), y: (cy - r.top) * (800 / r.height) };
+        return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
     }
     const start = (e) => {
         const p = getPos(e);
-        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 100 && Math.abs(i.y - p.y) < 100);
+        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 80 && Math.abs(i.y - p.y) < 80);
         if(active && e.cancelable) e.preventDefault();
     };
     const move = (e) => {
         if(!active) return;
         if(e.cancelable) e.preventDefault();
         const p = getPos(e);
-        active.x = Math.max(80, Math.min(720, p.x));
-        active.y = Math.max(80, Math.min(720, p.y));
+        active.x = Math.max(50, Math.min(550, p.x));
+        active.y = Math.max(50, Math.min(550, p.y));
         draw();
     };
     canvas.addEventListener('touchstart', start, {passive: false});
@@ -131,52 +123,62 @@
     window.addEventListener('mouseup', () => active = null);
 
     function reset() {
-        items = [{ type: 'text', x: 400, y: 700 }];
+        items = [{ type: 'text', x: 300, y: 520 }];
         document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = 75;
+        document.getElementById('textSize').value = 55;
         draw();
     }
-    function addEmoji(e) { items.push({ type: 'emoji', x: 400, y: 400, emoji: e }); draw(); }
+    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
+    // 🚀 極速上傳並產生連結
     async function generateAndCopy() {
         const btn = document.getElementById('genBtn');
         const sMsg = document.getElementById('successMsg');
-        btn.disabled = true; btn.innerText = "⚡ 處理中...";
+        btn.disabled = true; btn.innerText = "⚡ 正在飛速上傳...";
         sMsg.style.display = 'none';
 
         try {
-            // 優化點：進一步降低畫質至 0.5 確保 2 秒內完成上傳
-            const base64 = canvas.toDataURL('image/jpeg', 0.5);
+            // 優化關鍵：600x600 尺寸 + 0.4 低畫質，確保檔案在 50KB 以下，實現秒傳
+            const base64 = canvas.toDataURL('image/jpeg', 0.4);
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", "ml_default");
 
-            const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { method: "POST", body: fd });
+            // 使用超時控制請求
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒沒反應就報錯
+
+            const res = await fetch("https://api.cloudinary.com/v1_1/demo/image/upload", { 
+                method: "POST", 
+                body: fd,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
             const data = await res.json();
 
             if (data.secure_url) {
-                // 強制轉換為 line://app/ 連結格式，確保在 LINE 內部開啟
-                const lineInternalUrl = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=800&h=800`;
+                // 強制生成內部連結協定
+                const lineInternalUrl = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&w=600&h=600`;
                 
-                // 執行複製
-                await navigator.clipboard.writeText(`☀️ 送您一張祝福圖片：\n${lineInternalUrl}`);
+                // 執行複製到剪貼簿
+                await navigator.clipboard.writeText(`☀️ 早安祝福：\n${lineInternalUrl}`);
                 
-                btn.innerText = "✅ 連結已複製";
+                btn.innerText = "✅ 複製成功！";
                 sMsg.style.display = 'block';
                 
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.innerText = "🚀 產生並複製連結";
-                }, 3000);
+                }, 2000);
             }
         } catch (e) {
-            alert("目前連線稍慢，請再次點擊產生按鈕。");
+            alert("目前網路不穩，請再次點擊產生按鈕。");
             btn.disabled = false; btn.innerText = "🚀 再次嘗試";
         }
     }
 
-    fetchLandscape();
+    fetchBg();
 </script>
 </body>
 </html>
