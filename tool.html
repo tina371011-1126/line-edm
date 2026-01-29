@@ -20,28 +20,28 @@
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 15px; border-radius: 25px; box-shadow: 0 10px 30px rgba(255,107,129,0.2); width: 100%; max-width: 420px; box-sizing: border-box; border: 2px solid #ffeaa7; }
         
-        /* 核心修正：將容器設定為背景顯示區，並禁止長按 */
+        /* 核心修改：透明防護罩 */
         #canvasContainer { 
             position: relative; 
             margin: 5px auto; 
-            background-color: #eee; 
-            background-size: cover; /* 讓風景圖填滿 */
-            background-position: center;
+            background: #eee no-repeat center/cover;
             border-radius: 15px; 
             overflow: hidden; 
             width: 100%; 
             aspect-ratio: 1/1; 
-            touch-action: none; 
             border: 2px solid #fff;
-            -webkit-touch-callout: none; 
-            user-select: none;
         }
-        /* Canvas 保持透明，僅顯示文字與貼紙 */
-        canvas { 
-            width: 100%; 
-            height: 100%; 
-            display: block; 
-            background: transparent; 
+        canvas { width: 100%; height: 100%; display: block; position: relative; z-index: 5; }
+        
+        /* 擋住系統選單的關鍵：最上層透明層 */
+        #shield {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            background: rgba(255,255,255,0); /* 完全透明 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .ui-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
@@ -64,7 +64,8 @@
 
 <div class="card">
     <div id="status">☀️ 準備中...</div>
-    <div id="canvasContainer" id="bgLayer">
+    <div id="canvasContainer">
+        <div id="shield"></div>
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
@@ -109,24 +110,20 @@
 
     const canvas = document.getElementById('mainCanvas');
     const container = document.getElementById('canvasContainer');
+    const shield = document.getElementById('shield');
     const ctx = canvas.getContext('2d');
+    
     let bgImage = new Image();
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
     let currentUserNickname = "神秘好友";
-    let generatedContent = "";
 
-    // 禁止右鍵選單
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // 修改：事件監聽器改到 shield 上，這樣長按才會點在 shield 上
+    shield.addEventListener('contextmenu', e => e.preventDefault());
 
     async function initApp() {
         try {
             await liff.init({ liffId: LIFF_ID });
-            const params = new URLSearchParams(window.location.search);
-            gtag('event', 'page_view_from_share', { 
-                'sharer_id': params.get('sharer_id') || '未知', 
-                'share_from': params.get('share_from') || '直接' 
-            });
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName;
@@ -139,10 +136,9 @@
     function fetchBrightBg() {
         const url = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
         bgImage = new Image();
-        bgImage.crossOrigin = "anonymous";
+        bgImage.crossOrigin = "anonymous"; // 關鍵：解決上傳失敗的 CORS 問題
         bgImage.src = url;
         bgImage.onload = () => {
-            // 修正：將圖片寫死在 CSS 背景中
             container.style.backgroundImage = `url('${url}')`;
             draw();
             document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
@@ -151,7 +147,6 @@
 
     function draw() {
         ctx.clearRect(0,0,600,600);
-        // 修正：預覽時 Canvas 不畫背景圖，保持透明
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
@@ -170,9 +165,9 @@
         });
     }
 
-    // 拖曳邏輯保持不變
+    // 拖曳邏輯：改為監聽 shield 圖層
     function getPos(e) {
-        const r = canvas.getBoundingClientRect();
+        const r = shield.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
@@ -180,7 +175,6 @@
     const start = (e) => {
         const p = getPos(e);
         active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 80 && Math.abs(i.y - p.y) < 80);
-        if(active && e.cancelable) e.preventDefault();
     };
     const move = (e) => {
         if(!active) return;
@@ -190,29 +184,25 @@
         active.y = Math.max(50, Math.min(550, p.y));
         draw();
     };
-    canvas.addEventListener('touchstart', start, {passive: false});
+    shield.addEventListener('touchstart', start, {passive: false});
     window.addEventListener('touchmove', move, {passive: false});
     window.addEventListener('touchend', () => active = null);
-    canvas.addEventListener('mousedown', start);
+    shield.addEventListener('mousedown', start);
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    function reset() { items = [{ type: 'text', x: 300, y: 500 }]; draw(); }
-    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
-    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
-
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "⏳ 正在合成並上傳...";
+        btn.disabled = true; btn.innerText = "⏳ 正在合成圖片...";
         
         try {
-            // 修正：上傳前才將背景與文字合併到 Canvas
+            // 合成背景
             ctx.globalCompositeOperation = 'destination-over';
             ctx.drawImage(bgImage, 0, 0, 600, 600);
             
-            const base64 = canvas.toDataURL('image/jpeg', 0.4);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
             
-            // 隨即清空 Canvas 並重畫（恢復透明預覽狀態）
+            // 恢復預覽狀態
             ctx.globalCompositeOperation = 'source-over';
             draw();
 
@@ -221,24 +211,24 @@
             fd.append("upload_preset", UPLOAD_PRESET);
 
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
-            const data = await res.json();
+            if (!res.ok) throw new Error();
             
+            const data = await res.json();
             const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
-            generatedContent = `🔔打開早安圖連結：\n${finalLink}`;
-            document.getElementById('hiddenText').value = generatedContent;
+            const content = `🔔打開早安圖連結：\n${finalLink}`;
+            document.getElementById('hiddenText').value = content;
 
-            gtag('event', 'generate_card', { 'sharer_id': currentUserNickname });
-
-            if (await copyToClipboard(generatedContent)) {
+            if (await copyToClipboard(content)) {
                 document.getElementById('successMsg').style.display = 'block';
                 btn.innerText = "✨ 複製成功！";
             } else {
                 document.getElementById('manualArea').style.display = 'block';
-                btn.innerText = "請點擊下方按鈕";
+                btn.innerText = "請點下方複製按鈕";
             }
             btn.disabled = false;
         } catch (e) {
-            alert("系統忙碌中"); btn.disabled = false;
+            alert("上傳失敗，請確認 Cloudinary 設定（如 Upload Preset 名稱是否正確）");
+            btn.disabled = false; btn.innerText = "🚀 重新嘗試";
         }
     }
 
@@ -256,9 +246,13 @@
         hText.select();
         hText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        alert("已複製！請回 LINE 貼上分享。");
+        alert("已成功複製連結！");
         document.getElementById('successMsg').style.display = 'block';
     }
+
+    function reset() { items = [{ type: 'text', x: 300, y: 500 }]; draw(); }
+    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
+    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
     initApp();
 </script>
