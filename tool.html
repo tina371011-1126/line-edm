@@ -119,18 +119,33 @@
         try {
             await liff.init({ liffId: LIFF_ID });
             const params = new URLSearchParams(window.location.search);
-            gtag('event', 'pv', { 's': params.get('s') || 'none' });
+            const imgID = params.get('i');
+            const sharer = params.get('s');
+
+            if (imgID) {
+                // 如果連結裡有圖片 ID，就讀取該圖片
+                const cloudUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg`;
+                loadBg(cloudUrl);
+                if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的早安祝福`;
+            } else {
+                fetchBrightBg();
+            }
+
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName;
-                document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
+                if (!imgID) document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
             }
-        } catch (err) { console.log("Init Error"); }
-        fetchBrightBg();
+        } catch (err) { fetchBrightBg(); }
     }
 
     function fetchBrightBg() {
         const url = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
+        loadBg(url);
+    }
+
+    // 統一載入背景的邏輯
+    function loadBg(url) {
         bgImage = new Image();
         bgImage.crossOrigin = "anonymous";
         bgImage.src = url;
@@ -186,7 +201,6 @@
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    // 重置功能：位置、文字、大小、顏色全部恢復
     function reset() { 
         items = [{ type: 'text', x: 300, y: 500 }]; 
         document.getElementById('mainText').value = "早安！祝您有美好的一天";
@@ -204,7 +218,7 @@
         try {
             ctx.globalCompositeOperation = 'destination-over';
             ctx.drawImage(bgImage, 0, 0, 600, 600);
-            const base64 = canvas.toDataURL('image/jpeg', 0.4);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
             ctx.globalCompositeOperation = 'source-over';
             draw();
 
@@ -215,11 +229,10 @@
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
             
-            // 【關鍵修改】只傳送 ID，讓連結縮短到極致一行
             const shortID = data.public_id; 
             const finalLink = `line://app/${LIFF_ID}/?i=${shortID}&s=${encodeURIComponent(currentUserNickname)}`;
             
-            const content = `🔔點開早安圖：\n${finalLink}`;
+            const content = `🔔點開早安圖連結：\n${finalLink}`;
             document.getElementById('hiddenText').value = content;
 
             if (await copyToClipboard(content)) {
@@ -249,6 +262,7 @@
         hText.select();
         document.execCommand("copy");
         alert("已複製！");
+        document.getElementById('successMsg').style.display = 'block';
     }
 
     initApp();
