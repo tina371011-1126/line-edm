@@ -116,27 +116,27 @@
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     async function initApp() {
+        const params = new URLSearchParams(window.location.search);
+        const imgID = params.get('i');
+        const sharer = params.get('s');
+
+        // 優先載入背景圖，不等待 LIFF
+        if (imgID) {
+            const cloudUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}`;
+            loadBg(cloudUrl);
+            if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的早安祝福`;
+        } else {
+            fetchBrightBg();
+        }
+
         try {
             await liff.init({ liffId: LIFF_ID });
-            const params = new URLSearchParams(window.location.search);
-            const imgID = params.get('i');
-            const sharer = params.get('s');
-
-            if (imgID) {
-                // 如果連結裡有圖片 ID，就讀取該圖片
-                const cloudUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg`;
-                loadBg(cloudUrl);
-                if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的早安祝福`;
-            } else {
-                fetchBrightBg();
-            }
-
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName;
                 if (!imgID) document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
             }
-        } catch (err) { fetchBrightBg(); }
+        } catch (err) { console.log("LIFF Init Error"); }
     }
 
     function fetchBrightBg() {
@@ -144,15 +144,18 @@
         loadBg(url);
     }
 
-    // 統一載入背景的邏輯
     function loadBg(url) {
         bgImage = new Image();
         bgImage.crossOrigin = "anonymous";
-        bgImage.src = url;
         bgImage.onload = () => {
             container.style.backgroundImage = `url('${url}')`;
             draw();
         };
+        bgImage.onerror = () => {
+            console.log("Image load failed, fallback to random.");
+            fetchBrightBg(); // 若特定圖片載入失敗，換回風景圖
+        };
+        bgImage.src = url;
     }
 
     function draw() {
@@ -218,7 +221,7 @@
         try {
             ctx.globalCompositeOperation = 'destination-over';
             ctx.drawImage(bgImage, 0, 0, 600, 600);
-            const base64 = canvas.toDataURL('image/jpeg', 0.5);
+            const base64 = canvas.toDataURL('image/jpeg', 0.6);
             ctx.globalCompositeOperation = 'source-over';
             draw();
 
