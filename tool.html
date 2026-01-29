@@ -7,7 +7,7 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5', {
-        'custom_map': { 'dimension1': 's', 'dimension2': 'f' }
+        'custom_map': { 'dimension1': 'sharer_id', 'dimension2': 'share_from' }
       });
     </script>
 
@@ -77,7 +77,7 @@
         </div>
         <div class="row">
             <button class="btn-alt" onclick="fetchBrightBg()">🔄 換張風景</button>
-            <button class="btn-alt" onclick="reset()">🗑️ 重置</button>
+            <button class="btn-alt" onclick="reset()">🗑️ 重置文字</button>
         </div>
         <div class="sticker-bar">
             <div class="sticker" style="color:red;" onclick="clearStickers()">🚫</div>
@@ -111,21 +111,20 @@
     let bgImage = new Image();
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
-    let currentUserNickname = "好友";
+    let currentUserNickname = "神秘好友";
 
     async function initApp() {
         try {
             await liff.init({ liffId: LIFF_ID });
             const params = new URLSearchParams(window.location.search);
             
-            // 修正黑屏關鍵：還原網址並強制加上副檔名
+            // 處理預覽邏輯
             const imgID = params.get('i');
-            const sharer = params.get('s');
-            
             if (imgID) {
-                // 從 ID 還原完整 URL，並加上時間戳記防止快取錯誤
-                const recoveredUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg?v=${Date.now()}`;
-                loadBg(recoveredUrl);
+                // 如果是分享來的，直接載入該圖
+                const url = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg?v=${Date.now()}`;
+                loadBg(url);
+                const sharer = params.get('sharer_id');
                 if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的祝福`;
             } else {
                 fetchBrightBg();
@@ -145,9 +144,10 @@
         bgImage.onload = () => {
             container.style.backgroundImage = `url('${url}')`;
             draw();
-            document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
+            if (!document.getElementById('status').innerText.includes('來自')) {
+                document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
+            }
         };
-        bgImage.onerror = () => fetchBrightBg(); // 若圖片失效則載入風景圖
         bgImage.src = url;
     }
 
@@ -161,6 +161,7 @@
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
+        
         items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
@@ -176,6 +177,21 @@
         });
     }
 
+    // 重置核心修正：同步還原 UI 數值
+    function reset() { 
+        // 1. 還原文字物件位置
+        items = [{ type: 'text', x: 300, y: 500 }]; 
+        
+        // 2. 還原 UI 控制項的數值
+        document.getElementById('mainColor').value = "#ffffff"; // 顏色回預設白色
+        document.getElementById('textSize').value = "45";      // 大小回預設 45
+        document.getElementById('mainText').value = "早安！祝您有美好的一天";
+        
+        // 3. 重新繪製
+        draw(); 
+    }
+
+    // 拖曳邏輯
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -202,15 +218,6 @@
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    // 重置功能：位置、文字、大小、顏色全部回歸預設
-    function reset() { 
-        items = [{ type: 'text', x: 300, y: 500 }]; 
-        document.getElementById('mainText').value = "早安！祝您有美好的一天";
-        document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = "45";
-        draw(); 
-    }
-
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
@@ -231,8 +238,8 @@
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
             
-            // 連結極致縮短：只傳送 Public ID，不傳整串 URL
-            const finalLink = `line://app/${LIFF_ID}/?i=${data.public_id}&s=${encodeURIComponent(currentUserNickname)}`;
+            // 這裡使用極短 ID 傳輸
+            const finalLink = `line://app/${LIFF_ID}/?i=${data.public_id}&sharer_id=${encodeURIComponent(currentUserNickname)}`;
             
             const content = `🔔點開早安圖：\n${finalLink}`;
             document.getElementById('hiddenText').value = content;
