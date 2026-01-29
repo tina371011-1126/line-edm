@@ -112,6 +112,7 @@
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
     let currentUserNickname = "好友";
+    let generatedContent = "";
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -119,44 +120,30 @@
         try {
             await liff.init({ liffId: LIFF_ID });
             const params = new URLSearchParams(window.location.search);
-            const imgID = params.get('i');
-            const sharer = params.get('s');
-            
-            if (imgID) {
-                // 【關鍵修正】強制加上 .jpg 和時間戳記來防止黑屏和快取問題
-                const url = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg?v=${new Date().getTime()}`;
-                loadSpecificBg(url);
-                if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的早安祝福`;
-            } else {
-                fetchBrightBg();
-            }
-
+            // 縮短追蹤名稱
+            gtag('event', 'pv', { 
+                's': params.get('s') || 'none', 
+                'f': params.get('f') || 'dir' 
+            });
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName;
-                if (!imgID) document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
+                document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
             }
-        } catch (err) { fetchBrightBg(); }
-    }
-
-    function loadSpecificBg(url) {
-        bgImage = new Image();
-        bgImage.crossOrigin = "anonymous";
-        bgImage.onload = () => {
-            container.style.backgroundImage = `url('${url}')`;
-            draw();
-        };
-        // 【新增】載入失敗時的備援方案
-        bgImage.onerror = () => {
-            console.log("指定圖片載入失敗，切換回隨機風景");
-            fetchBrightBg();
-        };
-        bgImage.src = url;
+        } catch (err) { console.log("Init Error"); }
+        fetchBrightBg();
     }
 
     function fetchBrightBg() {
         const url = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
-        loadSpecificBg(url);
+        bgImage = new Image();
+        bgImage.crossOrigin = "anonymous";
+        bgImage.src = url;
+        bgImage.onload = () => {
+            container.style.backgroundImage = `url('${url}')`;
+            draw();
+            document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
+        };
     }
 
     function draw() {
@@ -205,13 +192,13 @@
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    // 強化版重置功能
-    function reset() {
-        items = [{ type: 'text', x: 300, y: 500 }];
+    // 1. 更新後的重置功能：包含位置、文字、大小、顏色
+    function reset() { 
+        items = [{ type: 'text', x: 300, y: 500 }]; 
         document.getElementById('mainText').value = "早安！祝您有美好的一天";
         document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = "45";
-        draw();
+        draw(); 
     }
 
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
@@ -219,17 +206,12 @@
 
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "⏳ 處理中...";
+        btn.disabled = true; btn.innerText = "⏳ 正在合成並上傳...";
+        
         try {
             ctx.globalCompositeOperation = 'destination-over';
-            // 確保背景圖已載入，否則用白底代替，避免全黑
-            if (bgImage.complete && bgImage.naturalWidth !== 0) {
-                ctx.drawImage(bgImage, 0, 0, 600, 600);
-            } else {
-                ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,600,600);
-            }
-
-            const base64 = canvas.toDataURL('image/jpeg', 0.5);
+            ctx.drawImage(bgImage, 0, 0, 600, 600);
+            const base64 = canvas.toDataURL('image/jpeg', 0.4);
             ctx.globalCompositeOperation = 'source-over';
             draw();
 
@@ -240,22 +222,24 @@
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
             
-            const shortID = data.public_id; 
-            const finalLink = `line://app/${LIFF_ID}/?i=${shortID}&s=${encodeURIComponent(currentUserNickname)}`;
+            // 2. 連結縮短：縮寫參數名稱 (i=圖片, s=分享者, f=來源)
+            const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&s=${encodeURIComponent(currentUserNickname)}&f=l`;
             
-            const content = `🔔點開早安圖：\n${finalLink}`;
-            document.getElementById('hiddenText').value = content;
+            generatedContent = `🔔點開早安圖連結：\n${finalLink}`;
+            document.getElementById('hiddenText').value = generatedContent;
 
-            if (await copyToClipboard(content)) {
+            gtag('event', 'gen', { 's': currentUserNickname });
+
+            if (await copyToClipboard(generatedContent)) {
                 document.getElementById('successMsg').style.display = 'block';
                 btn.innerText = "✨ 複製成功！";
             } else {
                 document.getElementById('manualArea').style.display = 'block';
-                btn.innerText = "請點下方按鈕";
+                btn.innerText = "請點擊下方按鈕";
             }
             btn.disabled = false;
         } catch (e) {
-            alert("請重試"); btn.disabled = false;
+            alert("系統忙碌中"); btn.disabled = false;
         }
     }
 
@@ -271,8 +255,9 @@
     function manualCopyAction() {
         const hText = document.getElementById('hiddenText');
         hText.select();
+        hText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        alert("已複製！");
+        alert("已複製！請回 LINE 貼上分享。");
         document.getElementById('successMsg').style.display = 'block';
     }
 
