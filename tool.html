@@ -11,7 +11,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖 - 極速版</title>
+    <title>AI 早安圖 - 換圖修復版</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --primary-gradient: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); }
@@ -30,8 +30,7 @@
         .label-text { font-size: 12px; color: #adb5bd; min-width: 55px; }
 
         .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; }
-        .sticker { font-size: 24px; cursor: pointer; background: #fff; padding: 8px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; transition: 0.2s; }
-        .sticker:active { background: #e9ecef; }
+        .sticker { font-size: 24px; cursor: pointer; background: #fff; padding: 8px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; }
 
         .btn-gen { background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); }
         .btn-alt { background: #f1f3f5; color: #495057; padding: 10px; border-radius: 10px; border: none; flex: 1; cursor: pointer; font-size: 13px; font-weight: bold; }
@@ -43,7 +42,7 @@
 <body>
 
 <div class="card">
-    <div id="status">⚡ 系統初始化...</div>
+    <div id="status">✨ 正在準備畫布...</div>
     <div id="canvasContainer">
         <div id="shield"></div>
         <canvas id="mainCanvas" width="600" height="600"></canvas>
@@ -59,8 +58,8 @@
             <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-alt" onclick="fetchAIImage()">🚀 快速換圖</button>
-            <button class="btn-alt" onclick="reset()">🗑️ 重置內容</button>
+            <button class="btn-alt" onclick="fetchAIImage()">🔄 換一張 AI 背景</button>
+            <button class="btn-alt" onclick="reset()">🗑️ 全部重置</button>
         </div>
         
         <div class="sticker-bar">
@@ -74,9 +73,9 @@
 
         <button id="genBtn" class="btn-gen" onclick="fastGenerate()">🔗 產出分享連結</button>
         
-        <div id="successMsg" class="success-box">✅ 連結已複製！請至 LINE 貼上</div>
+        <div id="successMsg" class="success-box">✅ 已成功複製連結！</div>
         <div id="manualArea">
-            <button style="background:#ffc107; color:#212529; border:none; padding:10px; border-radius:10px; width:100%; font-weight:bold;" onclick="manualCopyAction()">📋 點我複製連結</button>
+            <button style="background:#ffc107; color:#212529; border:none; padding:10px; border-radius:10px; width:100%; font-weight:bold;" onclick="manualCopyAction()">📋 複製連結</button>
             <textarea id="hiddenText" style="position:absolute; left:-9999px;"></textarea>
         </div>
     </div>
@@ -109,21 +108,26 @@
         fetchAIImage();
     }
 
-    // 優化後的極速 AI 產圖：利用高品質 CDN 快取節點
+    // 關鍵修正：強制跳過快取，達成無限換圖
     function fetchAIImage() {
-        document.getElementById('status').innerText = "⚡ 正在秒速產圖...";
-        // 改用 Fastly/Cloudflare 優化的影像源，並隨機組合關鍵字增加多樣性
-        const themes = ['nature', 'sunrise', 'forest', 'mountain', 'beach'];
+        document.getElementById('status').innerText = "⏳ 正在尋找靈感...";
+        
+        // 使用多重隨機機制：1. 隨機關鍵字 2. 隨機 sig 3. 強制時間戳
+        const themes = ['morning','sunrise','zen','blossom','sunlight','peaceful'];
         const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-        const aiUrl = `https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80&sig=${Math.random()}`;
-        // 註：這裡改用帶有 auto=format 的參數，能讓伺服器根據網路速度自動選擇最輕量格式
+        // 使用 Unsplash 源並加入大量隨機參數
+        const aiUrl = `https://source.unsplash.com/600x600/?${randomTheme}&t=${new Date().getTime()}&sig=${Math.floor(Math.random()*1000)}`;
         
         bgImage = new Image();
         bgImage.crossOrigin = "anonymous"; 
         bgImage.src = aiUrl;
         bgImage.onload = () => {
             draw();
-            document.getElementById('status').innerText = "✅ 產圖完成";
+            document.getElementById('status').innerText = "✅ 已為您生成全新背景";
+        };
+        bgImage.onerror = () => {
+            // 如果來源失敗，切換到備用 AI 源
+            bgImage.src = `https://picsum.photos/600/600?nature&sig=${Math.random()}`;
         };
     }
 
@@ -145,14 +149,12 @@
                 ctx.fillStyle = col; ctx.shadowBlur = 0;
                 ctx.fillText(txt, it.x, it.y);
             } else {
-                ctx.font = "80px serif"; 
-                ctx.shadowBlur = 0;
+                ctx.font = "80px serif"; ctx.shadowBlur = 0;
                 ctx.fillText(it.emoji, it.x, it.y);
             }
         });
     }
 
-    // 互動功能保留 (不動)
     function getPos(e) {
         const r = shield.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -179,8 +181,7 @@
 
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "⏳ 正在生成...";
-        
+        btn.disabled = true; btn.innerText = "⏳ 處理中...";
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
             const fd = new FormData();
@@ -202,9 +203,8 @@
             } else {
                 document.getElementById('manualArea').style.display = 'block';
             }
-        } catch (e) { alert("上傳失敗，請稍後再試"); }
+        } catch (e) { alert("上傳失敗"); }
         btn.disabled = false;
-        btn.innerText = "🔗 產出分享連結";
     }
 
     async function copyToClipboard(t) {
@@ -215,7 +215,6 @@
         const h = document.getElementById('hiddenText');
         h.select(); document.execCommand("copy");
         alert("已複製！");
-        document.getElementById('successMsg').style.display = 'block';
     }
 
     function reset() {
