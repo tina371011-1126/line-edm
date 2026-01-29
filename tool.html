@@ -20,26 +20,28 @@
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 15px; border-radius: 25px; box-shadow: 0 10px 30px rgba(255,107,129,0.2); width: 100%; max-width: 420px; box-sizing: border-box; border: 2px solid #ffeaa7; }
         
-        /* 核心修改：禁止長按與選取圖片 */
+        /* 核心修正：將容器設定為背景顯示區，並禁止長按 */
         #canvasContainer { 
             position: relative; 
             margin: 5px auto; 
-            background: #eee; 
+            background-color: #eee; 
+            background-size: cover; /* 讓風景圖填滿 */
+            background-position: center;
             border-radius: 15px; 
             overflow: hidden; 
             width: 100%; 
             aspect-ratio: 1/1; 
             touch-action: none; 
             border: 2px solid #fff;
-            -webkit-touch-callout: none; /* 禁止 iOS 長按彈出選單 */
-            -webkit-user-select: none;   /* 禁止選取 */
+            -webkit-touch-callout: none; 
             user-select: none;
         }
+        /* Canvas 保持透明，僅顯示文字與貼紙 */
         canvas { 
             width: 100%; 
             height: 100%; 
             display: block; 
-            pointer-events: auto; /* 確保拖曳文字功能正常 */
+            background: transparent; 
         }
 
         .ui-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
@@ -62,7 +64,7 @@
 
 <div class="card">
     <div id="status">☀️ 準備中...</div>
-    <div id="canvasContainer">
+    <div id="canvasContainer" id="bgLayer">
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
@@ -106,46 +108,50 @@
     const LIFF_ID = "2008941488-Phn5v50S";
 
     const canvas = document.getElementById('mainCanvas');
+    const container = document.getElementById('canvasContainer');
     const ctx = canvas.getContext('2d');
-    let bg = new Image();
+    let bgImage = new Image();
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
     let currentUserNickname = "神秘好友";
     let generatedContent = "";
 
-    // 核心修改：JavaScript 層級封鎖右鍵/長按選單
-    canvas.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        return false;
-    });
-
-    const getUrlParam = (name) => new URLSearchParams(window.location.search).get(name);
+    // 禁止右鍵選單
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     async function initApp() {
         try {
             await liff.init({ liffId: LIFF_ID });
-            const fWhom = getUrlParam('sharer_id') || '未知分享者';
-            const fPlatform = getUrlParam('share_from') || '直接開啟';
-            gtag('event', 'page_view_from_share', { 'sharer_id': fWhom, 'share_from': fPlatform });
+            const params = new URLSearchParams(window.location.search);
+            gtag('event', 'page_view_from_share', { 
+                'sharer_id': params.get('sharer_id') || '未知', 
+                'share_from': params.get('share_from') || '直接' 
+            });
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName;
                 document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
             }
-        } catch (err) { console.log("LIFF Error"); }
+        } catch (err) { console.log("Init Error"); }
         fetchBrightBg();
     }
 
     function fetchBrightBg() {
-        bg = new Image();
-        bg.crossOrigin = "anonymous";
-        bg.src = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
-        bg.onload = () => draw();
+        const url = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
+        bgImage = new Image();
+        bgImage.crossOrigin = "anonymous";
+        bgImage.src = url;
+        bgImage.onload = () => {
+            // 修正：將圖片寫死在 CSS 背景中
+            container.style.backgroundImage = `url('${url}')`;
+            draw();
+            document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
+        };
     }
 
     function draw() {
         ctx.clearRect(0,0,600,600);
-        if(bg.complete) ctx.drawImage(bg, 0, 0, 600, 600);
+        // 修正：預覽時 Canvas 不畫背景圖，保持透明
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
@@ -164,6 +170,7 @@
         });
     }
 
+    // 拖曳邏輯保持不變
     function getPos(e) {
         const r = canvas.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
@@ -196,45 +203,42 @@
 
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
-        const sMsg = document.getElementById('successMsg');
-        const mArea = document.getElementById('manualArea');
-        const hText = document.getElementById('hiddenText');
-
-        btn.disabled = true;
-        btn.innerText = "⏳ 正在處理中...";
-        sMsg.style.display = 'none';
-        mArea.style.display = 'none';
-
+        btn.disabled = true; btn.innerText = "⏳ 正在合成並上傳...";
+        
         try {
+            // 修正：上傳前才將背景與文字合併到 Canvas
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.drawImage(bgImage, 0, 0, 600, 600);
+            
             const base64 = canvas.toDataURL('image/jpeg', 0.4);
+            
+            // 隨即清空 Canvas 並重畫（恢復透明預覽狀態）
+            ctx.globalCompositeOperation = 'source-over';
+            draw();
+
             const fd = new FormData();
             fd.append("file", base64);
             fd.append("upload_preset", UPLOAD_PRESET);
 
-            const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-                method: "POST",
-                body: fd
-            });
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
+            const data = await res.json();
             
-            const data = await response.json();
             const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
             generatedContent = `🔔打開早安圖連結：\n${finalLink}`;
-            hText.value = generatedContent;
+            document.getElementById('hiddenText').value = generatedContent;
 
             gtag('event', 'generate_card', { 'sharer_id': currentUserNickname });
 
             if (await copyToClipboard(generatedContent)) {
-                sMsg.style.display = 'block';
+                document.getElementById('successMsg').style.display = 'block';
                 btn.innerText = "✨ 複製成功！";
             } else {
-                mArea.style.display = 'block';
-                btn.innerText = "請點擊下方按鈕複製";
+                document.getElementById('manualArea').style.display = 'block';
+                btn.innerText = "請點擊下方按鈕";
             }
             btn.disabled = false;
         } catch (e) {
-            alert("連線不穩，請重試");
-            btn.disabled = false;
-            btn.innerText = "🚀 重新嘗試";
+            alert("系統忙碌中"); btn.disabled = false;
         }
     }
 
@@ -252,7 +256,7 @@
         hText.select();
         hText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        alert("連結已成功複製！請回 LINE 貼上分享。");
+        alert("已複製！請回 LINE 貼上分享。");
         document.getElementById('successMsg').style.display = 'block';
     }
 
