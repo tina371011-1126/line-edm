@@ -7,7 +7,7 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5', {
-        'custom_map': { 'dimension1': 's', 'dimension2': 'f' }
+        'custom_map': { 'dimension1': 'sharer_id', 'dimension2': 'share_from' }
       });
     </script>
 
@@ -20,26 +20,28 @@
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 15px; border-radius: 25px; box-shadow: 0 10px 30px rgba(255,107,129,0.2); width: 100%; max-width: 420px; box-sizing: border-box; border: 2px solid #ffeaa7; }
         
+        /* 核心修改：透明防護罩 */
         #canvasContainer { 
             position: relative; 
             margin: 5px auto; 
-            background-color: #eee; 
-            background-size: cover; 
-            background-position: center;
+            background: #eee no-repeat center/cover;
             border-radius: 15px; 
             overflow: hidden; 
             width: 100%; 
             aspect-ratio: 1/1; 
-            touch-action: none; 
             border: 2px solid #fff;
-            -webkit-touch-callout: none; 
-            user-select: none;
         }
-        canvas { 
-            width: 100%; 
-            height: 100%; 
-            display: block; 
-            background: transparent; 
+        canvas { width: 100%; height: 100%; display: block; position: relative; z-index: 5; }
+        
+        /* 擋住系統選單的關鍵：最上層透明層 */
+        #shield {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            background: rgba(255,255,255,0); /* 完全透明 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .ui-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
@@ -63,6 +65,7 @@
 <div class="card">
     <div id="status">☀️ 準備中...</div>
     <div id="canvasContainer">
+        <div id="shield"></div>
         <canvas id="mainCanvas" width="600" height="600"></canvas>
     </div>
 
@@ -107,67 +110,39 @@
 
     const canvas = document.getElementById('mainCanvas');
     const container = document.getElementById('canvasContainer');
+    const shield = document.getElementById('shield');
     const ctx = canvas.getContext('2d');
+    
     let bgImage = new Image();
     let items = [{ type: 'text', x: 300, y: 500 }]; 
     let active = null;
     let currentUserNickname = "神秘好友";
 
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // 修改：事件監聽器改到 shield 上，這樣長按才會點在 shield 上
+    shield.addEventListener('contextmenu', e => e.preventDefault());
 
     async function initApp() {
         try {
             await liff.init({ liffId: LIFF_ID });
-            const params = new URLSearchParams(window.location.search);
-            
-            // 追蹤縮寫
-            gtag('event', 'pv', { 
-                's': params.get('s') || 'none', 
-                'f': params.get('f') || 'dir' 
-            });
-
-            // 1. 處理讀取邏輯：如果有 'i' 參數，還原成完整 Cloudinary 網址
-            const imgID = params.get('i');
-            const sharer = params.get('s'); // 縮寫參數 s = sharer
-
-            if (imgID) {
-                // 【重點修正】手動拼湊網址，強制加上 .jpg 和 時間戳記
-                // 這能確保瀏覽器把它當作一張新圖片讀取，解決黑屏問題
-                const recoveredUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg?v=${Date.now()}`;
-                loadBg(recoveredUrl);
-                if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的祝福`;
-            } else {
-                fetchBrightBg();
-            }
-
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName;
-                if (!imgID) document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
+                document.getElementById('status').innerText = `🎨 您好 ${currentUserNickname}`;
             }
-        } catch (err) { fetchBrightBg(); }
+        } catch (err) { console.log("Init Error"); }
+        fetchBrightBg();
     }
 
-    // 通用載入背景函式
-    function loadBg(url) {
+    function fetchBrightBg() {
+        const url = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
         bgImage = new Image();
-        bgImage.crossOrigin = "anonymous";
+        bgImage.crossOrigin = "anonymous"; // 關鍵：解決上傳失敗的 CORS 問題
+        bgImage.src = url;
         bgImage.onload = () => {
             container.style.backgroundImage = `url('${url}')`;
             draw();
             document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
         };
-        // 若載入失敗（例如圖片被刪除），自動換一張風景圖
-        bgImage.onerror = () => {
-            console.log("圖片讀取失敗，切換備用圖");
-            fetchBrightBg();
-        };
-        bgImage.src = url;
-    }
-
-    function fetchBrightBg() {
-        const url = `https://picsum.photos/600/600?bright,nature&sig=${Math.random()}`;
-        loadBg(url);
     }
 
     function draw() {
@@ -190,8 +165,9 @@
         });
     }
 
+    // 拖曳邏輯：改為監聽 shield 圖層
     function getPos(e) {
-        const r = canvas.getBoundingClientRect();
+        const r = shield.getBoundingClientRect();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
@@ -199,7 +175,6 @@
     const start = (e) => {
         const p = getPos(e);
         active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 80 && Math.abs(i.y - p.y) < 80);
-        if(active && e.cancelable) e.preventDefault();
     };
     const move = (e) => {
         if(!active) return;
@@ -209,43 +184,25 @@
         active.y = Math.max(50, Math.min(550, p.y));
         draw();
     };
-    canvas.addEventListener('touchstart', start, {passive: false});
+    shield.addEventListener('touchstart', start, {passive: false});
     window.addEventListener('touchmove', move, {passive: false});
     window.addEventListener('touchend', () => active = null);
-    canvas.addEventListener('mousedown', start);
+    shield.addEventListener('mousedown', start);
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', () => active = null);
 
-    // 2. 修正後的 Reset 功能：全面恢復預設值
-    function reset() {
-        // 重置位置
-        items = [{ type: 'text', x: 300, y: 500 }];
-        // 重置介面數值
-        document.getElementById('mainText').value = "早安！祝您有美好的一天";
-        document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = "45";
-        // 重畫
-        draw();
-    }
-
-    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
-    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
-
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "⏳ 處理中...";
+        btn.disabled = true; btn.innerText = "⏳ 正在合成圖片...";
+        
         try {
-            // 合成邏輯
+            // 合成背景
             ctx.globalCompositeOperation = 'destination-over';
-            if (bgImage.complete && bgImage.naturalWidth !== 0) {
-                ctx.drawImage(bgImage, 0, 0, 600, 600);
-            } else {
-                ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,600,600);
-            }
+            ctx.drawImage(bgImage, 0, 0, 600, 600);
             
             const base64 = canvas.toDataURL('image/jpeg', 0.5);
             
-            // 恢復透明預覽
+            // 恢復預覽狀態
             ctx.globalCompositeOperation = 'source-over';
             draw();
 
@@ -254,14 +211,11 @@
             fd.append("upload_preset", UPLOAD_PRESET);
 
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
+            if (!res.ok) throw new Error();
+            
             const data = await res.json();
-            
-            // 3. 極短連結邏輯：只取 Public ID，參數改用單字母 (i, s, f)
-            // 這樣在 LINE 聊天室中看起來只有一行
-            const shortID = data.public_id;
-            const finalLink = `line://app/${LIFF_ID}/?i=${shortID}&s=${encodeURIComponent(currentUserNickname)}&f=l`;
-            
-            const content = `🔔點開早安圖：\n${finalLink}`;
+            const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
+            const content = `🔔打開早安圖連結：\n${finalLink}`;
             document.getElementById('hiddenText').value = content;
 
             if (await copyToClipboard(content)) {
@@ -269,11 +223,12 @@
                 btn.innerText = "✨ 複製成功！";
             } else {
                 document.getElementById('manualArea').style.display = 'block';
-                btn.innerText = "請點下方按鈕";
+                btn.innerText = "請點下方複製按鈕";
             }
             btn.disabled = false;
         } catch (e) {
-            alert("請重試"); btn.disabled = false;
+            alert("上傳失敗，請確認 Cloudinary 設定（如 Upload Preset 名稱是否正確）");
+            btn.disabled = false; btn.innerText = "🚀 重新嘗試";
         }
     }
 
@@ -289,10 +244,15 @@
     function manualCopyAction() {
         const hText = document.getElementById('hiddenText');
         hText.select();
+        hText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        alert("已複製！");
+        alert("已成功複製連結！");
         document.getElementById('successMsg').style.display = 'block';
     }
+
+    function reset() { items = [{ type: 'text', x: 300, y: 500 }]; draw(); }
+    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
+    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
     initApp();
 </script>
