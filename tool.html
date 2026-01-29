@@ -23,7 +23,7 @@
         #canvasContainer { 
             position: relative; 
             margin: 5px auto; 
-            background: #eee no-repeat center/cover;
+            background: #eee;
             border-radius: 15px; 
             overflow: hidden; 
             width: 100%; 
@@ -36,7 +36,7 @@
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: 10;
-            background: rgba(255,255,255,0);
+            background: rgba(255,255,255,0); 
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
@@ -107,7 +107,6 @@
     const LIFF_ID = "2008941488-Phn5v50S";
 
     const canvas = document.getElementById('mainCanvas');
-    const container = document.getElementById('canvasContainer');
     const shield = document.getElementById('shield');
     const ctx = canvas.getContext('2d');
     
@@ -136,28 +135,42 @@
         bgImage.crossOrigin = "anonymous"; 
         bgImage.src = url;
         bgImage.onload = () => {
-            container.style.backgroundImage = `url('${url}')`;
             draw();
             document.getElementById('status').innerText = "✨ 文字可自由拖曳移動";
         };
     }
 
+    // 核心修正：將背景繪製整合進 draw 函式，確保產出與預覽完全相同
     function draw() {
         ctx.clearRect(0,0,600,600);
+        
+        // 1. 先畫背景 (如果已載入)
+        if (bgImage.complete) {
+            ctx.drawImage(bgImage, 0, 0, 600, 600);
+        }
+
         const txt = document.getElementById('mainText').value || "早安";
         const col = document.getElementById('mainColor').value;
         const sz = document.getElementById('textSize').value;
+
+        // 2. 畫文字與貼圖
         items.forEach(it => {
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.textAlign = "center"; 
+            ctx.textBaseline = "middle";
             if(it.type === 'text') {
                 ctx.font = `bold ${sz}px "Microsoft JhengHei", sans-serif`;
-                ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
-                ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(2, sz/8);
+                ctx.shadowColor = "rgba(0,0,0,0.7)"; 
+                ctx.shadowBlur = 10;
+                ctx.strokeStyle = "black"; 
+                ctx.lineWidth = Math.max(2, sz/8);
                 ctx.strokeText(txt, it.x, it.y);
-                ctx.fillStyle = col; ctx.shadowBlur = 0;
+                ctx.fillStyle = col; 
+                ctx.shadowBlur = 0;
                 ctx.fillText(txt, it.x, it.y);
             } else {
-                ctx.font = "80px serif"; ctx.fillText(it.emoji, it.x, it.y);
+                ctx.shadowBlur = 0;
+                ctx.font = "80px serif"; 
+                ctx.fillText(it.emoji, it.x, it.y);
             }
         });
     }
@@ -168,10 +181,12 @@
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
     }
+
     const start = (e) => {
         const p = getPos(e);
         active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 80 && Math.abs(i.y - p.y) < 80);
     };
+
     const move = (e) => {
         if(!active) return;
         if(e.cancelable) e.preventDefault();
@@ -180,6 +195,7 @@
         active.y = Math.max(50, Math.min(550, p.y));
         draw();
     };
+
     shield.addEventListener('touchstart', start, {passive: false});
     window.addEventListener('touchmove', move, {passive: false});
     window.addEventListener('touchend', () => active = null);
@@ -189,14 +205,11 @@
 
     async function fastGenerate() {
         const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "⏳ 正在合成圖片...";
+        btn.disabled = true; 
+        btn.innerText = "⏳ 正在上傳圖片...";
         
         try {
-            // 修正：先清空畫布，畫背景，再畫文字貼圖，確保匯出一致
-            ctx.clearRect(0,0,600,600);
-            ctx.drawImage(bgImage, 0, 0, 600, 600);
-            draw(); // 再次呼叫 draw 覆蓋上文字
-
+            // 由於 draw() 已經包含了背景，這裡直接輸出即可
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
             
             const fd = new FormData();
@@ -207,10 +220,8 @@
             if (!res.ok) throw new Error();
             
             const data = await res.json();
-            // 修正：縮短網址到一行，移除冗餘標記
-            const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}`;
+            const finalLink = `line://app/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&sharer_id=${encodeURIComponent(currentUserNickname)}&share_from=line_share`;
             const content = `🔔打開早安圖連結：\n${finalLink}`;
-            
             document.getElementById('hiddenText').value = content;
 
             if (await copyToClipboard(content)) {
@@ -223,7 +234,8 @@
             btn.disabled = false;
         } catch (e) {
             alert("上傳失敗，請確認 Cloudinary 設定");
-            btn.disabled = false; btn.innerText = "🚀 重新嘗試";
+            btn.disabled = false; 
+            btn.innerText = "🚀 重新嘗試";
         }
     }
 
@@ -245,15 +257,15 @@
         document.getElementById('successMsg').style.display = 'block';
     }
 
-    // 修正：重置所有數值回歸初始狀態
+    // 重置功能：位置、內容、顏色、大小全部歸位
     function reset() { 
+        items = [{ type: 'text', x: 300, y: 500 }]; 
         document.getElementById('mainText').value = "早安！祝您有美好的一天";
         document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = "45";
-        items = [{ type: 'text', x: 300, y: 500 }]; 
+        document.getElementById('textSize').value = 45;
         draw(); 
     }
-    
+
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
