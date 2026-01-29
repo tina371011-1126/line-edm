@@ -120,15 +120,17 @@
         const imgID = params.get('i');
         const sharer = params.get('s');
 
-        // 優先載入背景圖，不等待 LIFF
+        // 1. 優先載入圖片
         if (imgID) {
-            const cloudUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}`;
+            // 【關鍵修正】強制加上 .jpg 副檔名，並加上時間戳記防止快取錯誤
+            const cloudUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgID}.jpg?v=${new Date().getTime()}`;
             loadBg(cloudUrl);
             if (sharer) document.getElementById('status').innerText = `💝 來自 ${sharer} 的早安祝福`;
         } else {
             fetchBrightBg();
         }
 
+        // 2. 初始化 LIFF
         try {
             await liff.init({ liffId: LIFF_ID });
             if (liff.isLoggedIn()) {
@@ -144,18 +146,27 @@
         loadBg(url);
     }
 
+    // 統一載入背景的邏輯
     function loadBg(url) {
-        bgImage = new Image();
-        bgImage.crossOrigin = "anonymous";
-        bgImage.onload = () => {
+        // 先建立一個新的 Image 物件
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        
+        img.onload = () => {
+            bgImage = img; // 載入成功才替換全域變數
             container.style.backgroundImage = `url('${url}')`;
             draw();
         };
-        bgImage.onerror = () => {
-            console.log("Image load failed, fallback to random.");
-            fetchBrightBg(); // 若特定圖片載入失敗，換回風景圖
+        
+        img.onerror = () => {
+            console.log("圖片載入失敗，切換回隨機風景");
+            // 如果分享的圖掛了，至少顯示風景圖，不要黑屏
+            if (url.includes('cloudinary')) {
+                fetchBrightBg();
+            }
         };
-        bgImage.src = url;
+        
+        img.src = url;
     }
 
     function draw() {
@@ -220,7 +231,15 @@
         btn.disabled = true; btn.innerText = "⏳ 處理中...";
         try {
             ctx.globalCompositeOperation = 'destination-over';
-            ctx.drawImage(bgImage, 0, 0, 600, 600);
+            // 確保有背景圖，如果 bgImage 還沒載入好（黑屏原因之一），這裡會報錯
+            if (bgImage.complete && bgImage.naturalWidth !== 0) {
+                ctx.drawImage(bgImage, 0, 0, 600, 600);
+            } else {
+                // 如果背景是空的，填充一個底色避免透明
+                ctx.fillStyle = "#fffaf0";
+                ctx.fillRect(0,0,600,600);
+            }
+            
             const base64 = canvas.toDataURL('image/jpeg', 0.6);
             ctx.globalCompositeOperation = 'source-over';
             draw();
@@ -247,7 +266,8 @@
             }
             btn.disabled = false;
         } catch (e) {
-            alert("請重試"); btn.disabled = false;
+            console.error(e);
+            alert("上傳失敗，請檢查網路"); btn.disabled = false;
         }
     }
 
