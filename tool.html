@@ -8,33 +8,27 @@
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5', { 'custom_map': { 'dimension1': 'sharer_name' } });
     </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖 - 換圖修復版</title>
+    <title>AI 早安圖</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         :root { --primary-gradient: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); }
         body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
         .card { background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 420px; box-sizing: border-box; }
-        
         #status { font-size: 13px; color: #3672d9; text-align: left; margin-bottom: 8px; font-weight: bold; }
         #canvasContainer { position: relative; margin-bottom: 15px; background: #e9ecef; border-radius: 15px; overflow: hidden; width: 100%; aspect-ratio: 1/1; }
         canvas { width: 100%; height: 100%; display: block; position: relative; z-index: 5; }
         #shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: move; }
-
         .ui-group { display: flex; flex-direction: column; gap: 10px; }
         .row { display: flex; gap: 8px; align-items: center; }
         input[type="text"] { flex: 1; padding: 12px; border: 1px solid #dee2e6; border-radius: 12px; font-size: 16px; outline: none; }
         input[type="range"] { flex: 1; accent-color: #62be36; }
         .label-text { font-size: 12px; color: #adb5bd; min-width: 55px; }
-
         .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; }
         .sticker { font-size: 24px; cursor: pointer; background: #fff; padding: 8px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; }
-
         .btn-gen { background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); }
         .btn-alt { background: #f1f3f5; color: #495057; padding: 10px; border-radius: 10px; border: none; flex: 1; cursor: pointer; font-size: 13px; font-weight: bold; }
-        
         .success-box { display: none; margin-top: 10px; padding: 12px; background: #d4edda; border-radius: 12px; text-align: center; color: #155724; font-size: 14px; font-weight: bold; border: 1px solid #c3e6cb; }
         #manualArea { display: none; margin-top: 10px; padding: 12px; background: #fff3cd; border: 1px dashed #ffeeba; border-radius: 12px; text-align: center; }
     </style>
@@ -42,7 +36,7 @@
 <body>
 
 <div class="card">
-    <div id="status">✨ 正在準備畫布...</div>
+    <div id="status">✨ 準備中...</div>
     <div id="canvasContainer">
         <div id="shield"></div>
         <canvas id="mainCanvas" width="600" height="600"></canvas>
@@ -58,7 +52,7 @@
             <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-alt" onclick="fetchAIImage()">🔄 換一張 AI 背景</button>
+            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張 AI 背景</button>
             <button class="btn-alt" onclick="reset()">🗑️ 全部重置</button>
         </div>
         
@@ -85,16 +79,8 @@
     const CLOUD_NAME = "dwdkxs8ot"; 
     const UPLOAD_PRESET = "morning picture"; 
     const LIFF_ID = "2008941488-Phn5v50S";
-
-    const canvas = document.getElementById('mainCanvas');
-    const shield = document.getElementById('shield');
-    const ctx = canvas.getContext('2d');
-    
-    let bgImage = new Image();
-    const DEFAULT_TEXT_POS = { x: 300, y: 500 };
-    let items = [{ type: 'text', x: DEFAULT_TEXT_POS.x, y: DEFAULT_TEXT_POS.y }]; 
-    let active = null;
-    let currentUserNickname = "好友";
+    const canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d'), shield = document.getElementById('shield');
+    let bgImage = new Image(), items = [{ type: 'text', x: 300, y: 500 }], active = null, currentUserNickname = "好友";
 
     async function initApp() {
         try {
@@ -104,130 +90,70 @@
                 currentUserNickname = profile.displayName || "好友";
                 gtag('event', 'generator_open', { 'sharer_name': currentUserNickname });
             }
-        } catch (err) { console.log("Init Error"); }
+        } catch (err) {}
         fetchAIImage();
     }
 
-    // 關鍵修正：強制跳過快取，達成無限換圖
     function fetchAIImage() {
-        document.getElementById('status').innerText = "⏳ 正在尋找靈感...";
-        
-        // 使用多重隨機機制：1. 隨機關鍵字 2. 隨機 sig 3. 強制時間戳
-        const themes = ['morning','sunrise','zen','blossom','sunlight','peaceful'];
-        const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-        // 使用 Unsplash 源並加入大量隨機參數
-        const aiUrl = `https://source.unsplash.com/600x600/?${randomTheme}&t=${new Date().getTime()}&sig=${Math.floor(Math.random()*1000)}`;
-        
-        bgImage = new Image();
-        bgImage.crossOrigin = "anonymous"; 
-        bgImage.src = aiUrl;
-        bgImage.onload = () => {
-            draw();
-            document.getElementById('status').innerText = "✅ 已為您生成全新背景";
-        };
-        bgImage.onerror = () => {
-            // 如果來源失敗，切換到備用 AI 源
-            bgImage.src = `https://picsum.photos/600/600?nature&sig=${Math.random()}`;
-        };
+        document.getElementById('status').innerText = "⏳ 正在生成...";
+        const aiUrl = `https://source.unsplash.com/600x600/?morning,nature&t=${Date.now()}`;
+        bgImage = new Image(); bgImage.crossOrigin = "anonymous"; bgImage.src = aiUrl;
+        bgImage.onload = () => { draw(); document.getElementById('status').innerText = "✅ 產圖完成"; };
     }
 
     function draw() {
         ctx.clearRect(0,0,600,600);
         if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, 600, 600);
-
-        const txt = document.getElementById('mainText').value || "早安";
-        const col = document.getElementById('mainColor').value;
-        const sz = document.getElementById('textSize').value;
-
+        const txt = document.getElementById('mainText').value || "早安", col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
         items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
-                ctx.font = `bold ${sz}px "Microsoft JhengHei", sans-serif`;
-                ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
-                ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(2, sz/8);
-                ctx.strokeText(txt, it.x, it.y);
-                ctx.fillStyle = col; ctx.shadowBlur = 0;
-                ctx.fillText(txt, it.x, it.y);
-            } else {
-                ctx.font = "80px serif"; ctx.shadowBlur = 0;
-                ctx.fillText(it.emoji, it.x, it.y);
-            }
+                ctx.font = `bold ${sz}px sans-serif`; ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
+                ctx.strokeStyle = "black"; ctx.lineWidth = sz/8; ctx.strokeText(txt, it.x, it.y);
+                ctx.fillStyle = col; ctx.shadowBlur = 0; ctx.fillText(txt, it.x, it.y);
+            } else { ctx.font = "80px serif"; ctx.fillText(it.emoji, it.x, it.y); }
         });
     }
 
     function getPos(e) {
         const r = shield.getBoundingClientRect();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
         return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
     }
-    const start = (e) => {
-        const p = getPos(e);
-        active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 60 && Math.abs(i.y - p.y) < 60);
-    };
-    const move = (e) => {
-        if(!active) return;
-        if(e.cancelable) e.preventDefault();
-        const p = getPos(e);
-        active.x = p.x; active.y = p.y;
-        draw();
-    };
-    shield.addEventListener('touchstart', start, {passive:false});
-    window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', () => active = null);
-    shield.addEventListener('mousedown', start);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', () => active = null);
+    const start = (e) => { const p = getPos(e); active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 60 && Math.abs(i.y - p.y) < 60); };
+    const move = (e) => { if(!active) return; if(e.cancelable) e.preventDefault(); const p = getPos(e); active.x = p.x; active.y = p.y; draw(); };
+    shield.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', () => active = null); shield.addEventListener('mousedown', start);
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', () => active = null);
 
     async function fastGenerate() {
-        const btn = document.getElementById('genBtn');
-        btn.disabled = true; btn.innerText = "⏳ 處理中...";
+        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 處理中...";
         try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
-            const fd = new FormData();
-            fd.append("file", base64);
-            fd.append("upload_preset", UPLOAD_PRESET);
-
+            const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
+            fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
-            
-            const finalLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&f=${encodeURIComponent(currentUserNickname)}`;
-            const copyContent = `🌸 ${currentUserNickname} 分享了一張早安圖給你：\n${finalLink}`;
-            
-            document.getElementById('hiddenText').value = copyContent;
+            // 修正：移除末尾暱稱參數，保持單行
+            const shareUrl = `🌸 ${currentUserNickname} 送來早安祝福：https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}`;
+            document.getElementById('hiddenText').value = shareUrl;
             gtag('event', 'share_generated', { 'sharer_name': currentUserNickname });
-
-            if (await copyToClipboard(copyContent)) {
-                document.getElementById('successMsg').style.display = 'block';
-                btn.innerText = "✨ 複製成功";
-            } else {
-                document.getElementById('manualArea').style.display = 'block';
-            }
+            if (await copyToClipboard(shareUrl)) { document.getElementById('successMsg').style.display = 'block'; btn.innerText = "✨ 複製成功"; }
+            else { document.getElementById('manualArea').style.display = 'block'; }
         } catch (e) { alert("上傳失敗"); }
         btn.disabled = false;
     }
 
-    async function copyToClipboard(t) {
-        try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; }
-    }
-
-    function manualCopyAction() {
-        const h = document.getElementById('hiddenText');
-        h.select(); document.execCommand("copy");
-        alert("已複製！");
-    }
-
+    async function copyToClipboard(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
+    function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
     function reset() {
-        items = [{ type: 'text', x: DEFAULT_TEXT_POS.x, y: DEFAULT_TEXT_POS.y }];
+        items = [{ type: 'text', x: 300, y: 500 }];
         document.getElementById('mainText').value = "早安！祝您有美好的一天";
         document.getElementById('mainColor').value = "#ffffff";
         document.getElementById('textSize').value = 45;
         draw(); 
     }
-
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
-
     initApp();
 </script>
 </body>
