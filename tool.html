@@ -36,7 +36,7 @@
 <body>
 
 <div class="card">
-    <div id="status">⚡ 系統啟動中...</div>
+    <div id="status">⚡ 載入中...</div>
     <div id="canvasContainer">
         <div id="shield"></div>
         <canvas id="mainCanvas" width="600" height="600"></canvas>
@@ -52,7 +52,7 @@
             <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張風景背景</button>
+            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張風景</button>
             <button class="btn-alt" onclick="reset()">🗑️ 全部重置</button>
         </div>
         
@@ -67,7 +67,7 @@
 
         <button id="genBtn" class="btn-gen" onclick="fastGenerate()">🚀 產生並複製連結</button>
         
-        <div id="successMsg" class="success-box">✅ 已成功複製！去 LINE 貼上吧</div>
+        <div id="successMsg" class="success-box">✅ 已成功複製！去貼給好友吧</div>
         <div id="manualArea">
             <button style="background:#ffc107; color:#212529; border:none; padding:10px; border-radius:10px; width:100%; font-weight:bold;" onclick="manualCopyAction()">📋 複製連結</button>
             <textarea id="hiddenText" style="position:absolute; left:-9999px;"></textarea>
@@ -92,14 +92,10 @@
         fetchAIImage();
     }
 
-    // 使用 Lorem Picsum 商用圖庫
     function fetchAIImage() {
-        document.getElementById('status').innerText = "⏳ 正在挑選風景...";
-        // 加入 random 參數確保每次點擊都換圖，不會卡住
+        document.getElementById('status').innerText = "⏳ 挑選圖片中...";
         const aiUrl = `https://picsum.photos/600/600?nature,sunrise&t=${Date.now()}`;
-        bgImage = new Image(); 
-        bgImage.crossOrigin = "anonymous"; 
-        bgImage.src = aiUrl;
+        bgImage = new Image(); bgImage.crossOrigin = "anonymous"; bgImage.src = aiUrl;
         bgImage.onload = () => { draw(); document.getElementById('status').innerText = "✅ 圖片已就緒"; };
     }
 
@@ -135,8 +131,8 @@
             fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
-            // 壓縮為一行，移除最後的暱稱參數
-            const shareUrl = `🔔點擊連結傳送早安圖給好友: https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}`;
+            // 極限縮短訊息內容：一行顯示，不含空格與末端參數
+            const shareUrl = `🔔點擊連結傳送早安圖給好友:https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}`;
             document.getElementById('hiddenText').value = shareUrl;
             gtag('event', 'share_generated', { 'sharer_name': currentUserNickname });
             if (await copyToClipboard(shareUrl)) { document.getElementById('successMsg').style.display = 'block'; btn.innerText = "✨ 複製成功"; }
