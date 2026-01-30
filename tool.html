@@ -136,7 +136,8 @@
             
             // 核心優化：只取 Public ID
             const imgId = data.public_id; 
-            const shareUrl = `🔔點擊連擊傳送早安圖給好友:https://liff.line.me/${LIFF_ID}/?id=${imgId}`;
+            const shareUrl = `🔔點擊連擊傳送早安圖給好友:
+            https://liff.line.me/${LIFF_ID}/?id=${imgId}`;
             
             document.getElementById('hiddenText').value = shareUrl;
             gtag('event', 'share_generated', { 'sharer_name': currentUserNickname });
