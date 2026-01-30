@@ -36,7 +36,7 @@
 <body>
 
 <div class="card">
-    <div id="status">✨ 準備中...</div>
+    <div id="status">⚡ 系統啟動中...</div>
     <div id="canvasContainer">
         <div id="shield"></div>
         <canvas id="mainCanvas" width="600" height="600"></canvas>
@@ -52,7 +52,7 @@
             <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
         </div>
         <div class="row">
-            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張 AI 背景</button>
+            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張風景背景</button>
             <button class="btn-alt" onclick="reset()">🗑️ 全部重置</button>
         </div>
         
@@ -65,9 +65,9 @@
             <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
         </div>
 
-        <button id="genBtn" class="btn-gen" onclick="fastGenerate()">🔗 產出分享連結</button>
+        <button id="genBtn" class="btn-gen" onclick="fastGenerate()">🚀 產生並複製連結</button>
         
-        <div id="successMsg" class="success-box">✅ 已成功複製連結！</div>
+        <div id="successMsg" class="success-box">✅ 已成功複製！去 LINE 貼上吧</div>
         <div id="manualArea">
             <button style="background:#ffc107; color:#212529; border:none; padding:10px; border-radius:10px; width:100%; font-weight:bold;" onclick="manualCopyAction()">📋 複製連結</button>
             <textarea id="hiddenText" style="position:absolute; left:-9999px;"></textarea>
@@ -76,9 +76,7 @@
 </div>
 
 <script>
-    const CLOUD_NAME = "dwdkxs8ot"; 
-    const UPLOAD_PRESET = "morning picture"; 
-    const LIFF_ID = "2008941488-Phn5v50S";
+    const CLOUD_NAME = "dwdkxs8ot", UPLOAD_PRESET = "morning picture", LIFF_ID = "2008941488-Phn5v50S";
     const canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d'), shield = document.getElementById('shield');
     let bgImage = new Image(), items = [{ type: 'text', x: 300, y: 500 }], active = null, currentUserNickname = "好友";
 
@@ -94,11 +92,15 @@
         fetchAIImage();
     }
 
+    // 使用 Lorem Picsum 商用圖庫
     function fetchAIImage() {
-        document.getElementById('status').innerText = "⏳ 正在生成...";
-        const aiUrl = `https://source.unsplash.com/600x600/?morning,nature&t=${Date.now()}`;
-        bgImage = new Image(); bgImage.crossOrigin = "anonymous"; bgImage.src = aiUrl;
-        bgImage.onload = () => { draw(); document.getElementById('status').innerText = "✅ 產圖完成"; };
+        document.getElementById('status').innerText = "⏳ 正在挑選風景...";
+        // 加入 random 參數確保每次點擊都換圖，不會卡住
+        const aiUrl = `https://picsum.photos/600/600?nature,sunrise&t=${Date.now()}`;
+        bgImage = new Image(); 
+        bgImage.crossOrigin = "anonymous"; 
+        bgImage.src = aiUrl;
+        bgImage.onload = () => { draw(); document.getElementById('status').innerText = "✅ 圖片已就緒"; };
     }
 
     function draw() {
@@ -127,24 +129,25 @@
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', () => active = null);
 
     async function fastGenerate() {
-        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 處理中...";
+        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 傳送中...";
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
             fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
-            // 修正：移除末尾暱稱參數，保持單行
-            const shareUrl = `🌸 ${currentUserNickname} 送來早安祝福：https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}`;
+            // 壓縮為一行，移除最後的暱稱參數
+            const shareUrl = `🔔點擊連結傳送早安圖給好友: https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}`;
             document.getElementById('hiddenText').value = shareUrl;
             gtag('event', 'share_generated', { 'sharer_name': currentUserNickname });
             if (await copyToClipboard(shareUrl)) { document.getElementById('successMsg').style.display = 'block'; btn.innerText = "✨ 複製成功"; }
             else { document.getElementById('manualArea').style.display = 'block'; }
         } catch (e) { alert("上傳失敗"); }
-        btn.disabled = false;
+        btn.disabled = false; btn.innerText = "🚀 產生並複製連結";
     }
 
     async function copyToClipboard(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
     function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
+    
     function reset() {
         items = [{ type: 'text', x: 300, y: 500 }];
         document.getElementById('mainText').value = "早安！祝您有美好的一天";
