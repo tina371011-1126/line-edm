@@ -56,6 +56,7 @@
 
     <script>
         const LIFF_ID = "2008941488-Phn5v50S"; 
+        const CLOUD_NAME = "dwdkxs8ot"; // 您的 Cloudinary 名稱
         let imgUrl = "", userName = "匿名用戶"; 
 
         function getParam(name) {
@@ -63,15 +64,25 @@
             return urlParams.get(name);
         }
 
-        // 預覽圖片處理
+        // 修改後的預覽圖片處理邏輯
         function initPreview() {
-            const i = getParam('i');
-            if (!i) {
-                document.getElementById('msg').innerText = "未提供圖片網址";
+            const id = getParam('id'); // 讀取短網址 ID
+            const i = getParam('i');   // 讀取舊有完整網址 (相容用)
+            
+            if (id) {
+                // 如果有 ID，自動補完 Cloudinary 網址
+                imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${id}.jpg`;
+            } else if (i) {
+                // 如果是舊版完整網址
+                imgUrl = i;
+            }
+
+            if (!imgUrl) {
+                document.getElementById('msg').innerText = "未提供圖片資訊";
                 document.getElementById('loader').style.display = 'none';
                 return;
             }
-            imgUrl = i;
+
             const pImg = document.getElementById('previewImg');
             
             pImg.onload = () => {
@@ -93,7 +104,6 @@
             try {
                 await liff.init({ liffId: LIFF_ID });
 
-                // 檢查是否在 LINE 瀏覽器內
                 if (!liff.isInClient()) {
                     document.getElementById('msg').innerText = "請於 LINE App 內開啟以使用分享功能";
                     document.getElementById('recallBtn').style.display = 'block';
@@ -117,9 +127,13 @@
         }
 
         function forceOpen() { 
-            const i = getParam('i') || "";
-            // 轉跳到 LIFF URL，讓 LINE 自動引導進入內建瀏覽器
-            window.location.href = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(i)}`; 
+            const id = getParam('id');
+            const i = getParam('i');
+            let targetUrl = `https://liff.line.me/${LIFF_ID}/`;
+            if (id) targetUrl += `?id=${id}`;
+            else if (i) targetUrl += `?i=${encodeURIComponent(i)}`;
+            
+            window.location.href = targetUrl; 
         }
 
         async function handleShare() {
@@ -130,10 +144,11 @@
 
             const w = getParam('w') || '800';
             const h = getParam('h') || '800';
-            const i = getParam('i') || imgUrl;
+            const id = getParam('id');
             
-            // 修正：轉傳的 URI 建議直接用 liff.line.me 的格式，相容性最高
-            const myLiffUrl = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(i)}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
+            // 轉傳連結優化：繼續傳遞短 ID
+            let shareParam = id ? `id=${id}` : `i=${encodeURIComponent(imgUrl)}`;
+            const myLiffUrl = `https://liff.line.me/${LIFF_ID}/?${shareParam}&w=${w}&h=${h}&f=${encodeURIComponent(userName)}`;
 
             try {
                 const res = await liff.shareTargetPicker([{
@@ -148,7 +163,7 @@
                             "paddingAll": "0px",
                             "contents": [{
                                 "type": "image", 
-                                "url": i, 
+                                "url": imgUrl, 
                                 "size": "full", 
                                 "aspectMode": "fit", 
                                 "aspectRatio": `${w}:${h}`,
@@ -168,7 +183,6 @@
             }
         }
         
-        // 執行
         initPreview(); 
         initLIFF();
     </script>
