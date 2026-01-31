@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 小編進階工具箱</title>
+    <title>AI 小編進階工具箱 v2</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -21,11 +21,9 @@
         }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
         
-        /* 分頁導航列 - 顏色與附圖一致 */
+        /* 分頁導航列 */
         .nav-tabs { display: flex; width: 100%; background: white; padding: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
-        .nav-item { 
-            flex: 1; text-align: center; padding: 15px 0; font-weight: bold; color: #666; cursor: pointer; border-bottom: 4px solid transparent; transition: 0.3s; 
-        }
+        .nav-item { flex: 1; text-align: center; padding: 15px 0; font-weight: bold; color: #666; cursor: pointer; border-bottom: 4px solid transparent; transition: 0.3s; }
         .nav-item.active { 
             color: #333;
             border-bottom-color: #62be36;
@@ -43,24 +41,32 @@
         .canvas-wrapper { width: 100%; aspect-ratio: 1/1; background: #eee; border-radius: 15px; overflow: hidden; margin-bottom: 15px; border: 1px solid #ddd; }
         
         /* 控制元件 */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        input[type="text"], input[type="url"], input[type="number"], select { 
-            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; 
+        .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+        input[type="text"], input[type="url"] { 
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; 
         }
-        .color-picker-wrap { display: flex; align-items: center; gap: 10px; grid-column: span 2; }
         
-        /* 按鈕樣式 - 使用附圖顏色 */
+        /* 字體大小滑桿 */
+        .slider-wrap { display: flex; align-items: center; gap: 10px; background: #f0f0f0; padding: 10px; border-radius: 8px; }
+        .slider-wrap label { font-size: 12px; font-weight: bold; white-space: nowrap; }
+        input[type="range"] { flex: 1; accent-color: #62be36; }
+
+        .color-row { display: flex; align-items: center; gap: 10px; }
+        input[type="color"] { width: 40px; height: 40px; border: none; padding: 0; background: none; cursor: pointer; }
+
+        /* 按鈕樣式 */
         .btn-main { 
             background: var(--gradient-main); border: none; padding: 14px; border-radius: 12px; 
             width: 100%; font-weight: bold; cursor: pointer; color: white; font-size: 16px; margin-top: 5px; 
         }
-        .btn-sub { background: #eee; color: #333; border: none; padding: 8px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+        .btn-sub { background: #eee; color: #333; border: none; padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; flex: 1; }
         .btn-danger { background: #ff4d4d; color: white; }
         
         #sticker-box { display: flex; gap: 10px; margin: 10px 0; overflow-x: auto; padding: 5px; }
-        .sticker-item { width: 50px; height: 50px; cursor: pointer; background: #f0f0f0; border-radius: 5px; padding: 5px; }
+        .sticker-item { width: 45px; height: 45px; cursor: pointer; background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 5px; flex-shrink: 0; }
 
-        .result-box { background: #f1f3f5; padding: 12px; border-radius: 8px; font-size: 12px; word-break: break-all; display: none; margin-top: 15px; border: 1px dashed #3672d9; }
+        .result-box { background: #f1f3f5; padding: 12px; border-radius: 8px; font-size: 13px; word-break: break-all; display: none; margin-top: 15px; border: 1px dashed #3672d9; line-height: 1.5; }
+        .loading-text { font-size: 12px; color: #666; display: none; margin-top: 5px; text-align: center; }
     </style>
 </head>
 <body>
@@ -78,23 +84,31 @@
             
             <div class="controls">
                 <input type="text" id="textInput" placeholder="更換文字內容" oninput="updateText()">
-                <input type="number" id="textSizeInput" placeholder="大小" value="50" oninput="updateText()">
-                <div class="color-picker-wrap">
-                    顏色：<input type="color" id="textColorInput" value="#ffffff" onchange="updateText()">
-                    <button class="btn-sub" onclick="resetText()">🔄 重置文字</button>
-                    <button class="btn-sub btn-danger" onclick="removeActive()">🗑️ 移除選中物件</button>
+                
+                <div class="slider-wrap">
+                    <label>字體大小</label>
+                    <input type="range" id="textSizeSlider" min="20" max="120" value="50" oninput="updateText()">
+                </div>
+
+                <div class="color-row">
+                    <label style="font-size:12px; font-weight:bold;">文字顏色</label>
+                    <input type="color" id="textColorInput" value="#ffffff" onchange="updateText()">
+                    <button class="btn-sub" onclick="resetText()">🔄 重置</button>
+                    <button class="btn-sub btn-danger" onclick="removeActive()">🗑️ 移除貼圖</button>
                 </div>
             </div>
 
             <div id="sticker-box">
-                <img src="https://img.icons8.com/emoji/96/sun-emoji.png" class="sticker-item" onclick="addSticker(this.src)">
-                <img src="https://img.icons8.com/emoji/96/heart-suit.png" class="sticker-item" onclick="addSticker(this.src)">
-                <img src="https://img.icons8.com/emoji/96/coffee-cup.png" class="sticker-item" onclick="addSticker(this.src)">
-                <img src="https://img.icons8.com/emoji/96/blossom.png" class="sticker-item" onclick="addSticker(this.src)">
+                <img src="https://cdn-icons-png.flaticon.com/128/869/869869.png" class="sticker-item" onclick="addSticker(this.src)">
+                <img src="https://cdn-icons-png.flaticon.com/128/2585/2585175.png" class="sticker-item" onclick="addSticker(this.src)">
+                <img src="https://cdn-icons-png.flaticon.com/128/3130/3130230.png" class="sticker-item" onclick="addSticker(this.src)">
+                <img src="https://cdn-icons-png.flaticon.com/128/616/616430.png" class="sticker-item" onclick="addSticker(this.src)">
+                <img src="https://cdn-icons-png.flaticon.com/128/2107/2107845.png" class="sticker-item" onclick="addSticker(this.src)">
             </div>
 
-            <button class="btn-main" onclick="fetchAIImage()">🔄 換張 AI 背景</button>
-            <button class="btn-main" style="margin-top:15px; filter: brightness(0.8);" onclick="generateAI()">🚀 產生並分享連結</button>
+            <button class="btn-main" onclick="fetchAIImage()">🔄 換張 Unsplash 背景</button>
+            <button class="btn-main" id="shareBtn" style="margin-top:15px; filter: brightness(0.9);" onclick="generateAI()">🚀 產生短連結並複製</button>
+            <div id="aiLoading" class="loading-text">正在優化連結長度...</div>
         </div>
     </div>
 
@@ -102,9 +116,10 @@
         <div class="card">
             <h3 style="margin:0 0 10px; color:#3672d9;">EDM 連結產生器</h3>
             <input type="url" id="edmInput" placeholder="請貼上圖片網址 (https://...)">
-            <button class="btn-main" id="edmBtn" onclick="generateEDM()">⚡ 產生 EDM 連結</button>
+            <button class="btn-main" id="edmBtn" onclick="generateEDM()">⚡ 產生短網址</button>
+            <div id="edmLoading" class="loading-text">正在縮短網址中...</div>
             <div id="edmResult" class="result-box">
-                <strong>📋 專用連結：</strong><br><span id="edmOutputText">---</span>
+                <strong>📋 專用短連結：</strong><br><span id="edmOutputText">---</span>
             </div>
         </div>
     </div>
@@ -113,22 +128,20 @@
     const LIFF_ID = "2008941488-Phn5v50S";
     const CLOUD_NAME = "dwdkxs8ot";
     const UPLOAD_PRESET = "morning picture";
+    const PROXY = 'https://corsproxy.io/?'; // 用於解決縮網址 API 的 CORS 問題
     let currentUser = "好友";
     let canvas, textObj;
 
     // --- 初始化 ---
     async function init() {
-        // 初始化 Fabric Canvas
-        canvas = new fabric.Canvas('editorCanvas', {
-            width: 600, height: 600, backgroundColor: '#eee'
-        });
+        canvas = new fabric.Canvas('editorCanvas', { width: 600, height: 600, backgroundColor: '#eee' });
 
-        // 預設文字物件
-        textObj = new fabric.IText('早安，美好的一天', {
+        // 設定預設文字
+        textObj = new fabric.IText('早安！祝您有美好的一天', {
             left: 300, top: 500, originX: 'center', originY: 'center',
             fontFamily: 'sans-serif', fontWeight: 'bold',
-            fontSize: 50, fill: '#ffffff', stroke: '#000000', strokeWidth: 2,
-            shadow: new fabric.Shadow({ color: 'black', blur: 10 })
+            fontSize: 50, fill: '#ffffff', stroke: '#000000', strokeWidth: 1.5,
+            shadow: new fabric.Shadow({ color: 'black', blur: 8 })
         });
         canvas.add(textObj);
 
@@ -148,22 +161,22 @@
         document.querySelectorAll('.tab-content, .nav-item').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-' + tab).classList.add('active');
         document.getElementById('nav-' + tab).classList.add('active');
-        gtag('event', 'tab_switch', { 'tab_name': tab });
     }
 
-    // --- AI 背景功能 ---
+    // --- Unsplash 背景功能 ---
     function fetchAIImage() {
-        const url = `https://picsum.photos/600/600?nature,landscape&t=${Date.now()}`;
+        // 使用 Unsplash 的隨機圖片 API
+        const url = `https://source.unsplash.com/600x600/?nature,landscape,sunrise&t=${Date.now()}`;
         fabric.Image.fromURL(url, function(img) {
             img.set({ scaleX: 600/img.width, scaleY: 600/img.height, selectable: false });
             canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
         }, { crossOrigin: 'anonymous' });
     }
 
-    // --- 文字編輯功能 ---
+    // --- 文字編輯功能 (滑桿更新) ---
     function updateText() {
         const content = document.getElementById('textInput').value;
-        const size = document.getElementById('textSizeInput').value;
+        const size = document.getElementById('textSizeSlider').value;
         const color = document.getElementById('textColorInput').value;
 
         if(content) textObj.set('text', content);
@@ -174,21 +187,22 @@
 
     function resetText() {
         textObj.set({
-            text: '早安，美好的一天',
+            text: '早安！祝您有美好的一天',
             left: 300, top: 500, fontSize: 50, fill: '#ffffff'
         });
         document.getElementById('textInput').value = '';
-        document.getElementById('textSizeInput').value = 50;
+        document.getElementById('textSizeSlider').value = 50;
         document.getElementById('textColorInput').value = '#ffffff';
         canvas.renderAll();
     }
 
-    // --- 貼圖功能 ---
+    // --- 貼圖功能 (修正載入問題) ---
     function addSticker(url) {
         fabric.Image.fromURL(url, function(img) {
-            img.scale(0.8).set({ left: 100, top: 100 });
+            img.scale(0.5).set({ left: 300, top: 300, originX: 'center', originY: 'center' });
             canvas.add(img);
             canvas.setActiveObject(img);
+            canvas.renderAll();
         }, { crossOrigin: 'anonymous' });
     }
 
@@ -197,8 +211,24 @@
         if(active && active !== textObj) canvas.remove(active);
     }
 
-    // --- 產出與分享 ---
+    // --- 網址縮短功能 (is.gd API) ---
+    async function getShortUrl(longUrl) {
+        try {
+            const api = `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`;
+            const response = await fetch(PROXY + encodeURIComponent(api));
+            const data = await response.json();
+            return data.shorturl || longUrl;
+        } catch (e) {
+            return longUrl;
+        }
+    }
+
+    // --- 產出與分享 (含自動縮連結) ---
     async function generateAI() {
+        const btn = document.getElementById('shareBtn');
+        const loading = document.getElementById('aiLoading');
+        btn.disabled = true; loading.style.display = 'block';
+
         const base64 = canvas.toDataURL({ format: 'jpeg', quality: 0.8 });
         const fd = new FormData();
         fd.append("file", base64);
@@ -207,24 +237,41 @@
         try {
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
-            const link = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&t=ai&f=${encodeURIComponent(currentUser)}`;
-            copyToClip(link, "早安圖");
-        } catch(e) { alert("上傳失敗"); }
+            const longLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&t=ai&f=${encodeURIComponent(currentUser)}`;
+            
+            // 縮短連結
+            const shortLink = await getShortUrl(longLink);
+            copyToClip(shortLink, "早安圖");
+        } catch(e) { 
+            alert("上傳失敗，請再試一次"); 
+        } finally {
+            btn.disabled = false; loading.style.display = 'none';
+        }
     }
 
-    // --- EDM 邏輯 ---
+    // --- EDM 邏輯 (含自動縮連結) ---
     async function generateEDM() {
         const url = document.getElementById('edmInput').value.trim();
         if(!url) return alert("請輸入圖片網址");
-        const finalLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(url)}&t=edm&f=${encodeURIComponent(currentUser)}`;
-        document.getElementById('edmOutputText').innerText = finalLink;
+        
+        const btn = document.getElementById('edmBtn');
+        const loading = document.getElementById('edmLoading');
+        btn.disabled = true; loading.style.display = 'block';
+
+        const longLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(url)}&t=edm&f=${encodeURIComponent(currentUser)}`;
+        
+        const shortLink = await getShortUrl(longLink);
+        
+        document.getElementById('edmOutputText').innerText = shortLink;
         document.getElementById('edmResult').style.display = 'block';
-        copyToClip(finalLink, "EDM 連結");
+        copyToClip(shortLink, "EDM 連結");
+        
+        btn.disabled = false; loading.style.display = 'none';
     }
 
     function copyToClip(text, type) {
-        const fullMsg = `🔔 ${currentUser} 分享了${type}：\n${text}`;
-        navigator.clipboard.writeText(fullMsg).then(() => alert(`✅ ${type}已複製！`));
+        const fullMsg = `☀️ ${currentUser} 分享了${type}：\n${text}`;
+        navigator.clipboard.writeText(fullMsg).then(() => alert(`✅ 已產出短連結並複製成功！`));
     }
 
     init();
