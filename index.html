@@ -2,88 +2,122 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>圖片預覽</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>查看分享內容</title>
+    
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5M3C56BV75"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-5M3C56BV75');
+    </script>
+
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
-        #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-        #previewImg { max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.4s ease; }
-        .ui-overlay { 
-            position: relative; width: 100%; padding: 20px 20px 40px; background: #000; box-sizing: border-box; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; /* 完全居中 */
-        }
+        body { margin:0; padding:0; background:#000; height:100vh; display:flex; flex-direction:column; font-family:-apple-system, sans-serif; }
+        #previewContainer { flex:1; display:flex; align-items:center; justify-content:center; }
+        img { max-width:100%; max-height:100%; object-fit:contain; }
+        
+        .ui-overlay { background: rgba(0,0,0,0.8); padding: 20px; text-align: center; border-radius: 20px 20px 0 0; }
         .btn { 
-            border: none; padding: 16px; font-size: 17px; border-radius: 50px; font-weight: bold; cursor: pointer; 
-            width: 100%; max-width: 320px; display: none; color: white; text-align: center; text-decoration: none;
-            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
-            box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); 
+            border:none; padding:16px; border-radius:50px; width:100%; max-width:300px; 
+            font-size:16px; font-weight:bold; cursor:pointer; color:white;
+            display:none; margin: 0 auto;
         }
-        #msg { color: #aaa; font-size: 14px; margin-bottom: 12px; text-align: center; }
-        .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-ai { background: linear-gradient(90deg, #d4c84a, #62be36); box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); }
+        .btn-edm { background: #02c874; box-shadow: 0 4px 15px rgba(2, 200, 116, 0.4); }
+        
+        #msg { color: #ccc; font-size: 14px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
+
     <div id="previewContainer">
-        <div id="loader" class="loader"></div>
         <img id="previewImg" src="">
     </div>
+
     <div class="ui-overlay">
         <div id="msg">載入中...</div>
-        <button id="actionBtn" class="btn" onclick="handleShare()">確認並轉傳給好友</button>
+        <button id="btnAi" class="btn btn-ai" onclick="handleShare()">確認並轉傳 (早安圖)</button>
+        <button id="btnEdm" class="btn btn-edm" onclick="handleShare()">確認並轉傳 (EDM)</button>
     </div>
 
-<script>
-    const LIFF_ID = "2008941488-Phn5v50S", CLOUD_NAME = "dwdkxs8ot";
-    let imgUrl = "", userName = "好友";
-
-    async function init() {
+    <script>
+        const LIFF_ID = "2008941488-Phn5v50S";
+        // 解析參數
         const params = new URLSearchParams(window.location.search);
-        const id = params.get('id');
+        const imgUrl = params.get('i');
+        const width = params.get('w') || 800;
+        const height = params.get('h') || 800;
+        const type = params.get('t') || 'ai'; // 預設為 ai，若是 EDM 則為 'edm'
+        const fromUser = params.get('f') || '好友';
+
+        // 設定模式 (影響按鈕顏色與 GA 事件名稱)
+        const isEdm = (type === 'edm');
         
-        if (id) {
-            imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${id}`;
-            const pImg = document.getElementById('previewImg');
-            pImg.onload = () => { pImg.style.opacity = '1'; document.getElementById('loader').style.display = 'none'; };
-            pImg.src = imgUrl;
+        async function init() {
+            if(!imgUrl) return document.getElementById('msg').innerText = "無效的圖片連結";
+            
+            // 顯示圖片
+            document.getElementById('previewImg').src = imgUrl;
+
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    document.getElementById('msg').innerText = `${fromUser} 邀請您分享這張圖片`;
+                    
+                    // 根據類型顯示對應按鈕
+                    if(isEdm) document.getElementById('btnEdm').style.display = 'block';
+                    else document.getElementById('btnAi').style.display = 'block';
+
+                    // GA: 記錄頁面瀏覽 (區分來源)
+                    gtag('event', 'page_view', { 
+                        'content_type': isEdm ? 'EDM' : 'AI_Image',
+                        'sharer': fromUser
+                    });
+                }
+            } catch (e) {
+                document.getElementById('msg').innerText = "環境初始化失敗";
+            }
         }
 
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile();
-                userName = profile.displayName || "好友";
-                document.getElementById('actionBtn').style.display = 'block';
-                document.getElementById('msg').innerText = "點擊下方按鈕分享祝福";
-            } else { liff.login(); }
-        } catch (e) { document.getElementById('msg').innerText = "系統初始化失敗"; }
-    }
+        async function handleShare() {
+            if (!liff.isApiAvailable('shareTargetPicker')) return alert("您的 LINE 版本不支援分享");
 
-    async function handleShare() {
-        const params = new URLSearchParams(window.location.search);
-        const id = params.get('id');
-        const myLiffUrl = `https://liff.line.me/${LIFF_ID}/?id=${id}`;
+            // 產生遞迴連結 (讓收到的人也能繼續分享)
+            const shareUrl = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(imgUrl)}&w=${width}&h=${height}&t=${type}&f=${encodeURIComponent(fromUser)}`;
 
-        try {
-            await liff.shareTargetPicker([{
-                "type": "flex",
-                "altText": userName + " 送來祝福",
-                "contents": {
-                    "type": "bubble", "size": "mega",
-                    "body": {
-                        "type": "box", "layout": "vertical", "paddingAll": "0px",
-                        "contents": [{
-                            "type": "image", "url": imgUrl, "size": "full", "aspectMode": "fit", "aspectRatio": "1:1",
-                            "action": { "type": "uri", "uri": myLiffUrl }
-                        }]
+            try {
+                const res = await liff.shareTargetPicker([{
+                    "type": "flex",
+                    "altText": isEdm ? "分享 EDM" : "早安圖分享",
+                    "contents": {
+                        "type": "bubble", "size": "mega",
+                        "body": {
+                            "type": "box", "layout": "vertical", "paddingAll": "0px",
+                            "contents": [{
+                                "type": "image", "url": imgUrl, "size": "full", "aspectMode": "fit", 
+                                "aspectRatio": `${width}:${height}`,
+                                "action": { "type": "uri", "uri": shareUrl }
+                            }]
+                        }
                     }
+                }]);
+
+                if (res) {
+                    // *** 關鍵：根據來源觸發不同 GA 事件 ***
+                    const eventName = isEdm ? 'share_success_edm' : 'share_success_ai';
+                    gtag('event', eventName, { 'sharer_name': fromUser });
+                    
+                    liff.closeWindow();
                 }
-            }]);
-            liff.closeWindow();
-        } catch (e) { alert("分享取消"); }
-    }
-    init();
-</script>
+            } catch (e) { alert("分享取消"); }
+        }
+
+        init();
+    </script>
 </body>
 </html>
