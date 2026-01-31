@@ -9,7 +9,7 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-MQ0WMMRZH5'); // Tool 端追蹤 ID
+      gtag('config', 'G-MQ0WMMRZH5');
     </script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
@@ -20,7 +20,7 @@
         .nav-tabs { display: flex; width: 100%; background: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
         .nav-item { flex: 1; text-align: center; padding: 10px; font-weight: bold; color: #aaa; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; }
         .nav-item.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-        .nav-item:nth-child(2).active { color: var(--secondary); border-bottom-color: var(--secondary); }
+        .nav-item.tab-edm.active { color: var(--secondary); border-bottom-color: var(--secondary); }
 
         /* 內容區塊 */
         .tab-content { display: none; width: 100%; max-width: 420px; padding: 15px; box-sizing: border-box; animation: fadeIn 0.3s; }
@@ -31,8 +31,9 @@
         .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
         /* 元件樣式 */
-        input[type="text"], input[type="url"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin: 10px 0; }
-        button { border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; color: white; font-size: 16px; margin-top: 10px; }
+        input[type="text"], input[type="url"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin: 10px 0; font-size: 16px; }
+        button { border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; color: white; font-size: 16px; margin-top: 10px; transition: opacity 0.2s; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-ai { background: linear-gradient(90deg, #d4c84a, #62be36); }
         .btn-edm { background: var(--secondary); }
         
@@ -41,133 +42,207 @@
 
         /* 畫布樣式 (AI用) */
         #canvasContainer { width: 100%; aspect-ratio: 1/1; background: #eee; border-radius: 15px; overflow: hidden; position: relative; margin-bottom: 15px; }
-        canvas { width: 100%; height: 100%; }
+        canvas { width: 100%; height: 100%; display: block; }
     </style>
 </head>
 <body>
 
     <div class="nav-tabs">
-        <div class="nav-item active" onclick="switchTab('ai')">🎨 AI 早安圖</div>
-        <div class="nav-item" onclick="switchTab('edm')">🔗 EDM 連結</div>
+        <div id="nav-ai" class="nav-item active" onclick="switchTab('ai')">🎨 AI 早安圖</div>
+        <div id="nav-edm" class="nav-item tab-edm" onclick="switchTab('edm')">🔗 EDM 連結</div>
     </div>
 
     <div id="tab-ai" class="tab-content active">
         <div class="card">
             <div id="canvasContainer"><canvas id="mainCanvas" width="600" height="600"></canvas></div>
             <input type="text" id="mainText" placeholder="輸入文字..." value="早安，美好的一天" oninput="draw()">
-            <button class="btn-ai" onclick="fetchAIImage()">🔄 換張 AI 風景</button>
-            <button class="btn-ai" style="margin-top:20px; background:#333;" onclick="generateAI()">🚀 產生早安圖分享連結</button>
+            <button class="btn-ai" id="refreshBtn" onclick="fetchAIImage()">🔄 換張 AI 風景</button>
+            <button class="btn-ai" id="aiShareBtn" style="margin-top:20px; background:#333;" onclick="generateAI()">🚀 產生早安圖分享連結</button>
         </div>
     </div>
 
     <div id="tab-edm" class="tab-content">
         <div class="card">
             <h3 style="margin:0 0 10px; color:#3672d9;">EDM 連結產生器</h3>
-            <p style="font-size:13px; color:#666;">輸入圖片網址，自動生成含追蹤碼的分享按鈕。</p>
+            <p style="font-size:13px; color:#666;">輸入圖片網址，自動生成含轉傳追蹤的分享連結。</p>
             
-            <input type="url" id="edmInput" placeholder="https://example.com/image.jpg">
+            <input type="url" id="edmInput" placeholder="請貼上圖片網址 (https://...)">
             <button class="btn-edm" id="edmBtn" onclick="generateEDM()">⚡ 產生 EDM 連結</button>
             
             <div id="edmResult" class="result-box">
-                <strong>📋 LINE 專用連結 (已複製)：</strong><br>
-                <span id="edmOutputText">---</span>
+                <strong id="resultLabel">📋 LINE 專用連結 (已複製)：</strong><br>
+                <span id="edmOutputText" style="color: #3672d9;">---</span>
             </div>
         </div>
     </div>
 
 <script>
-    // --- 共用變數 ---
     const LIFF_ID = "2008941488-Phn5v50S";
-    const CLOUD_NAME = "dwdkxs8ot"; // 您的 Cloudinary
+    const CLOUD_NAME = "dwdkxs8ot";
     const UPLOAD_PRESET = "morning picture";
     let currentUser = "好友";
+    let isLiffReady = false;
 
     // --- 初始化 ---
     async function init() {
         try {
             await liff.init({ liffId: LIFF_ID });
+            isLiffReady = true;
             if(liff.isLoggedIn()) {
                 const p = await liff.getProfile();
-                currentUser = p.displayName;
+                currentUser = p.displayName || "好友";
             }
-        } catch(e){}
-        fetchAIImage(); // 預載 AI 圖
+        } catch(e) { console.error("LIFF Init Failed", e); }
+        fetchAIImage();
     }
     
-    // --- 分頁切換 ---
+    // --- 分頁切換 (Debug 版) ---
     function switchTab(tab) {
+        // 切換內容區
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        
         document.getElementById('tab-' + tab).classList.add('active');
-        event.target.classList.add('active');
         
-        // 記錄切換事件
+        // 切換按鈕樣式
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.getElementById('nav-' + tab).classList.add('active');
+        
         gtag('event', 'tab_switch', { 'tab_name': tab });
     }
 
-    // --- 功能 A: AI 早安圖邏輯 (簡化版) ---
+    // --- 功能 A: AI 早安圖 ---
     const canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d');
     let bgImg = new Image();
     
     function fetchAIImage() {
+        const btn = document.getElementById('refreshBtn');
+        btn.disabled = true;
+        btn.innerText = "⏳ 載入中...";
+        
+        bgImg = new Image();
         bgImg.crossOrigin = "anonymous";
-        bgImg.src = `https://picsum.photos/600/600?nature&t=${Date.now()}`;
-        bgImg.onload = draw;
+        // 使用更穩定的 Picsum 參數
+        bgImg.src = `https://picsum.photos/600/600?nature,landscape&t=${Date.now()}`;
+        
+        bgImg.onload = () => {
+            draw();
+            btn.disabled = false;
+            btn.innerText = "🔄 換張 AI 風景";
+        };
+        bgImg.onerror = () => {
+            alert("圖片載入失敗，請再試一次");
+            btn.disabled = false;
+        };
     }
     
     function draw() {
-        ctx.clearRect(0,0,600,600);
-        if(bgImg.complete) ctx.drawImage(bgImg,0,0,600,600);
-        ctx.font = "bold 50px sans-serif"; ctx.fillStyle = "white"; ctx.textAlign = "center";
-        ctx.shadowColor="black"; ctx.shadowBlur=10;
-        ctx.fillText(document.getElementById('mainText').value, 300, 500);
+        ctx.clearRect(0, 0, 600, 600);
+        if(bgImg.complete) ctx.drawImage(bgImg, 0, 0, 600, 600);
+        
+        const txt = document.getElementById('mainText').value;
+        ctx.font = "bold 45px sans-serif";
+        ctx.textAlign = "center";
+        
+        // 文字外框 (提升可讀性)
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 6;
+        ctx.strokeText(txt, 300, 520);
+        
+        // 文字主體
+        ctx.fillStyle = "white";
+        ctx.fillText(txt, 300, 520);
     }
 
     async function generateAI() {
-        // 上傳到 Cloudinary 並加上 t=ai 參數
+        if(!isLiffReady) return alert("系統初始化中，請稍候");
+        
+        const btn = document.getElementById('aiShareBtn');
+        btn.disabled = true;
+        btn.innerText = "🚀 正在產出連結...";
+
         const base64 = canvas.toDataURL('image/jpeg', 0.8);
-        const fd = new FormData(); fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
+        const fd = new FormData();
+        fd.append("file", base64);
+        fd.append("upload_preset", UPLOAD_PRESET);
         
         try {
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
-            // 關鍵：加入 t=ai
             const link = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&t=ai&f=${encodeURIComponent(currentUser)}`;
+            
             copyToClip(link, "早安圖連結");
-        } catch(e) { alert("上傳失敗"); }
+            gtag('event', 'ai_generated', { 'sharer': currentUser });
+        } catch(e) { 
+            alert("圖片上傳失敗，請檢查網路"); 
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "🚀 產生早安圖分享連結";
+        }
     }
 
     // --- 功能 B: EDM 邏輯 ---
     async function generateEDM() {
-        const url = document.getElementById('edmInput').value.trim();
-        if(!url) return alert("請輸入網址");
+        const urlInput = document.getElementById('edmInput');
+        const url = urlInput.value.trim();
+        if(!url || !url.startsWith('http')) return alert("請輸入有效的圖片網址");
         
-        document.getElementById('edmBtn').innerText = "⏳ 處理中...";
+        const btn = document.getElementById('edmBtn');
+        btn.disabled = true;
+        btn.innerText = "⏳ 分析圖片中...";
         
-        // 1. 取得尺寸 (為了 Index 頁面顯示正確比例)
-        const dims = await new Promise(r => {
-            const i = new Image(); i.onload = () => r({w:i.width, h:i.height}); 
-            i.onerror = () => r({w:800, h:800}); i.src = url;
-        });
+        try {
+            const dims = await new Promise((resolve, reject) => {
+                const i = new Image();
+                i.onload = () => resolve({w: i.width, h: i.height}); 
+                i.onerror = () => resolve({w: 800, h: 800}); // 失敗時預設 1:1
+                i.src = url;
+            });
 
-        // 2. 產生連結 (關鍵：加入 t=edm)
-        const finalLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(url)}&w=${dims.w}&h=${dims.h}&t=edm&f=${encodeURIComponent(currentUser)}`;
-        
-        document.getElementById('edmOutputText').innerText = finalLink;
-        document.getElementById('edmResult').style.display = 'block';
-        document.getElementById('edmBtn').innerText = "⚡ 產生 EDM 連結";
-        
-        copyToClip(finalLink, "EDM 連結");
-        gtag('event', 'edm_generated');
+            const finalLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(url)}&w=${dims.w}&h=${dims.h}&t=edm&f=${encodeURIComponent(currentUser)}`;
+            
+            document.getElementById('edmOutputText').innerText = finalLink;
+            document.getElementById('edmResult').style.display = 'block';
+            
+            copyToClip(finalLink, "EDM 連結");
+            gtag('event', 'edm_generated', { 'sharer': currentUser });
+        } catch(e) {
+            alert("產生失敗，請檢查圖片網址");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "⚡ 產生 EDM 連結";
+        }
     }
 
+    // --- 複製功能 ---
     function copyToClip(text, type) {
-        const fullMsg = `🔔 ${currentUser} 分享連結：\n${text}`;
-        navigator.clipboard.writeText(fullMsg).then(() => alert(`✅ ${type}已複製！`));
+        const fullMsg = `🌸 ${currentUser} 分享了一個連結給你：\n${text}`;
+        
+        // 優先使用新版 API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(fullMsg).then(() => {
+                alert(`✅ ${type}已成功複製！\n現在可以去貼給好友了。`);
+            }).catch(err => {
+                fallbackCopy(fullMsg);
+            });
+        } else {
+            fallbackCopy(fullMsg);
+        }
     }
 
-    init();
+    function fallbackCopy(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert("✅ 連結已複製！");
+        } catch (err) {
+            alert("複製失敗，請手動選取文字");
+        }
+        document.body.removeChild(textArea);
+    }
+
+    window.onload = init;
 </script>
 </body>
 </html>
