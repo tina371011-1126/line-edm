@@ -1,163 +1,173 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 小編工具箱</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-MQ0WMMRZH5', { 'custom_map': { 'dimension1': 'sharer_name' } });
+      gtag('config', 'G-MQ0WMMRZH5'); // Tool 端追蹤 ID
     </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖工具</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        :root { --primary-gradient: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); }
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
-        .card { background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 420px; box-sizing: border-box; }
-        #status { font-size: 13px; color: #3672d9; text-align: left; margin-bottom: 8px; font-weight: bold; }
-        #canvasContainer { position: relative; margin-bottom: 15px; background: #e9ecef; border-radius: 15px; overflow: hidden; width: 100%; aspect-ratio: 1/1; }
-        canvas { width: 100%; height: 100%; display: block; position: relative; z-index: 5; }
-        #shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: move; }
-        .ui-group { display: flex; flex-direction: column; gap: 10px; }
-        .row { display: flex; gap: 8px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #dee2e6; border-radius: 12px; font-size: 16px; outline: none; }
-        input[type="range"] { flex: 1; accent-color: #62be36; }
-        .label-text { font-size: 12px; color: #adb5bd; min-width: 55px; }
-        .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; }
-        .sticker { font-size: 24px; cursor: pointer; background: #fff; padding: 8px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; }
-        .btn-gen { background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); }
-        .btn-alt { background: #f1f3f5; color: #495057; padding: 10px; border-radius: 10px; border: none; flex: 1; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .success-box { display: none; margin-top: 10px; padding: 12px; background: #d4edda; border-radius: 12px; text-align: center; color: #155724; font-size: 14px; font-weight: bold; border: 1px solid #c3e6cb; }
-        #manualArea { display: none; margin-top: 10px; padding: 12px; background: #fff3cd; border: 1px dashed #ffeeba; border-radius: 12px; text-align: center; }
+        :root { --primary: #02c874; --secondary: #3672d9; --bg: #f8f9fa; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+        
+        /* 分頁導航列 */
+        .nav-tabs { display: flex; width: 100%; background: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
+        .nav-item { flex: 1; text-align: center; padding: 10px; font-weight: bold; color: #aaa; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+        .nav-item:nth-child(2).active { color: var(--secondary); border-bottom-color: var(--secondary); }
+
+        /* 內容區塊 */
+        .tab-content { display: none; width: 100%; max-width: 420px; padding: 15px; box-sizing: border-box; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 通用卡片樣式 */
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        /* 元件樣式 */
+        input[type="text"], input[type="url"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin: 10px 0; }
+        button { border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; color: white; font-size: 16px; margin-top: 10px; }
+        .btn-ai { background: linear-gradient(90deg, #d4c84a, #62be36); }
+        .btn-edm { background: var(--secondary); }
+        
+        /* EDM 結果區 */
+        .result-box { background: #f1f3f5; padding: 12px; border-radius: 8px; font-size: 12px; word-break: break-all; font-family: monospace; display: none; margin-top: 15px; border: 1px dashed #ccc; }
+
+        /* 畫布樣式 (AI用) */
+        #canvasContainer { width: 100%; aspect-ratio: 1/1; background: #eee; border-radius: 15px; overflow: hidden; position: relative; margin-bottom: 15px; }
+        canvas { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div id="status">⚡ 系統準備中...</div>
-    <div id="canvasContainer">
-        <div id="shield"></div>
-        <canvas id="mainCanvas" width="600" height="600"></canvas>
+    <div class="nav-tabs">
+        <div class="nav-item active" onclick="switchTab('ai')">🎨 AI 早安圖</div>
+        <div class="nav-item" onclick="switchTab('edm')">🔗 EDM 連結</div>
     </div>
 
-    <div class="ui-group">
-        <div class="row">
-            <input type="text" id="mainText" placeholder="輸入文字..." value="早安！祝您有美好的一天" oninput="draw()">
-            <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
-        </div>
-        <div class="row">
-            <span class="label-text">文字大小</span>
-            <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
-        </div>
-        <div class="row">
-            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張風景</button>
-            <button class="btn-alt" onclick="reset()">🗑️ 全部重置</button>
-        </div>
-        
-        <div class="sticker-bar">
-            <div class="sticker" style="color:#dc3545;" onclick="clearStickers()">🚫</div>
-            <div class="sticker" onclick="addEmoji('✨')">✨</div>
-            <div class="sticker" onclick="addEmoji('🌻')">🌻</div>
-            <div class="sticker" onclick="addEmoji('🌈')">🌈</div>
-            <div class="sticker" onclick="addEmoji('☕')">☕</div>
-            <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
-        </div>
-
-        <button id="genBtn" class="btn-gen" onclick="fastGenerate()">🚀 產生並複製短連結</button>
-        
-        <div id="successMsg" class="success-box">✅ 已成功複製！去 LINE 貼上吧</div>
-        <div id="manualArea">
-            <button style="background:#ffc107; color:#212529; border:none; padding:10px; border-radius:10px; width:100%; font-weight:bold;" onclick="manualCopyAction()">📋 複製連結</button>
-            <textarea id="hiddenText" style="position:absolute; left:-9999px;"></textarea>
+    <div id="tab-ai" class="tab-content active">
+        <div class="card">
+            <div id="canvasContainer"><canvas id="mainCanvas" width="600" height="600"></canvas></div>
+            <input type="text" id="mainText" placeholder="輸入文字..." value="早安，美好的一天" oninput="draw()">
+            <button class="btn-ai" onclick="fetchAIImage()">🔄 換張 AI 風景</button>
+            <button class="btn-ai" style="margin-top:20px; background:#333;" onclick="generateAI()">🚀 產生早安圖分享連結</button>
         </div>
     </div>
-</div>
+
+    <div id="tab-edm" class="tab-content">
+        <div class="card">
+            <h3 style="margin:0 0 10px; color:#3672d9;">EDM 連結產生器</h3>
+            <p style="font-size:13px; color:#666;">輸入圖片網址，自動生成含追蹤碼的分享按鈕。</p>
+            
+            <input type="url" id="edmInput" placeholder="https://example.com/image.jpg">
+            <button class="btn-edm" id="edmBtn" onclick="generateEDM()">⚡ 產生 EDM 連結</button>
+            
+            <div id="edmResult" class="result-box">
+                <strong>📋 LINE 專用連結 (已複製)：</strong><br>
+                <span id="edmOutputText">---</span>
+            </div>
+        </div>
+    </div>
 
 <script>
-    const CLOUD_NAME = "dwdkxs8ot", UPLOAD_PRESET = "morning picture", LIFF_ID = "2008941488-Phn5v50S";
-    const canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d'), shield = document.getElementById('shield');
-    let bgImage = new Image(), items = [{ type: 'text', x: 300, y: 500 }], active = null, currentUserNickname = "好友";
+    // --- 共用變數 ---
+    const LIFF_ID = "2008941488-Phn5v50S";
+    const CLOUD_NAME = "dwdkxs8ot"; // 您的 Cloudinary
+    const UPLOAD_PRESET = "morning picture";
+    let currentUser = "好友";
 
-    async function initApp() {
+    // --- 初始化 ---
+    async function init() {
         try {
             await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile();
-                currentUserNickname = profile.displayName || "好友";
-                gtag('event', 'generator_open', { 'sharer_name': currentUserNickname });
+            if(liff.isLoggedIn()) {
+                const p = await liff.getProfile();
+                currentUser = p.displayName;
             }
-        } catch (err) {}
-        fetchAIImage();
+        } catch(e){}
+        fetchAIImage(); // 預載 AI 圖
+    }
+    
+    // --- 分頁切換 ---
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById('tab-' + tab).classList.add('active');
+        event.target.classList.add('active');
+        
+        // 記錄切換事件
+        gtag('event', 'tab_switch', { 'tab_name': tab });
     }
 
+    // --- 功能 A: AI 早安圖邏輯 (簡化版) ---
+    const canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d');
+    let bgImg = new Image();
+    
     function fetchAIImage() {
-        document.getElementById('status').innerText = "⏳ 載入商用風景...";
-        const aiUrl = `https://picsum.photos/600/600?nature,sunrise&t=${Date.now()}`;
-        bgImage = new Image(); bgImage.crossOrigin = "anonymous"; bgImage.src = aiUrl;
-        bgImage.onload = () => { draw(); document.getElementById('status').innerText = "✅ 準備就緒"; };
+        bgImg.crossOrigin = "anonymous";
+        bgImg.src = `https://picsum.photos/600/600?nature&t=${Date.now()}`;
+        bgImg.onload = draw;
     }
-
+    
     function draw() {
         ctx.clearRect(0,0,600,600);
-        if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, 600, 600);
-        const txt = document.getElementById('mainText').value || "早安", col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
-        items.forEach(it => {
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            if(it.type === 'text') {
-                ctx.font = `bold ${sz}px sans-serif`; ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
-                ctx.strokeStyle = "black"; ctx.lineWidth = sz/8; ctx.strokeText(txt, it.x, it.y);
-                ctx.fillStyle = col; ctx.shadowBlur = 0; ctx.fillText(txt, it.x, it.y);
-            } else { ctx.font = "80px serif"; ctx.fillText(it.emoji, it.x, it.y); }
-        });
+        if(bgImg.complete) ctx.drawImage(bgImg,0,0,600,600);
+        ctx.font = "bold 50px sans-serif"; ctx.fillStyle = "white"; ctx.textAlign = "center";
+        ctx.shadowColor="black"; ctx.shadowBlur=10;
+        ctx.fillText(document.getElementById('mainText').value, 300, 500);
     }
 
-    // 拖曳邏輯維持不變
-    function getPos(e) {
-        const r = shield.getBoundingClientRect();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
-    }
-    const start = (e) => { const p = getPos(e); active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 60 && Math.abs(i.y - p.y) < 60); };
-    const move = (e) => { if(!active) return; if(e.cancelable) e.preventDefault(); const p = getPos(e); active.x = p.x; active.y = p.y; draw(); };
-    shield.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', () => active = null); shield.addEventListener('mousedown', start);
-    window.addEventListener('mousemove', move); window.addEventListener('mouseup', () => active = null);
-
-    // 極限縮短邏輯
-    async function fastGenerate() {
-        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 壓縮中...";
+    async function generateAI() {
+        // 上傳到 Cloudinary 並加上 t=ai 參數
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        const fd = new FormData(); fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
+        
         try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
-            fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
-            
-            // 核心優化：只取 Public ID
-            const imgId = data.public_id; 
-            const shareUrl = `🔔點擊連結傳送早安圖給好友：https://liff.line.me/${LIFF_ID}/?id=${imgId}`;
-            
-            document.getElementById('hiddenText').value = shareUrl;
-            gtag('event', 'share_generated', { 'sharer_name': currentUserNickname });
-            if (await copyToClipboard(shareUrl)) { document.getElementById('successMsg').style.display = 'block'; btn.innerText = "✨ 複製成功"; }
-            else { document.getElementById('manualArea').style.display = 'block'; }
-        } catch (e) { alert("上傳失敗"); }
-        btn.disabled = false; btn.innerText = "🚀 產生並複製短連結";
+            // 關鍵：加入 t=ai
+            const link = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(data.secure_url)}&t=ai&f=${encodeURIComponent(currentUser)}`;
+            copyToClip(link, "早安圖連結");
+        } catch(e) { alert("上傳失敗"); }
     }
 
-    async function copyToClipboard(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
-    function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
-    function reset() {
-        items = [{ type: 'text', x: 300, y: 500 }];
-        document.getElementById('mainText').value = "早安！祝您有美好的一天";
-        document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = 45;
-        draw(); 
+    // --- 功能 B: EDM 邏輯 ---
+    async function generateEDM() {
+        const url = document.getElementById('edmInput').value.trim();
+        if(!url) return alert("請輸入網址");
+        
+        document.getElementById('edmBtn').innerText = "⏳ 處理中...";
+        
+        // 1. 取得尺寸 (為了 Index 頁面顯示正確比例)
+        const dims = await new Promise(r => {
+            const i = new Image(); i.onload = () => r({w:i.width, h:i.height}); 
+            i.onerror = () => r({w:800, h:800}); i.src = url;
+        });
+
+        // 2. 產生連結 (關鍵：加入 t=edm)
+        const finalLink = `https://liff.line.me/${LIFF_ID}/?i=${encodeURIComponent(url)}&w=${dims.w}&h=${dims.h}&t=edm&f=${encodeURIComponent(currentUser)}`;
+        
+        document.getElementById('edmOutputText').innerText = finalLink;
+        document.getElementById('edmResult').style.display = 'block';
+        document.getElementById('edmBtn').innerText = "⚡ 產生 EDM 連結";
+        
+        copyToClip(finalLink, "EDM 連結");
+        gtag('event', 'edm_generated');
     }
-    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
-    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
-    initApp();
+
+    function copyToClip(text, type) {
+        const fullMsg = `🔔 ${currentUser} 分享連結：\n${text}`;
+        navigator.clipboard.writeText(fullMsg).then(() => alert(`✅ ${type}已複製！`));
+    }
+
+    init();
 </script>
 </body>
 </html>
