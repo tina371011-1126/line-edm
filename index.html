@@ -10,7 +10,7 @@
     </script>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <meta property="og:title" content="送你一張專屬祝福">
     <meta property="og:description" content="點擊查看好友送給你的祝福圖卡">
@@ -19,6 +19,7 @@
 
     <title>祝福卡片</title>
     <style>
+        /* 營造「圖卡」視覺，不顯示網頁捲軸 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; overflow: hidden; 
@@ -31,24 +32,28 @@
         }
         #previewImg { 
             max-width: 100%; max-height: 100%; object-fit: contain;
-            display: none; /* 成功才顯示 */
+            display: none; /* 載入成功才顯示 */
         }
+        /* 分享按鈕浮動在圖片下方 */
         .overlay-btn {
-            position: absolute; bottom: 12%;
-            width: 85%; max-width: 300px;
-            padding: 18px; border-radius: 50px; border: none;
+            position: absolute; bottom: 10%;
+            width: 80%; max-width: 280px;
+            padding: 16px; border-radius: 50px; border: none;
             background: linear-gradient(135deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
             color: white; font-size: 18px; font-weight: bold;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             cursor: pointer; z-index: 100;
             display: none;
+            -webkit-tap-highlight-color: transparent;
         }
         .loader { 
-            width: 40px; height: 40px;
-            border: 4px solid rgba(255,255,255,0.2); border-top: 4px solid #62be36; border-radius: 50%;
+            width: 45px; height: 45px;
+            border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #62be36; border-radius: 50%;
             animation: spin 1s linear infinite; 
         }
-        #errorLog { color: #888; font-size: 12px; position: absolute; bottom: 10px; width: 100%; text-align: center; }
+        #errorNotice { 
+            color: #999; font-size: 14px; text-align: center; padding: 20px; display: none;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -56,32 +61,28 @@
 
     <div id="mainContainer">
         <div id="loader" class="loader"></div>
+        <div id="errorNotice">
+            <p>⚠️ 找不到圖片編號</p>
+            <small id="debugPath"></small>
+        </div>
         <img id="previewImg" src="">
         <button id="shareBtn" class="overlay-btn" onclick="doShare()">🎁 轉傳這份祝福</button>
-        <div id="errorLog"></div>
     </div>
 
 <script>
     const CLOUD_NAME = "dwdkxs8ot";
     
-    // 改進後的參數擷取：兼容更多瀏覽器環境
-    function getQueryParam(name) {
+    // 解析網址參數
+    function getParam(name) {
         const urlParams = new URLSearchParams(window.location.search);
-        let value = urlParams.get(name);
-        if (!value) {
-            // 備援方案：手動解析網址
-            const reg = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
-            const string = window.location.href.match(reg);
-            value = string ? string[1] : null;
-        }
-        return value;
+        return urlParams.get(name);
     }
 
-    const imgId = getQueryParam('id');
-    const senderVid = getQueryParam('from_vid') || "ORIGIN";
+    const imgId = getParam('id');
+    const senderVid = getParam('from_vid') || "ORIGIN";
 
-    // 建立/讀取訪客 ID
-    function getVid() {
+    // 建立訪客匿名 ID (存於手機瀏覽器)
+    function getVisitorId() {
         let vid = localStorage.getItem('user_vid');
         if (!vid) {
             vid = 'U-' + Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -89,21 +90,22 @@
         }
         return vid;
     }
-    const myVid = getVid();
+    const myVid = getVisitorId();
 
     function init() {
-        const log = document.getElementById('errorLog');
         const loader = document.getElementById('loader');
         const pImg = document.getElementById('previewImg');
         const btn = document.getElementById('shareBtn');
+        const err = document.getElementById('errorNotice');
 
         if (!imgId) {
             loader.style.display = 'none';
-            log.innerText = "Error: Missing Image ID. Please check the link.";
+            err.style.display = 'block';
+            document.getElementById('debugPath').innerText = "請由產生器開啟連結";
             return;
         }
 
-        // 拼接 Cloudinary 網址
+        // 構建 Cloudinary 網址 (加入優化參數)
         const imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
         
         pImg.onload = () => {
@@ -114,41 +116,43 @@
 
         pImg.onerror = () => {
             loader.style.display = 'none';
-            log.innerText = "圖片載入失敗，可能 ID 已失效";
+            err.style.display = 'block';
+            err.innerHTML = `<p>圖片載入失敗</p><small>ID: ${imgId}</small>`;
         };
 
         pImg.src = imgUrl;
 
-        // GA4 追蹤
-        gtag('event', 'card_view', {
+        // GA4 追蹤：記錄是誰 (senderVid) 傳給了誰 (myVid)
+        gtag('event', 'view_card', {
             'visitor_id': myVid,
-            'image_id': imgId,
-            'from_vid': senderVid
+            'from_sender_id': senderVid,
+            'image_id': imgId
         });
     }
 
+    // 執行轉傳 (使用原生分享)
     async function doShare() {
-        // 生成分享連結，確保 ID 傳承
+        // 關鍵：將自己的 ID (myVid) 變成下一手的 senderId
         const shareUrl = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
         
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: '送你一張祝福',
-                    text: '這是我特地挑選給你的祝福，點開看圖！',
+                    title: '送你一張專屬祝福',
+                    text: '這是我特地準備給你的祝福，點開看看！',
                     url: shareUrl
                 });
-                gtag('event', 'card_share_success', { 'vid': myVid, 'id': imgId });
+                gtag('event', 'share_card_success', { 'vid': myVid, 'image_id': imgId });
             } catch (e) {
-                console.log("Share cancelled");
+                console.log("User cancelled share");
             }
         } else {
-            // 不支援原生分享時的處理 (電腦版)
+            // 備援：複製連結
             try {
                 await navigator.clipboard.writeText(shareUrl);
-                alert("已複製專屬分享連結，請貼給好友！");
+                alert("已複製專屬分享連結！");
             } catch (err) {
-                prompt("請複製下方連結分享：", shareUrl);
+                console.error("Failed to copy", err);
             }
         }
     }
