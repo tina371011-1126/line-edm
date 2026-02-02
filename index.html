@@ -14,38 +14,39 @@
     
     <meta property="og:title" content="送你一張專屬祝福圖">
     <meta property="og:description" content="點擊立即查看好友送給你的祝福">
-    <meta property="og:image" content="https://res.cloudinary.com/dwdkxs8ot/image/upload/v1710000000/sample.jpg"> <meta property="og:type" content="website">
+    <meta id="ogImage" property="og:image" content="https://res.cloudinary.com/dwdkxs8ot/image/upload/v1710000000/default_share.jpg">
+    <meta property="og:type" content="website">
 
     <title>祝福卡片</title>
     <style>
-        /* 營造「不跳轉」感：全螢幕 UI，隱藏網頁特徵 */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; overflow: hidden; 
-            font-family: -apple-system, "Noto Sans TC", sans-serif;
+            font-family: -apple-system, sans-serif;
         }
         #mainContainer {
             position: relative; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         #previewImg { 
-            width: 100%; height: 100%; object-fit: contain; /* 圖片撐滿但保持比例 */
-            opacity: 0; transition: opacity 0.3s ease;
+            width: 100%; height: 100%; object-fit: contain;
+            display: none; /* 預設隱藏，載入成功再顯示 */
         }
         .overlay-btn {
-            position: absolute; bottom: 40px;
-            width: 80%; max-width: 300px;
-            padding: 15px; border-radius: 50px; border: none;
-            background: linear-gradient(90deg, #62be36, #3672d9);
+            position: absolute; bottom: 50px;
+            width: 80%; max-width: 320px;
+            padding: 16px; border-radius: 50px; border: none;
+            background: linear-gradient(90deg, #d4c84a, #62be36, #3672d9);
             color: white; font-size: 18px; font-weight: bold;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-            cursor: pointer; z-index: 10;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            cursor: pointer; z-index: 100;
         }
         .loader { 
-            position: absolute; width: 40px; height: 40px;
-            border: 4px solid #333; border-top: 4px solid #62be36; border-radius: 50%;
+            position: absolute; width: 50px; height: 50px;
+            border: 5px solid rgba(255,255,255,0.1); border-top: 5px solid #62be36; border-radius: 50%;
             animation: spin 1s linear infinite; 
         }
+        #errorMsg { color: #ff4d4d; display: none; text-align: center; padding: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -53,8 +54,9 @@
 
     <div id="mainContainer">
         <div id="loader" class="loader"></div>
-        <img id="previewImg" src="">
-        <button id="shareBtn" class="overlay-btn" style="display:none;" onclick="doShare()">🎁 轉傳這份祝福</button>
+        <div id="errorMsg">⚠️ 圖片載入失敗，請檢查連結是否正確</div>
+        <img id="previewImg" src="" alt="祝福圖片">
+        <button id="shareBtn" class="overlay-btn" style="display:none;" onclick="doShare()">🎁 分享祝福給好友</button>
     </div>
 
 <script>
@@ -63,40 +65,44 @@
     const imgId = params.get('id');
     const senderVid = params.get('from_vid') || "ORIGIN";
 
-    // 建立訪客 ID
     function getVid() {
-        let vid = localStorage.getItem('user_vid');
-        if (!vid) {
-            vid = 'U-' + Math.random().toString(36).substr(2, 5).toUpperCase();
-            localStorage.setItem('user_vid', vid);
-        }
+        let vid = localStorage.getItem('user_vid') || ('U-' + Math.random().toString(36).substr(2, 5).toUpperCase());
+        localStorage.setItem('user_vid', vid);
         return vid;
     }
     const myVid = getVid();
 
-    async function init() {
-        if (!imgId) return;
+    function init() {
+        if (!imgId) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('errorMsg').style.display = 'block';
+            document.getElementById('errorMsg').innerText = "找不到圖片 ID";
+            return;
+        }
 
-        const imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgId}`;
+        // 使用 Cloudinary 優化網址
+        const imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
         const pImg = document.getElementById('previewImg');
         
         pImg.onload = () => {
-            pImg.style.opacity = '1';
             document.getElementById('loader').style.display = 'none';
+            pImg.style.display = 'block';
             document.getElementById('shareBtn').style.display = 'block';
         };
+
+        pImg.onerror = () => {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('errorMsg').style.display = 'block';
+        };
+
         pImg.src = imgUrl;
 
-        // GA4 追蹤：誰點開了這張圖
-        gtag('event', 'card_opened', {
-            'visitor_id': myVid,
-            'from_sender_id': senderVid,
-            'image_id': imgId
-        });
+        // 追蹤
+        gtag('event', 'card_view', { 'visitor_id': myVid, 'image_id': imgId, 'from_vid': senderVid });
     }
 
     async function doShare() {
-        // 分享時帶入自己的 ID，建立鏈條
+        // 分享連結
         const shareUrl = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
         
         if (navigator.share) {
@@ -106,12 +112,16 @@
                     text: '這是我特地為你挑選的祝福，點開看看吧！',
                     url: shareUrl
                 });
-                gtag('event', 'card_shared', { 'sharer_id': myVid });
-            } catch (e) { console.log("User cancelled"); }
+                gtag('event', 'card_share_success', { 'vid': myVid });
+            } catch (e) { console.log("Share cancelled"); }
         } else {
-            // 複製連結作為備援
-            navigator.clipboard.writeText(shareUrl);
-            alert("連結已複製，請直接貼給好友！");
+            // 電腦版或不支援時
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                alert("連結已複製！請直接貼到 LINE 聊天室");
+            } catch (err) {
+                alert("分享連結: " + shareUrl);
+            }
         }
     }
 
