@@ -8,98 +8,110 @@
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5');
     </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>收到一張祝福</title>
+    
+    <meta property="og:title" content="送你一張專屬祝福圖">
+    <meta property="og:description" content="點擊立即查看好友送給你的祝福">
+    <meta property="og:image" content="https://res.cloudinary.com/dwdkxs8ot/image/upload/v1710000000/sample.jpg"> <meta property="og:type" content="website">
+
+    <title>祝福卡片</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
-        #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-        #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 8px; }
-        .ui-overlay { 
-            position: relative; width: 100%; padding: 30px 20px 50px; background: rgba(0,0,0,0.9); box-sizing: border-box; 
-            display: flex; flex-direction: column; align-items: center; border-top: 1px solid #333;
+        /* 營造「不跳轉」感：全螢幕 UI，隱藏網頁特徵 */
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background-color: #000; overflow: hidden; 
+            font-family: -apple-system, "Noto Sans TC", sans-serif;
         }
-        .btn { 
-            border: none; padding: 18px; font-size: 18px; border-radius: 50px; font-weight: bold; cursor: pointer; 
-            width: 100%; max-width: 320px; color: white; text-align: center; 
-            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
-            box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); 
+        #mainContainer {
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        #msg { color: #eee; font-size: 15px; margin-bottom: 20px; letter-spacing: 1px; }
-        .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
+        #previewImg { 
+            width: 100%; height: 100%; object-fit: contain; /* 圖片撐滿但保持比例 */
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .overlay-btn {
+            position: absolute; bottom: 40px;
+            width: 80%; max-width: 300px;
+            padding: 15px; border-radius: 50px; border: none;
+            background: linear-gradient(90deg, #62be36, #3672d9);
+            color: white; font-size: 18px; font-weight: bold;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            cursor: pointer; z-index: 10;
+        }
+        .loader { 
+            position: absolute; width: 40px; height: 40px;
+            border: 4px solid #333; border-top: 4px solid #62be36; border-radius: 50%;
+            animation: spin 1s linear infinite; 
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div id="previewContainer">
+
+    <div id="mainContainer">
         <div id="loader" class="loader"></div>
-        <img id="previewImg" src="" alt="預覽圖片">
-    </div>
-    
-    <div class="ui-overlay">
-        <div id="msg">✨ 正在為您準備專屬祝福...</div>
-        <button id="actionBtn" class="btn" onclick="handleAutoShare()">🎁 分享祝福給好友</button>
+        <img id="previewImg" src="">
+        <button id="shareBtn" class="overlay-btn" style="display:none;" onclick="doShare()">🎁 轉傳這份祝福</button>
     </div>
 
 <script>
     const CLOUD_NAME = "dwdkxs8ot";
     const params = new URLSearchParams(window.location.search);
     const imgId = params.get('id');
-    const senderVid = params.get('from_vid') || "ORIGIN"; // 誰傳給我的 ID
+    const senderVid = params.get('from_vid') || "ORIGIN";
 
-    // 1. 產生/讀取自己的永久匿名 ID
-    function getMyVid() {
-        let vid = localStorage.getItem('my_visitor_id');
+    // 建立訪客 ID
+    function getVid() {
+        let vid = localStorage.getItem('user_vid');
         if (!vid) {
-            vid = 'V-' + Math.random().toString(36).substr(2, 5).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
-            localStorage.setItem('my_visitor_id', vid);
+            vid = 'U-' + Math.random().toString(36).substr(2, 5).toUpperCase();
+            localStorage.setItem('user_vid', vid);
         }
         return vid;
     }
-    const myVid = getMyVid();
+    const myVid = getVid();
 
     async function init() {
-        if (!imgId) return document.getElementById('msg').innerText = "圖片連結無效";
+        if (!imgId) return;
 
         const imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgId}`;
         const pImg = document.getElementById('previewImg');
-        pImg.onload = () => { 
-            pImg.style.opacity = '1'; 
-            document.getElementById('loader').style.display = 'none'; 
-            document.getElementById('msg').innerText = "點擊按鈕直接分享，無需登入";
+        
+        pImg.onload = () => {
+            pImg.style.opacity = '1';
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('shareBtn').style.display = 'block';
         };
         pImg.src = imgUrl;
 
-        // GA 追蹤：記錄鏈條 (Sender VID -> My VID)
-        gtag('event', 'image_spread_track', {
-            'sender_vid': senderVid,    // 上一手的 ID
-            'receiver_vid': myVid,      // 我的 ID (這一手)
-            'image_id': imgId,
-            'channel': 'LINE_NATIVE'    // 渠道
+        // GA4 追蹤：誰點開了這張圖
+        gtag('event', 'card_opened', {
+            'visitor_id': myVid,
+            'from_sender_id': senderVid,
+            'image_id': imgId
         });
     }
 
-    // 2. 自動化分享 (帶入自己的 VID)
-    async function handleAutoShare() {
+    async function doShare() {
+        // 分享時帶入自己的 ID，建立鏈條
         const shareUrl = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
         
-        // GA 追蹤：點擊分享動作
-        gtag('event', 'click_share_btn', {
-            'sharer_vid': myVid,
-            'image_id': imgId
-        });
-
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `送你一張祝福圖`,
-                    text: `點擊連結查看好友送給你的祝福！`,
+                    title: '送你一張祝福',
+                    text: '這是我特地為你挑選的祝福，點開看看吧！',
                     url: shareUrl
                 });
-            } catch (e) { /* 使用者取消分享 */ }
+                gtag('event', 'card_shared', { 'sharer_id': myVid });
+            } catch (e) { console.log("User cancelled"); }
         } else {
-            await navigator.clipboard.writeText(shareUrl);
-            alert("已複製專屬分享連結！");
+            // 複製連結作為備援
+            navigator.clipboard.writeText(shareUrl);
+            alert("連結已複製，請直接貼給好友！");
         }
     }
 
