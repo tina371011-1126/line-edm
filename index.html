@@ -1,28 +1,31 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-MQ0WMMRZH5');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>圖片預覽分享</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title>收到一張祝福</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
-        #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+        #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
         #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 8px; }
         .ui-overlay { 
-            position: relative; width: 100%; padding: 20px 20px 50px; background: rgba(0,0,0,0.8); box-sizing: border-box; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; width: 100%; padding: 30px 20px 50px; background: rgba(0,0,0,0.9); box-sizing: border-box; 
+            display: flex; flex-direction: column; align-items: center; border-top: 1px solid #333;
         }
         .btn { 
-            border: none; padding: 16px; font-size: 18px; border-radius: 50px; font-weight: bold; cursor: pointer; 
-            width: 100%; max-width: 320px; display: none; color: white; text-align: center; text-decoration: none;
+            border: none; padding: 18px; font-size: 18px; border-radius: 50px; font-weight: bold; cursor: pointer; 
+            width: 100%; max-width: 320px; color: white; text-align: center; 
             background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
             box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); 
-            transition: transform 0.1s ease, opacity 0.3s;
-            -webkit-tap-highlight-color: transparent;
         }
-        .btn:active { transform: scale(0.96); opacity: 0.9; }
-        #msg { color: #ccc; font-size: 14px; margin-bottom: 15px; text-align: center; letter-spacing: 0.5px; }
+        #msg { color: #eee; font-size: 15px; margin-bottom: 20px; letter-spacing: 1px; }
         .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -32,111 +35,74 @@
         <div id="loader" class="loader"></div>
         <img id="previewImg" src="" alt="預覽圖片">
     </div>
+    
     <div class="ui-overlay">
-        <div id="msg">正在確認系統狀態...</div>
-        <button id="actionBtn" class="btn" onclick="handleShare()">確認並傳送祝福</button>
+        <div id="msg">✨ 正在為您準備專屬祝福...</div>
+        <button id="actionBtn" class="btn" onclick="handleAutoShare()">🎁 分享祝福給好友</button>
     </div>
 
 <script>
-    const LIFF_ID = "2008941488-Phn5v50S"; 
     const CLOUD_NAME = "dwdkxs8ot";
-    let imgUrl = ""; 
-    let userName = "好友";
+    const params = new URLSearchParams(window.location.search);
+    const imgId = params.get('id');
+    const senderVid = params.get('from_vid') || "ORIGIN"; // 誰傳給我的 ID
+
+    // 1. 產生/讀取自己的永久匿名 ID
+    function getMyVid() {
+        let vid = localStorage.getItem('my_visitor_id');
+        if (!vid) {
+            vid = 'V-' + Math.random().toString(36).substr(2, 5).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+            localStorage.setItem('my_visitor_id', vid);
+        }
+        return vid;
+    }
+    const myVid = getMyVid();
 
     async function init() {
-        const params = new URLSearchParams(window.location.search);
-        const id = params.get('id');
+        if (!imgId) return document.getElementById('msg').innerText = "圖片連結無效";
+
+        const imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${imgId}`;
+        const pImg = document.getElementById('previewImg');
+        pImg.onload = () => { 
+            pImg.style.opacity = '1'; 
+            document.getElementById('loader').style.display = 'none'; 
+            document.getElementById('msg').innerText = "點擊按鈕直接分享，無需登入";
+        };
+        pImg.src = imgUrl;
+
+        // GA 追蹤：記錄鏈條 (Sender VID -> My VID)
+        gtag('event', 'image_spread_track', {
+            'sender_vid': senderVid,    // 上一手的 ID
+            'receiver_vid': myVid,      // 我的 ID (這一手)
+            'image_id': imgId,
+            'channel': 'LINE_NATIVE'    // 渠道
+        });
+    }
+
+    // 2. 自動化分享 (帶入自己的 VID)
+    async function handleAutoShare() {
+        const shareUrl = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
         
-        // 1. 處理圖片預覽
-        if (id) {
-            // 自動加上格式轉換確保圖片能顯示，若 id 已含副檔名則無妨
-            imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${id}`;
-            const pImg = document.getElementById('previewImg');
-            pImg.onload = () => { 
-                pImg.style.opacity = '1'; 
-                document.getElementById('loader').style.display = 'none'; 
-            };
-            pImg.onerror = () => {
-                document.getElementById('msg').innerText = "圖片讀取失敗，請重新嘗試";
-                document.getElementById('loader').style.display = 'none';
-            };
-            pImg.src = imgUrl;
+        // GA 追蹤：點擊分享動作
+        gtag('event', 'click_share_btn', {
+            'sharer_vid': myVid,
+            'image_id': imgId
+        });
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `送你一張祝福圖`,
+                    text: `點擊連結查看好友送給你的祝福！`,
+                    url: shareUrl
+                });
+            } catch (e) { /* 使用者取消分享 */ }
         } else {
-            document.getElementById('msg').innerText = "找不到圖片編號 (ID Missing)";
-            document.getElementById('loader').style.display = 'none';
-        }
-
-        // 2. 初始化 LIFF
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile();
-                userName = profile.displayName || "好友";
-                setupUI(true);
-            } else {
-                // 如果是在 LINE App 內直接登入，否則引導外部登入
-                liff.login({ redirectUri: window.location.href });
-            }
-        } catch (e) {
-            console.error(e);
-            document.getElementById('msg').innerText = "LINE 系統初始化失敗";
+            await navigator.clipboard.writeText(shareUrl);
+            alert("已複製專屬分享連結！");
         }
     }
 
-    function setupUI(isReady) {
-        if (isReady) {
-            document.getElementById('actionBtn').style.display = 'block';
-            document.getElementById('msg').innerText = "點擊下方按鈕分享給好友";
-        }
-    }
-
-    async function handleShare() {
-        const params = new URLSearchParams(window.location.search);
-        const id = params.get('id');
-        if (!id) return alert("缺少圖片 ID，無法分享");
-
-        // 構造點擊圖片後會開啟的連結 (導回此 LIFF 頁面)
-        const myLiffUrl = `https://liff.line.me/${LIFF_ID}/?id=${id}`;
-
-        if (!liff.isApiAvailable('shareTargetPicker')) {
-            alert("此版本 LINE 不支援分享功能，請更新 App");
-            return;
-        }
-
-        try {
-            const result = await liff.shareTargetPicker([{
-                "type": "flex",
-                "altText": `${userName} 送來了一張早安圖！`,
-                "contents": {
-                    "type": "bubble",
-                    "size": "mega",
-                    "body": {
-                        "type": "box",
-                        "layout": "vertical",
-                        "paddingAll": "0px",
-                        "contents": [{
-                            "type": "image",
-                            "url": imgUrl,
-                            "size": "full",
-                            "aspectMode": "cover",
-                            "aspectRatio": "1:1",
-                            "action": { "type": "uri", "uri": myLiffUrl }
-                        }]
-                    }
-                }
-            }]);
-
-            if (result) {
-                // 分享成功後關閉視窗
-                liff.closeWindow();
-            }
-        } catch (e) {
-            console.error(e);
-            // 用戶取消分享時通常會進這裡
-        }
-    }
-
-    // 啟動
     init();
 </script>
 </body>
