@@ -12,9 +12,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <meta property="og:title" content="送你一張專屬祝福圖">
-    <meta property="og:description" content="點擊立即查看好友送給你的祝福">
-    <meta id="ogImage" property="og:image" content="https://res.cloudinary.com/dwdkxs8ot/image/upload/v1710000000/default_share.jpg">
+    <meta property="og:title" content="送你一張專屬祝福">
+    <meta property="og:description" content="點擊查看好友送給你的祝福圖卡">
+    <meta property="og:image" content="https://res.cloudinary.com/dwdkxs8ot/image/upload/f_auto,q_auto/v1/default_share">
     <meta property="og:type" content="website">
 
     <title>祝福卡片</title>
@@ -23,30 +23,32 @@
             margin: 0; padding: 0; width: 100%; height: 100%; 
             background-color: #000; overflow: hidden; 
             font-family: -apple-system, sans-serif;
+            display: flex; align-items: center; justify-content: center;
         }
         #mainContainer {
             position: relative; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         #previewImg { 
-            width: 100%; height: 100%; object-fit: contain;
-            display: none; /* 預設隱藏，載入成功再顯示 */
+            max-width: 100%; max-height: 100%; object-fit: contain;
+            display: none; /* 成功才顯示 */
         }
         .overlay-btn {
-            position: absolute; bottom: 50px;
-            width: 80%; max-width: 320px;
-            padding: 16px; border-radius: 50px; border: none;
-            background: linear-gradient(90deg, #d4c84a, #62be36, #3672d9);
+            position: absolute; bottom: 12%;
+            width: 85%; max-width: 300px;
+            padding: 18px; border-radius: 50px; border: none;
+            background: linear-gradient(135deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
             color: white; font-size: 18px; font-weight: bold;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             cursor: pointer; z-index: 100;
+            display: none;
         }
         .loader { 
-            position: absolute; width: 50px; height: 50px;
-            border: 5px solid rgba(255,255,255,0.1); border-top: 5px solid #62be36; border-radius: 50%;
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.2); border-top: 4px solid #62be36; border-radius: 50%;
             animation: spin 1s linear infinite; 
         }
-        #errorMsg { color: #ff4d4d; display: none; text-align: center; padding: 20px; }
+        #errorLog { color: #888; font-size: 12px; position: absolute; bottom: 10px; width: 100%; text-align: center; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -54,73 +56,99 @@
 
     <div id="mainContainer">
         <div id="loader" class="loader"></div>
-        <div id="errorMsg">⚠️ 圖片載入失敗，請檢查連結是否正確</div>
-        <img id="previewImg" src="" alt="祝福圖片">
-        <button id="shareBtn" class="overlay-btn" style="display:none;" onclick="doShare()">🎁 分享祝福給好友</button>
+        <img id="previewImg" src="">
+        <button id="shareBtn" class="overlay-btn" onclick="doShare()">🎁 轉傳這份祝福</button>
+        <div id="errorLog"></div>
     </div>
 
 <script>
     const CLOUD_NAME = "dwdkxs8ot";
-    const params = new URLSearchParams(window.location.search);
-    const imgId = params.get('id');
-    const senderVid = params.get('from_vid') || "ORIGIN";
+    
+    // 改進後的參數擷取：兼容更多瀏覽器環境
+    function getQueryParam(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        let value = urlParams.get(name);
+        if (!value) {
+            // 備援方案：手動解析網址
+            const reg = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
+            const string = window.location.href.match(reg);
+            value = string ? string[1] : null;
+        }
+        return value;
+    }
 
+    const imgId = getQueryParam('id');
+    const senderVid = getQueryParam('from_vid') || "ORIGIN";
+
+    // 建立/讀取訪客 ID
     function getVid() {
-        let vid = localStorage.getItem('user_vid') || ('U-' + Math.random().toString(36).substr(2, 5).toUpperCase());
-        localStorage.setItem('user_vid', vid);
+        let vid = localStorage.getItem('user_vid');
+        if (!vid) {
+            vid = 'U-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            localStorage.setItem('user_vid', vid);
+        }
         return vid;
     }
     const myVid = getVid();
 
     function init() {
+        const log = document.getElementById('errorLog');
+        const loader = document.getElementById('loader');
+        const pImg = document.getElementById('previewImg');
+        const btn = document.getElementById('shareBtn');
+
         if (!imgId) {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('errorMsg').style.display = 'block';
-            document.getElementById('errorMsg').innerText = "找不到圖片 ID";
+            loader.style.display = 'none';
+            log.innerText = "Error: Missing Image ID. Please check the link.";
             return;
         }
 
-        // 使用 Cloudinary 優化網址
+        // 拼接 Cloudinary 網址
         const imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
-        const pImg = document.getElementById('previewImg');
         
         pImg.onload = () => {
-            document.getElementById('loader').style.display = 'none';
+            loader.style.display = 'none';
             pImg.style.display = 'block';
-            document.getElementById('shareBtn').style.display = 'block';
+            btn.style.display = 'block';
         };
 
         pImg.onerror = () => {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('errorMsg').style.display = 'block';
+            loader.style.display = 'none';
+            log.innerText = "圖片載入失敗，可能 ID 已失效";
         };
 
         pImg.src = imgUrl;
 
-        // 追蹤
-        gtag('event', 'card_view', { 'visitor_id': myVid, 'image_id': imgId, 'from_vid': senderVid });
+        // GA4 追蹤
+        gtag('event', 'card_view', {
+            'visitor_id': myVid,
+            'image_id': imgId,
+            'from_vid': senderVid
+        });
     }
 
     async function doShare() {
-        // 分享連結
+        // 生成分享連結，確保 ID 傳承
         const shareUrl = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
         
         if (navigator.share) {
             try {
                 await navigator.share({
                     title: '送你一張祝福',
-                    text: '這是我特地為你挑選的祝福，點開看看吧！',
+                    text: '這是我特地挑選給你的祝福，點開看圖！',
                     url: shareUrl
                 });
-                gtag('event', 'card_share_success', { 'vid': myVid });
-            } catch (e) { console.log("Share cancelled"); }
+                gtag('event', 'card_share_success', { 'vid': myVid, 'id': imgId });
+            } catch (e) {
+                console.log("Share cancelled");
+            }
         } else {
-            // 電腦版或不支援時
+            // 不支援原生分享時的處理 (電腦版)
             try {
                 await navigator.clipboard.writeText(shareUrl);
-                alert("連結已複製！請直接貼到 LINE 聊天室");
+                alert("已複製專屬分享連結，請貼給好友！");
             } catch (err) {
-                alert("分享連結: " + shareUrl);
+                prompt("請複製下方連結分享：", shareUrl);
             }
         }
     }
