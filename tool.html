@@ -28,7 +28,8 @@
         .label-text { font-size: 12px; color: #adb5bd; min-width: 55px; }
         .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; }
         .sticker { font-size: 24px; cursor: pointer; background: #fff; padding: 8px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; }
-        .btn-gen { background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); }
+        .btn-gen { background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); transition: transform 0.1s; }
+        .btn-gen:active { transform: scale(0.98); }
         .btn-alt { background: #f1f3f5; color: #495057; padding: 10px; border-radius: 10px; border: none; flex: 1; cursor: pointer; font-size: 13px; font-weight: bold; }
         .success-box { display: none; margin-top: 10px; padding: 12px; background: #d4edda; border-radius: 12px; text-align: center; color: #155724; font-size: 14px; font-weight: bold; border: 1px solid #c3e6cb; }
         #manualArea { display: none; margin-top: 10px; padding: 12px; background: #fff3cd; border: 1px dashed #ffeeba; border-radius: 12px; text-align: center; }
@@ -87,7 +88,6 @@
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName || "匿名";
-                gtag('set', 'user_properties', { 'line_name': currentUserNickname });
             }
             gtag('event', 'generator_open', { 'sharer_name': currentUserNickname });
         } catch (err) { console.error("LIFF Error:", err); }
@@ -104,7 +104,7 @@
     function draw() {
         ctx.clearRect(0,0,600,600);
         if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, 600, 600);
-        const txt = document.getElementById('mainText').value, col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
+        const txt = document.getElementById('mainText').value || " ", col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
         items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
@@ -115,9 +115,10 @@
         });
     }
 
+    // 觸控與滑鼠邏輯
     function getPos(e) {
         const r = shield.getBoundingClientRect();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const cx = (e.touches ? e.touches[0].clientX : e.clientX), cy = (e.touches ? e.touches[0].clientY : e.clientY);
         return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
     }
     const start = (e) => { const p = getPos(e); active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 60 && Math.abs(i.y - p.y) < 60); };
@@ -127,36 +128,49 @@
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', () => active = null);
 
     async function fastGenerate() {
-        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 上傳中...";
+        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 上傳與生成中...";
         let myVid = localStorage.getItem('v_id') || ('U-' + Math.random().toString(36).substr(2,6).toUpperCase());
         localStorage.setItem('v_id', myVid);
 
         try {
             const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
             fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
+            
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
             
             if (data.public_id) {
-                // 關鍵：將參數緊跟在 LIFF ID 後面
-                const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${data.public_id}&from_vid=${myVid}`;
-                const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
+                // 修正連結：確保 ID 被編碼，且沒有多餘的斜槓
+                const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${encodeURIComponent(data.public_id)}&from_vid=${myVid}`;
+                const finalMsg = `🔔 這是我為你製作的早安圖，點開看看：${shareUrl}`;
                 
                 document.getElementById('hiddenText').value = finalMsg;
-                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid });
+                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid, 'user': currentUserNickname });
 
                 if (await copyToClipboard(finalMsg)) {
                     document.getElementById('successMsg').style.display = 'block';
-                    btn.innerText = "✨ 複製成功";
+                    btn.innerText = "✨ 連結已複製";
                 } else {
                     document.getElementById('manualArea').style.display = 'block';
                 }
-            }
-        } catch (e) { alert("上傳失敗，請稍後再試"); }
+            } else { throw new Error("Cloudinary Error"); }
+        } catch (e) { 
+            alert("上傳失敗，請檢查網路或 Cloudinary 設定"); 
+            console.error(e);
+        }
         btn.disabled = false;
     }
 
-    async function copyToClipboard(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
+    async function copyToClipboard(t) {
+        if (navigator.clipboard && window.isSecureContext) {
+            try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; }
+        } else {
+            const ta = document.createElement("textarea"); ta.value = t;
+            document.body.appendChild(ta); ta.select();
+            const res = document.execCommand("copy"); document.body.removeChild(ta);
+            return res;
+        }
+    }
     function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
     function reset() { items = [{ type: 'text', x: 300, y: 500 }]; draw(); }
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
