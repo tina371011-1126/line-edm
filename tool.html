@@ -6,7 +6,6 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      // 直接初始化，移除舊式 custom_map，改由事件參數直接傳遞
       gtag('config', 'G-MQ0WMMRZH5');
     </script>
 
@@ -88,19 +87,10 @@
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
                 currentUserNickname = profile.displayName || "匿名";
-                
-                // 【GA4 追蹤】確保拿到名字才發送事件
-                gtag('event', 'generator_open', { 
-                    'sharer_name': currentUserNickname,
-                    'platform': 'LINE'
-                });
-            } else {
-                // 未登入也記錄一次訪客開啟
-                gtag('event', 'generator_open', { 'sharer_name': '未登入訪客' });
+                gtag('set', 'user_properties', { 'line_name': currentUserNickname });
             }
-        } catch (err) {
-            console.error("LIFF Error:", err);
-        }
+            gtag('event', 'generator_open', { 'sharer_name': currentUserNickname });
+        } catch (err) { console.error("LIFF Error:", err); }
         fetchAIImage();
     }
 
@@ -114,7 +104,7 @@
     function draw() {
         ctx.clearRect(0,0,600,600);
         if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, 600, 600);
-        const txt = document.getElementById('mainText').value || "早安", col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
+        const txt = document.getElementById('mainText').value, col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
         items.forEach(it => {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             if(it.type === 'text') {
@@ -132,66 +122,43 @@
     }
     const start = (e) => { const p = getPos(e); active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 60 && Math.abs(i.y - p.y) < 60); };
     const move = (e) => { if(!active) return; if(e.cancelable) e.preventDefault(); const p = getPos(e); active.x = p.x; active.y = p.y; draw(); };
-    
-    shield.addEventListener('touchstart', start, {passive:false}); 
-    window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', () => active = null); 
-    shield.addEventListener('mousedown', start);
-    window.addEventListener('mousemove', move); 
-    window.addEventListener('mouseup', () => active = null);
+    shield.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', () => active = null); shield.addEventListener('mousedown', start);
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', () => active = null);
 
     async function fastGenerate() {
-    const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 壓縮中...";
-    
-    // 獲取產生器自己的匿名 ID (為了追蹤)
-    let myVid = localStorage.getItem('visitor_id');
-    if (!myVid) {
-        myVid = 'U-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-        localStorage.setItem('visitor_id', myVid);
+        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 上傳中...";
+        let myVid = localStorage.getItem('v_id') || ('U-' + Math.random().toString(36).substr(2,6).toUpperCase());
+        localStorage.setItem('v_id', myVid);
+
+        try {
+            const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
+            fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
+            const data = await res.json();
+            
+            if (data.public_id) {
+                // 關鍵：將參數緊跟在 LIFF ID 後面
+                const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${data.public_id}&from_vid=${myVid}`;
+                const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
+                
+                document.getElementById('hiddenText').value = finalMsg;
+                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid });
+
+                if (await copyToClipboard(finalMsg)) {
+                    document.getElementById('successMsg').style.display = 'block';
+                    btn.innerText = "✨ 複製成功";
+                } else {
+                    document.getElementById('manualArea').style.display = 'block';
+                }
+            }
+        } catch (e) { alert("上傳失敗，請稍後再試"); }
+        btn.disabled = false;
     }
 
-    try {
-        const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
-        fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
-        const data = await res.json();
-        
-        const imgId = data.public_id; 
-        
-        // 【修正點】連結格式調整：移除多餘斜槓，確保參數緊跟在後
-        // 並帶入 from_vid (發送者匿名 ID)
-        const shareUrl = `🔔點擊連結查看早安圖：https://liff.line.me/${LIFF_ID}?id=${imgId}&from_vid=${myVid}`;
-        
-        document.getElementById('hiddenText').value = shareUrl;
-
-        // 【GA4 追蹤】
-        gtag('event', 'share_generated', { 
-            'sharer_name': currentUserNickname,
-            'image_id': imgId,
-            'sharer_vid': myVid
-        });
-
-        if (await copyToClipboard(shareUrl)) { 
-            document.getElementById('successMsg').style.display = 'block'; 
-            btn.innerText = "✨ 複製成功"; 
-        } else { 
-            document.getElementById('manualArea').style.display = 'block'; 
-        }
-    } catch (e) { 
-        alert("上傳失敗"); 
-        console.error(e);
-    }
-    btn.disabled = false; btn.innerText = "🚀 產生分享給好友的短連結";
-}
     async function copyToClipboard(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
     function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
-    function reset() {
-        items = [{ type: 'text', x: 300, y: 500 }];
-        document.getElementById('mainText').value = "早安！祝您有美好的一天";
-        document.getElementById('mainColor').value = "#ffffff";
-        document.getElementById('textSize').value = 45;
-        draw(); 
-    }
+    function reset() { items = [{ type: 'text', x: 300, y: 500 }]; draw(); }
     function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
     function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
