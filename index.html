@@ -45,12 +45,22 @@
 
     // 【核心修正：萬能參數抓取器】針對 LINE LIFF 跳轉優化
     function getUrlParam(name) {
-        const url = window.location.href;
-        // 抓取包含 ? 或 # 後面的參數，防止 LIFF 把參數塞進 Hash
-        const results = new RegExp('[\\?&]' + name + '=([^&#]*)').exec(url);
-        if (!results) return null;
-        return decodeURIComponent(results[1]) || null;
+    const url = window.location.href;
+    // 這個正則表達式會同時掃描 ? 之後與 # 之後的內容
+    const reg = new RegExp('[?&#]' + name + '=([^&#]*)', 'i');
+    const match = url.match(reg);
+    
+    if (match && match[1]) {
+        console.log("成功抓取參數 " + name + ":", match[1]);
+        return decodeURIComponent(match[1]);
     }
+    
+    // 備用方案：如果上面抓不到，嘗試從搜尋字串抓
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has(name)) return urlParams.get(name);
+    
+    return null;
+}
 
     const imgId = getUrlParam('id');
     const fromVid = getUrlParam('from_vid') || 'ORIGIN';
