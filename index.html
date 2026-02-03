@@ -8,85 +8,86 @@
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5');
     </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>好友的祝福</title>
+    <title>來自好友的祝福</title>
     <style>
-        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-        #mainContainer { position:relative; width:100vw; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-        #previewImg { max-width:100%; max-height:100%; object-fit:contain; display:none; }
-        .btn-share { position:absolute; bottom:10%; width:80%; max-width:300px; padding:18px; border-radius:50px; border:none; background:linear-gradient(135deg, #62be36, #3672d9); color:white; font-size:18px; font-weight:bold; box-shadow:0 10px 20px rgba(0,0,0,0.4); display:none; cursor:pointer; }
-        .loading { width:40px; height:40px; border:4px solid rgba(255,255,255,0.2); border-top-color:#62be36; border-radius:50%; animation:s 1s linear infinite; }
-        @keyframes s { to { transform:rotate(360deg); } }
-        #debug { color:#555; font-size:10px; position:absolute; bottom:5px; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
+        #mainContainer { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        #previewImg { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+        .btn-share { position: absolute; bottom: 8%; width: 75%; max-width: 280px; padding: 16px; border-radius: 50px; border: none; background: linear-gradient(135deg, #62be36, #3672d9); color: white; font-size: 18px; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 10; }
+        .loader { width: 45px; height: 45px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #62be36; border-radius: 50%; animation: spin 1s linear infinite; }
+        #errMsg { color: #666; font-size: 14px; text-align: center; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div id="mainContainer">
-        <div id="loader" class="loading"></div>
-        <img id="previewImg">
-        <button class="btn-share" id="shareBtn" onclick="doShare()">🎁 轉傳這份祝福</button>
-        <div id="debug"></div>
+        <div id="loader" class="loader"></div>
+        <div id="errMsg">⚠️ 找不到圖片編號，請重新點擊連結</div>
+        <img id="previewImg" alt="早安圖">
+        <button id="shareBtn" class="btn-share" onclick="doShare()">🎁 轉傳這份祝福</button>
     </div>
 
 <script>
     const CLOUD_NAME = "dwdkxs8ot";
 
-    // 【萬能解析器】防止 LIFF 的多重跳轉搞丟參數
-    function findParam(name) {
-        // 1. 從標準 QueryString 找
-        let val = new URLSearchParams(window.location.search).get(name);
-        if (val) return val;
-        // 2. 從 Hash 找 (LIFF 經常把參數放這)
-        val = new URLSearchParams(window.location.hash.split('?')[1]).get(name);
-        if (val) return val;
-        // 3. 從完整 URL 強制正則匹配
-        const reg = new RegExp("[?&]" + name + "=([^&#]*)", "i");
-        const res = window.location.href.match(reg);
-        return res ? res[1] : null;
+    // 【最強解析器】不論參數在 ? 還是 # 還是跳轉後，都能抓到
+    function getParam(name) {
+        const fullUrl = window.location.href;
+        const reg = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
+        const match = fullUrl.match(reg);
+        return match ? match[1] : null;
     }
 
-    const imgId = findParam('id');
-    const fromVid = findParam('from_vid') || 'ORIGIN';
-
-    function getMyVid() {
-        let vid = localStorage.getItem('v_id') || ('V-' + Math.random().toString(36).substr(2, 6).toUpperCase());
-        localStorage.setItem('v_id', vid);
-        return vid;
-    }
-    const myVid = getMyVid();
+    const imgId = getParam('id');
+    const fromVid = getParam('from_vid') || 'ORIGIN';
+    const myVid = localStorage.getItem('v_id') || ('V-' + Math.random().toString(36).substr(2,6).toUpperCase());
+    localStorage.setItem('v_id', myVid);
 
     function init() {
         const img = document.getElementById('previewImg');
         const btn = document.getElementById('shareBtn');
         const ld = document.getElementById('loader');
+        const err = document.getElementById('errMsg');
 
         if (!imgId) {
             ld.style.display = 'none';
-            document.getElementById('debug').innerText = "Missing ID - URL: " + window.location.href;
+            err.style.display = 'block';
             return;
         }
 
-        img.onload = () => { ld.style.display='none'; img.style.display='block'; btn.style.display='block'; };
-        img.onerror = () => { ld.style.display='none'; alert("圖片加載失敗"); };
+        // 使用 Cloudinary 優化路徑
         img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
+        
+        img.onload = () => {
+            ld.style.display = 'none';
+            img.style.display = 'block';
+            btn.style.display = 'block';
+        };
 
-        gtag('event', 'card_receive', { 'visitor_id': myVid, 'from_vid': fromVid, 'image_id': imgId });
+        img.onerror = () => {
+            ld.style.display = 'none';
+            err.innerText = "圖片已失效或不存在";
+            err.style.display = 'block';
+        };
+
+        gtag('event', 'view_card', { 'image_id': imgId, 'visitor_id': myVid, 'from_vid': fromVid });
     }
 
     async function doShare() {
-        const url = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
+        const shareUrl = `${window.location.origin}${window.location.pathname}?id=${imgId}&from_vid=${myVid}`;
         if (navigator.share) {
             try {
-                await navigator.share({ title: '好友送你祝福', text: '點開看圖', url: url });
-                gtag('event', 'card_re_share', { 'sharer': myVid });
+                await navigator.share({ title: '早安祝福', text: '送你一張專屬祝福圖！', url: shareUrl });
+                gtag('event', 'card_reshare', { 'image_id': imgId, 'vid': myVid });
             } catch (e) {}
         } else {
-            navigator.clipboard.writeText(url);
-            alert("連結已複製！");
+            navigator.clipboard.writeText(shareUrl);
+            alert("連結已複製，快去貼給好友！");
         }
     }
+
     init();
 </script>
 </body>
