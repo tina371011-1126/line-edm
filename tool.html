@@ -141,37 +141,48 @@
     window.addEventListener('mouseup', () => active = null);
 
     async function fastGenerate() {
-        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 壓縮中...";
-        try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
-            fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
-            const data = await res.json();
-            
-            const imgId = data.public_id; 
-            const shareUrl = `🔔點擊連結傳送早安圖給好友：https://liff.line.me/${LIFF_ID}/?id=${imgId}`;
-            
-            document.getElementById('hiddenText').value = shareUrl;
-
-            // 【GA4 追蹤】記錄分享行為
-            gtag('event', 'share_generated', { 
-                'sharer_name': currentUserNickname,
-                'image_id': imgId
-            });
-
-            if (await copyToClipboard(shareUrl)) { 
-                document.getElementById('successMsg').style.display = 'block'; 
-                btn.innerText = "✨ 複製成功"; 
-            } else { 
-                document.getElementById('manualArea').style.display = 'block'; 
-            }
-        } catch (e) { 
-            alert("上傳失敗"); 
-            console.error(e);
-        }
-        btn.disabled = false; btn.innerText = "🚀 產生分享給好友的短連結";
+    const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 壓縮中...";
+    
+    // 獲取產生器自己的匿名 ID (為了追蹤)
+    let myVid = localStorage.getItem('visitor_id');
+    if (!myVid) {
+        myVid = 'U-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+        localStorage.setItem('visitor_id', myVid);
     }
 
+    try {
+        const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
+        fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
+        const data = await res.json();
+        
+        const imgId = data.public_id; 
+        
+        // 【修正點】連結格式調整：移除多餘斜槓，確保參數緊跟在後
+        // 並帶入 from_vid (發送者匿名 ID)
+        const shareUrl = `🔔點擊連結查看早安圖：https://liff.line.me/${LIFF_ID}?id=${imgId}&from_vid=${myVid}`;
+        
+        document.getElementById('hiddenText').value = shareUrl;
+
+        // 【GA4 追蹤】
+        gtag('event', 'share_generated', { 
+            'sharer_name': currentUserNickname,
+            'image_id': imgId,
+            'sharer_vid': myVid
+        });
+
+        if (await copyToClipboard(shareUrl)) { 
+            document.getElementById('successMsg').style.display = 'block'; 
+            btn.innerText = "✨ 複製成功"; 
+        } else { 
+            document.getElementById('manualArea').style.display = 'block'; 
+        }
+    } catch (e) { 
+        alert("上傳失敗"); 
+        console.error(e);
+    }
+    btn.disabled = false; btn.innerText = "🚀 產生分享給好友的短連結";
+}
     async function copyToClipboard(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
     function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
     function reset() {
