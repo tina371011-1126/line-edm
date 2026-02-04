@@ -4,53 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>早安祝福</title>
+
+    <meta property="og:title" content="送您一張早安祝福圖片">
+    <meta property="og:description" content="點擊查看好友為您製作的專屬祝福">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://res.cloudinary.com/dwdkxs8ot/image/upload/v1738656606/morning_cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      // 取得或產生訪客 ID
-      let myVid = localStorage.getItem('user_vid');
-      if (!myVid) {
-          myVid = 'V' + Math.random().toString(36).substr(2, 9).toUpperCase();
-          localStorage.setItem('user_vid', myVid);
-      }
+      let myVid = localStorage.getItem('user_vid') || ('V' + Math.random().toString(36).substr(2, 9).toUpperCase());
+      localStorage.setItem('user_vid', myVid);
 
-      // 取得網址參數的函式
-      function getQueryParam(name) {
-          const urlParams = new URLSearchParams(window.location.search);
-          return urlParams.get(name);
-      }
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromSid = urlParams.get('sid') || 'root';
+      const imgId = urlParams.get('id');
 
-      const fromSid = getQueryParam('sid') || 'root';
-      const imgId = getQueryParam('id');
-
-      // 設定 GA4 自定義維度
       gtag('config', 'G-MQ0WMMRZH5', {
           'custom_map': { 'dimension1': 'from_sid', 'dimension2': 'my_vid' },
           'from_sid': fromSid,
           'my_vid': myVid
       });
 
-      // 立即發送進站事件 (紀錄誰看了誰的圖)
       if (imgId) {
-          gtag('event', 'view_edm_no_auth', {
-              'image_id': imgId,
-              'from_sid': fromSid,
-              'my_vid': myVid
-          });
+          gtag('event', 'view_edm_no_auth', { 'image_id': imgId, 'from_sid': fromSid, 'my_vid': myVid });
       }
     </script>
+
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; display: flex; flex-direction: column; overflow: hidden; font-family: -apple-system, sans-serif; }
         #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-        #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
-        .ui-overlay { position: relative; width: 100%; padding: 20px 20px 40px; background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%); display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
-        .btn { border: none; padding: 16px; font-size: 18px; border-radius: 50px; font-weight: bold; width: 100%; max-width: 320px; color: white; background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); cursor: pointer; text-align: center; text-decoration: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .btn:active { transform: scale(0.98); opacity: 0.9; }
-        #msg { color: #ccc; font-size: 14px; margin-bottom: 15px; letter-spacing: 1px; }
-        .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
+        #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 12px; }
+        .ui-overlay { position: relative; width: 100%; padding: 25px 20px 45px; background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 100%); display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+        .btn { border: none; padding: 18px; font-size: 18px; border-radius: 50px; font-weight: bold; width: 100%; max-width: 300px; color: white; background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); cursor: pointer; text-align: center; text-decoration: none; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+        #msg { color: #eee; font-size: 15px; margin-bottom: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -60,7 +53,7 @@
         <img id="previewImg" src="">
     </div>
     <div class="ui-overlay">
-        <div id="msg">正在讀取祝福圖片...</div>
+        <div id="msg">收到一份好友的溫馨祝福</div>
         <button id="actionBtn" class="btn" style="display:none;" onclick="doNativeShare()">我也要轉傳祝福</button>
     </div>
 
@@ -69,68 +62,45 @@
     const LIFF_ID = "2008941488-Phn5v50S";
 
     function init() {
-        const id = getQueryParam('id');
+        const id = new URLSearchParams(window.location.search).get('id');
         if (id) {
             const img = document.getElementById('previewImg');
-            // 使用 f_auto, q_auto 優化載入速度
             img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${id}`;
             img.onload = () => {
                 img.style.opacity = '1';
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('actionBtn').style.display = 'block';
-                document.getElementById('msg').innerText = "點擊按鈕分享給下一位好友";
             };
-            img.onerror = () => {
-                document.getElementById('msg').innerText = "圖片失效或已移除";
-                document.getElementById('loader').style.display = 'none';
-            };
-        } else {
-            document.getElementById('msg').innerText = "找不到圖片編號";
-            document.getElementById('loader').style.display = 'none';
         }
     }
 
-    async function doNativeShare() {
-        const id = getQueryParam('id');
+    function doNativeShare() {
+        const id = new URLSearchParams(window.location.search).get('id');
         const shareUrl = `https://liff.line.me/${LIFF_ID}/?id=${id}&sid=${myVid}`;
-        const shareText = `送你一張早安祝福！點開查看：`;
+        const shareText = `送您一張早安祝福！點開查看圖片：\n`;
 
-        // GA 追蹤分享動作
-        gtag('event', 'click_share_no_auth', {
-            'image_id': id,
-            'from_sid': fromSid,
-            'my_vid': myVid
-        });
+        gtag('event', 'click_share_no_auth', { 'image_id': id, 'from_sid': fromSid, 'my_vid': myVid });
 
-        // 偵測是否在 LINE 環境內
+        // 偵測是否在 LINE 內
         const isLine = /Line/i.test(navigator.userAgent);
 
         if (isLine) {
-            // 在 LINE 內直接使用 LINE Schema 轉傳最穩定 (不跳授權)
-            window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(shareText + "\n" + shareUrl)}`;
+            // 在 LINE 內使用文字轉發（LINE 會自動偵測 URL 並補上預覽卡片）
+            window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(shareText + shareUrl)}`;
         } else if (navigator.share) {
-            // 在一般瀏覽器 (Safari/Chrome) 使用原生分享
-            try {
-                await navigator.share({
-                    title: '早安祝福',
-                    text: shareText,
-                    url: shareUrl
-                });
-            } catch (err) {
-                console.log("User cancelled");
-            }
+            // 其他瀏覽器使用原生分享
+            navigator.share({ title: '早安祝福', text: shareText, url: shareUrl }).catch(() => {});
         } else {
-            // 備用方案：手動提示複製
-            const dummy = document.createElement('input');
-            document.body.appendChild(dummy);
-            dummy.value = shareText + " " + shareUrl;
-            dummy.select();
+            // 備用複製
+            const el = document.createElement('textarea');
+            el.value = shareText + shareUrl;
+            document.body.appendChild(el);
+            el.select();
             document.execCommand('copy');
-            document.body.removeChild(dummy);
-            alert("連結已複製，請手動貼給好友！");
+            document.body.removeChild(el);
+            alert("連結已複製，請貼給好友！");
         }
     }
-
     init();
 </script>
 </body>
