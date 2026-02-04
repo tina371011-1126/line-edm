@@ -139,13 +139,18 @@
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
             const data = await res.json();
             
+            // 檢查有沒有 ID
             if (data.public_id) {
-                // 修正連結：確保 ID 被編碼，且沒有多餘的斜槓
-                const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${encodeURIComponent(data.public_id)}&from_vid=${myVid}`;
-                const finalMsg = `🔔 這是我為你製作的早安圖，點開看看：${shareUrl}`;
+                // 產生連結
+                const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${data.public_id}&from_vid=${myVid}`;
                 
+                // 【關鍵測試】直接跳窗顯示連結，讓你檢查
+                // 如果這裡顯示的網址有 id=...，那產生器就是正常的
+                // alert("連結已產生：\n" + shareUrl); 
+                
+                const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
                 document.getElementById('hiddenText').value = finalMsg;
-                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid, 'user': currentUserNickname });
+                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid });
 
                 if (await copyToClipboard(finalMsg)) {
                     document.getElementById('successMsg').style.display = 'block';
@@ -153,9 +158,12 @@
                 } else {
                     document.getElementById('manualArea').style.display = 'block';
                 }
-            } else { throw new Error("Cloudinary Error"); }
+            } else { 
+                alert("錯誤：Cloudinary 沒有回傳 ID，請檢查 Upload Preset 設定");
+                console.log(data); // 打開 F12 看詳細錯誤
+            }
         } catch (e) { 
-            alert("上傳失敗，請檢查網路或 Cloudinary 設定"); 
+            alert("上傳失敗，請檢查網路"); 
             console.error(e);
         }
         btn.disabled = false;
