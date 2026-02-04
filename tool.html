@@ -1,147 +1,51 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>來自好友的祝福</title>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-MQ0WMMRZH5');
-    </script>
-    
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; }
-        #mainContainer { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+async function fastGenerate() {
+        const btn = document.getElementById('genBtn'); 
+        btn.disabled = true; 
+        btn.innerText = "⏳ 處理中...";
         
-        /* 圖片容器：保證圖片在中間且不變形 */
-        #previewImg { 
-            max-width: 100%; 
-            max-height: 100%; 
-            object-fit: contain; 
-            display: none; /* 載入完成前隱藏 */
-        }
-        
-        .btn-share { position: absolute; bottom: 8%; width: 70%; max-width: 280px; padding: 15px; border-radius: 50px; border: none; background: #06c755; color: white; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 100; }
-        .loader { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #06c755; border-radius: 50%; animation: spin 1s linear infinite; position: absolute; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        #errorInfo { color: #fff; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; display: none; text-align: center; max-width: 80%; }
-    </style>
-</head>
-<body>
-
-    <div id="mainContainer">
-        <div id="loader" class="loader"></div>
-        
-        <img id="previewImg" alt="早安圖">
-        
-        <div id="errorInfo">
-            <p>圖片載入中...</p>
-            <small id="debugText" style="color:#aaa; font-size:10px;"></small>
-        </div>
-
-        <button id="shareBtn" class="btn-share" onclick="doShare()">🎁 轉傳這張圖</button>
-    </div>
-
-<script>
-    const CLOUD_NAME = "dwdkxs8ot"; // 你的 Cloudinary 名稱
-    
-    // 【終極網址解析】
-    function getParam(name) {
-        const url = window.location.href;
-        // 1. 嘗試抓取標準參數 (?id=...)
-        let regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
-        let results = regex.exec(url);
-        
-        // 2. 如果沒抓到，嘗試抓取 Hash 中的參數 (針對 index.html#/?id=...)
-        if (!results) {
-            regex = new RegExp('#.*[?&]' + name + '=([^&#]*)', 'i');
-            results = regex.exec(url);
+        // 產生訪客 ID
+        let myVid = localStorage.getItem('v_id');
+        if(!myVid) {
+            myVid = 'U-' + Math.random().toString(36).substr(2,6).toUpperCase();
+            localStorage.setItem('v_id', myVid);
         }
 
-        return results ? decodeURIComponent(results[1]) : null;
-    }
-
-    const imgId = getParam('id');
-    const fromVid = getParam('from_vid') || 'ORIGIN';
-    
-    // 初始化訪客 ID
-    let myVid = localStorage.getItem('v_id');
-    if (!myVid) { 
-        myVid = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
-        localStorage.setItem('v_id', myVid); 
-    }
-
-    function init() {
-        const img = document.getElementById('previewImg');
-        const loader = document.getElementById('loader');
-        const errDiv = document.getElementById('errorInfo');
-        const debugText = document.getElementById('debugText');
-        const btn = document.getElementById('shareBtn');
-
-        // 如果真的沒有 ID，顯示提示
-        if (!imgId) {
-            loader.style.display = 'none';
-            errDiv.style.display = 'block';
-            errDiv.querySelector('p').innerText = "連結似乎不完整 (ID 遺失)";
-            debugText.innerText = "目前的網址: " + window.location.href;
-            return;
-        }
-
-        // 設定圖片網址 (加入 Cloudinary 優化參數)
-        img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
-
-        img.onload = () => {
-            loader.style.display = 'none';
-            img.style.display = 'block';
-            btn.style.display = 'block';
+        try {
+            const base64 = canvas.toDataURL('image/jpeg', 0.8);
+            const fd = new FormData();
+            fd.append("file", base64); 
+            fd.append("upload_preset", UPLOAD_PRESET);
             
-            // 只有成功載入才發送 GA 數據
-            gtag('event', 'view_card', {
-                'image_id': imgId,
-                'visitor_id': myVid,
-                'from_vid': fromVid
-            });
-        };
+            // 上傳到 Cloudinary
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
+            const data = await res.json();
+            
+            if (data.public_id) {
+                // 【核心修正】在網址中間強制加入 /index.html
+                // 舊寫法：https://liff.line.me/ID?id=... (會被吃參數)
+                // 新寫法：https://liff.line.me/ID/index.html?id=... (參數安全)
+                const shareUrl = `https://liff.line.me/${LIFF_ID}/index.html?id=${encodeURIComponent(data.public_id)}&from_vid=${myVid}`;
+                
+                const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
+                document.getElementById('hiddenText').value = finalMsg;
 
-        img.onerror = () => {
-            loader.style.display = 'none';
-            errDiv.style.display = 'block';
-            errDiv.querySelector('p').innerText = "圖片已過期或無法讀取";
-        };
-    }
+                // GA4 追蹤
+                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid });
 
-    async function doShare() {
-        // 產生乾淨的分享連結，確保下次分享也是對的
-        // 這裡我們手動拼湊正確的路徑，避免因為瀏覽器跳轉導致路徑混亂
-        const cleanBase = window.location.href.split('?')[0].split('#')[0];
-        // 確保結尾是 index.html
-        let fixedBase = cleanBase;
-        if (!fixedBase.endsWith('index.html')) {
-            if (fixedBase.endsWith('/')) fixedBase += 'index.html';
-            else fixedBase += '/index.html';
+                if (await copyToClipboard(finalMsg)) {
+                    document.getElementById('successMsg').style.display = 'block';
+                    btn.innerText = "✨ 連結已複製";
+                } else {
+                    document.getElementById('manualArea').style.display = 'block';
+                    btn.innerText = "完成";
+                }
+            } else { 
+                throw new Error("No Public ID");
+            }
+        } catch (e) { 
+            alert("上傳失敗，請稍後再試"); 
+            console.error(e);
+            btn.innerText = "❌ 失敗";
         }
-
-        const shareUrl = `${fixedBase}?id=${imgId}&from_vid=${myVid}`;
-        
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: '早安祝福',
-                    text: '送你一張我親手做的祝福圖！',
-                    url: shareUrl
-                });
-            } catch (e) { console.log("分享取消"); }
-        } else {
-            prompt("請複製下方連結傳給好友：", shareUrl);
-        }
+        btn.disabled = false;
     }
-
-    // 啟動程式
-    init();
-</script>
-</body>
-</html>
