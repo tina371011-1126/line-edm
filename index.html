@@ -9,17 +9,47 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+
+      // 取得或產生訪客 ID
+      let myVid = localStorage.getItem('user_vid');
+      if (!myVid) {
+          myVid = 'V' + Math.random().toString(36).substr(2, 9).toUpperCase();
+          localStorage.setItem('user_vid', myVid);
+      }
+
+      // 取得網址參數的函式
+      function getQueryParam(name) {
+          const urlParams = new URLSearchParams(window.location.search);
+          return urlParams.get(name);
+      }
+
+      const fromSid = getQueryParam('sid') || 'root';
+      const imgId = getQueryParam('id');
+
+      // 設定 GA4 自定義維度
       gtag('config', 'G-MQ0WMMRZH5', {
-          'custom_map': { 'dimension1': 'from_sid', 'dimension2': 'my_vid' }
+          'custom_map': { 'dimension1': 'from_sid', 'dimension2': 'my_vid' },
+          'from_sid': fromSid,
+          'my_vid': myVid
       });
+
+      // 立即發送進站事件 (紀錄誰看了誰的圖)
+      if (imgId) {
+          gtag('event', 'view_edm_no_auth', {
+              'image_id': imgId,
+              'from_sid': fromSid,
+              'my_vid': myVid
+          });
+      }
     </script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; display: flex; flex-direction: column; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; display: flex; flex-direction: column; overflow: hidden; font-family: -apple-system, sans-serif; }
         #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-        #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 8px; }
-        .ui-overlay { position: relative; width: 100%; padding: 20px; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
-        .btn { border: none; padding: 16px; font-size: 18px; border-radius: 50px; font-weight: bold; width: 100%; max-width: 320px; color: white; background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); cursor: pointer; text-align: center; text-decoration: none; }
-        #msg { color: #ccc; font-size: 14px; margin-bottom: 15px; }
+        #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .ui-overlay { position: relative; width: 100%; padding: 20px 20px 40px; background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%); display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+        .btn { border: none; padding: 16px; font-size: 18px; border-radius: 50px; font-weight: bold; width: 100%; max-width: 320px; color: white; background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); cursor: pointer; text-align: center; text-decoration: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn:active { transform: scale(0.98); opacity: 0.9; }
+        #msg { color: #ccc; font-size: 14px; margin-bottom: 15px; letter-spacing: 1px; }
         .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -30,7 +60,7 @@
         <img id="previewImg" src="">
     </div>
     <div class="ui-overlay">
-        <div id="msg">正在加載好友的祝福...</div>
+        <div id="msg">正在讀取祝福圖片...</div>
         <button id="actionBtn" class="btn" style="display:none;" onclick="doNativeShare()">我也要轉傳祝福</button>
     </div>
 
@@ -38,65 +68,66 @@
     const CLOUD_NAME = "dwdkxs8ot";
     const LIFF_ID = "2008941488-Phn5v50S";
 
-    // 1. 產生一個隨機的 Visitor ID 用於追蹤 (不需 LINE 授權)
-    let myVid = localStorage.getItem('user_vid');
-    if (!myVid) {
-        myVid = 'V' + Math.random().toString(36).substr(2, 9).toUpperCase();
-        localStorage.setItem('user_vid', myVid);
-    }
-
-    function getParam(name) {
-        return new URLSearchParams(window.location.search).get(name);
-    }
-
-    const imgId = getParam('id');
-    const fromSid = getParam('sid') || 'origin';
-
     function init() {
-        if (imgId) {
+        const id = getQueryParam('id');
+        if (id) {
             const img = document.getElementById('previewImg');
-            img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
+            // 使用 f_auto, q_auto 優化載入速度
+            img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${id}`;
             img.onload = () => {
                 img.style.opacity = '1';
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('actionBtn').style.display = 'block';
-                document.getElementById('msg').innerText = "點擊按鈕分享祝福給朋友";
+                document.getElementById('msg').innerText = "點擊按鈕分享給下一位好友";
             };
-
-            // GA 追蹤：誰(myVid) 看了 誰(fromSid) 傳的圖
-            gtag('event', 'view_edm_no_auth', {
-                'image_id': imgId,
-                'from_sid': fromSid,
-                'my_vid': myVid
-            });
+            img.onerror = () => {
+                document.getElementById('msg').innerText = "圖片失效或已移除";
+                document.getElementById('loader').style.display = 'none';
+            };
+        } else {
+            document.getElementById('msg').innerText = "找不到圖片編號";
+            document.getElementById('loader').style.display = 'none';
         }
     }
 
     async function doNativeShare() {
-        // 構造下一層連結，將我的 Vid 傳下去變成下一層的 sid
-        const shareUrl = `https://liff.line.me/${LIFF_ID}/?id=${imgId}&sid=${myVid}`;
+        const id = getQueryParam('id');
+        const shareUrl = `https://liff.line.me/${LIFF_ID}/?id=${id}&sid=${myVid}`;
         const shareText = `送你一張早安祝福！點開查看：`;
 
-        // GA 追蹤：點擊分享動作
+        // GA 追蹤分享動作
         gtag('event', 'click_share_no_auth', {
-            'image_id': imgId,
+            'image_id': id,
             'from_sid': fromSid,
             'my_vid': myVid
         });
 
-        // 優先使用手機原生分享 (Android/iOS)
-        if (navigator.share) {
+        // 偵測是否在 LINE 環境內
+        const isLine = /Line/i.test(navigator.userAgent);
+
+        if (isLine) {
+            // 在 LINE 內直接使用 LINE Schema 轉傳最穩定 (不跳授權)
+            window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(shareText + "\n" + shareUrl)}`;
+        } else if (navigator.share) {
+            // 在一般瀏覽器 (Safari/Chrome) 使用原生分享
             try {
                 await navigator.share({
                     title: '早安祝福',
                     text: shareText,
                     url: shareUrl
                 });
-            } catch (err) { console.log("User cancelled"); }
+            } catch (err) {
+                console.log("User cancelled");
+            }
         } else {
-            // 不支援原生分享時 (如 PC)，直接導向 LINE 文字轉發
-            const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(shareText + "\n" + shareUrl)}`;
-            window.location.href = lineUrl;
+            // 備用方案：手動提示複製
+            const dummy = document.createElement('input');
+            document.body.appendChild(dummy);
+            dummy.value = shareText + " " + shareUrl;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            alert("連結已複製，請手動貼給好友！");
         }
     }
 
