@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>來自好友的祝福</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -8,183 +11,137 @@
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5');
     </script>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 早安圖工具</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    
     <style>
-        :root { --primary-gradient: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%); }
-        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; padding: 15px; margin: 0; }
-        .card { background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 420px; box-sizing: border-box; }
-        #status { font-size: 13px; color: #3672d9; text-align: left; margin-bottom: 8px; font-weight: bold; }
-        #canvasContainer { position: relative; margin-bottom: 15px; background: #e9ecef; border-radius: 15px; overflow: hidden; width: 100%; aspect-ratio: 1/1; }
-        canvas { width: 100%; height: 100%; display: block; position: relative; z-index: 5; }
-        #shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: move; }
-        .ui-group { display: flex; flex-direction: column; gap: 10px; }
-        .row { display: flex; gap: 8px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #dee2e6; border-radius: 12px; font-size: 16px; outline: none; }
-        input[type="range"] { flex: 1; accent-color: #62be36; }
-        .label-text { font-size: 12px; color: #adb5bd; min-width: 55px; }
-        .sticker-bar { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; }
-        .sticker { font-size: 24px; cursor: pointer; background: #fff; padding: 8px; border-radius: 12px; min-width: 45px; text-align: center; border: 1px solid #eee; }
-        .btn-gen { background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(98, 190, 54, 0.3); transition: transform 0.1s; }
-        .btn-gen:active { transform: scale(0.98); }
-        .btn-alt { background: #f1f3f5; color: #495057; padding: 10px; border-radius: 10px; border: none; flex: 1; cursor: pointer; font-size: 13px; font-weight: bold; }
-        .success-box { display: none; margin-top: 10px; padding: 12px; background: #d4edda; border-radius: 12px; text-align: center; color: #155724; font-size: 14px; font-weight: bold; border: 1px solid #c3e6cb; }
-        #manualArea { display: none; margin-top: 10px; padding: 12px; background: #fff3cd; border: 1px dashed #ffeeba; border-radius: 12px; text-align: center; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; }
+        #mainContainer { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        
+        /* 圖片容器：保證圖片在中間且不變形 */
+        #previewImg { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain; 
+            display: none; /* 載入完成前隱藏 */
+        }
+        
+        .btn-share { position: absolute; bottom: 8%; width: 70%; max-width: 280px; padding: 15px; border-radius: 50px; border: none; background: #06c755; color: white; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 100; }
+        .loader { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #06c755; border-radius: 50%; animation: spin 1s linear infinite; position: absolute; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        #errorInfo { color: #fff; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; display: none; text-align: center; max-width: 80%; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div id="status">準備中...</div>
-    <div id="canvasContainer">
-        <div id="shield"></div>
-        <canvas id="mainCanvas" width="600" height="600"></canvas>
-    </div>
-
-    <div class="ui-group">
-        <div class="row">
-            <input type="text" id="mainText" placeholder="輸入文字..." value="早安！祝您有美好的一天" oninput="draw()">
-            <input type="color" id="mainColor" value="#ffffff" onchange="draw()">
-        </div>
-        <div class="row">
-            <span class="label-text">文字大小</span>
-            <input type="range" id="textSize" min="20" max="100" value="45" oninput="draw()">
-        </div>
-        <div class="row">
-            <button class="btn-alt" onclick="fetchAIImage()">🔄 換張圖片</button>
-            <button class="btn-alt" onclick="reset()">🗑️ 全部重置</button>
-        </div>
+    <div id="mainContainer">
+        <div id="loader" class="loader"></div>
         
-        <div class="sticker-bar">
-            <div class="sticker" style="color:#dc3545;" onclick="clearStickers()">🚫</div>
-            <div class="sticker" onclick="addEmoji('✨')">✨</div>
-            <div class="sticker" onclick="addEmoji('🌻')">🌻</div>
-            <div class="sticker" onclick="addEmoji('🌈')">🌈</div>
-            <div class="sticker" onclick="addEmoji('☕')">☕</div>
-            <div class="sticker" onclick="addEmoji('🌹')">🌹</div>
+        <img id="previewImg" alt="早安圖">
+        
+        <div id="errorInfo">
+            <p>圖片載入中...</p>
+            <small id="debugText" style="color:#aaa; font-size:10px;"></small>
         </div>
 
-        <button id="genBtn" class="btn-gen" onclick="fastGenerate()">🚀 產生分享給好友的短連結</button>
-        
-        <div id="successMsg" class="success-box">✅ 已成功複製！去 LINE 貼上吧</div>
-        <div id="manualArea">
-            <button style="background:#ffc107; color:#212529; border:none; padding:10px; border-radius:10px; width:100%; font-weight:bold;" onclick="manualCopyAction()">📋 複製連結</button>
-            <textarea id="hiddenText" style="position:absolute; left:-9999px;"></textarea>
-        </div>
+        <button id="shareBtn" class="btn-share" onclick="doShare()">🎁 轉傳這張圖</button>
     </div>
-</div>
 
 <script>
-    const CLOUD_NAME = "dwdkxs8ot", UPLOAD_PRESET = "morning picture", LIFF_ID = "2008941488-Phn5v50S";
-    const canvas = document.getElementById('mainCanvas'), ctx = canvas.getContext('2d'), shield = document.getElementById('shield');
-    let bgImage = new Image(), items = [{ type: 'text', x: 300, y: 500 }], active = null, currentUserNickname = "訪客";
-
-    async function initApp() {
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile();
-                currentUserNickname = profile.displayName || "匿名";
-            }
-            gtag('event', 'generator_open', { 'sharer_name': currentUserNickname });
-        } catch (err) { console.error("LIFF Error:", err); }
-        fetchAIImage();
-    }
-
-    function fetchAIImage() {
-        document.getElementById('status').innerText = "⏳ 載入商用風景...";
-        const aiUrl = `https://picsum.photos/600/600?nature,sunrise&t=${Date.now()}`;
-        bgImage = new Image(); bgImage.crossOrigin = "anonymous"; bgImage.src = aiUrl;
-        bgImage.onload = () => { draw(); document.getElementById('status').innerText = "✅ 準備就緒"; };
-    }
-
-    function draw() {
-        ctx.clearRect(0,0,600,600);
-        if (bgImage.complete) ctx.drawImage(bgImage, 0, 0, 600, 600);
-        const txt = document.getElementById('mainText').value || " ", col = document.getElementById('mainColor').value, sz = document.getElementById('textSize').value;
-        items.forEach(it => {
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            if(it.type === 'text') {
-                ctx.font = `bold ${sz}px sans-serif`; ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 10;
-                ctx.strokeStyle = "black"; ctx.lineWidth = sz/8; ctx.strokeText(txt, it.x, it.y);
-                ctx.fillStyle = col; ctx.shadowBlur = 0; ctx.fillText(txt, it.x, it.y);
-            } else { ctx.font = "80px serif"; ctx.fillText(it.emoji, it.x, it.y); }
-        });
-    }
-
-    // 觸控與滑鼠邏輯
-    function getPos(e) {
-        const r = shield.getBoundingClientRect();
-        const cx = (e.touches ? e.touches[0].clientX : e.clientX), cy = (e.touches ? e.touches[0].clientY : e.clientY);
-        return { x: (cx - r.left) * (600 / r.width), y: (cy - r.top) * (600 / r.height) };
-    }
-    const start = (e) => { const p = getPos(e); active = [...items].reverse().find(i => Math.abs(i.x - p.x) < 60 && Math.abs(i.y - p.y) < 60); };
-    const move = (e) => { if(!active) return; if(e.cancelable) e.preventDefault(); const p = getPos(e); active.x = p.x; active.y = p.y; draw(); };
-    shield.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false});
-    window.addEventListener('touchend', () => active = null); shield.addEventListener('mousedown', start);
-    window.addEventListener('mousemove', move); window.addEventListener('mouseup', () => active = null);
-
-    async function fastGenerate() {
-        const btn = document.getElementById('genBtn'); btn.disabled = true; btn.innerText = "⏳ 上傳與生成中...";
-        let myVid = localStorage.getItem('v_id') || ('U-' + Math.random().toString(36).substr(2,6).toUpperCase());
-        localStorage.setItem('v_id', myVid);
-
-        try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.8), fd = new FormData();
-            fd.append("file", base64); fd.append("upload_preset", UPLOAD_PRESET);
-            
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
-            const data = await res.json();
-            
-            // 檢查有沒有 ID
-            if (data.public_id) {
-                // 產生連結
-                const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${data.public_id}&from_vid=${myVid}`;
-                
-                // 【關鍵測試】直接跳窗顯示連結，讓你檢查
-                // 如果這裡顯示的網址有 id=...，那產生器就是正常的
-                // alert("連結已產生：\n" + shareUrl); 
-                
-                const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
-                document.getElementById('hiddenText').value = finalMsg;
-                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid });
-
-                if (await copyToClipboard(finalMsg)) {
-                    document.getElementById('successMsg').style.display = 'block';
-                    btn.innerText = "✨ 連結已複製";
-                } else {
-                    document.getElementById('manualArea').style.display = 'block';
-                }
-            } else { 
-                alert("錯誤：Cloudinary 沒有回傳 ID，請檢查 Upload Preset 設定");
-                console.log(data); // 打開 F12 看詳細錯誤
-            }
-        } catch (e) { 
-            alert("上傳失敗，請檢查網路"); 
-            console.error(e);
+    const CLOUD_NAME = "dwdkxs8ot"; // 你的 Cloudinary 名稱
+    
+    // 【終極網址解析】
+    function getParam(name) {
+        const url = window.location.href;
+        // 1. 嘗試抓取標準參數 (?id=...)
+        let regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
+        let results = regex.exec(url);
+        
+        // 2. 如果沒抓到，嘗試抓取 Hash 中的參數 (針對 index.html#/?id=...)
+        if (!results) {
+            regex = new RegExp('#.*[?&]' + name + '=([^&#]*)', 'i');
+            results = regex.exec(url);
         }
-        btn.disabled = false;
+
+        return results ? decodeURIComponent(results[1]) : null;
     }
 
-    async function copyToClipboard(t) {
-        if (navigator.clipboard && window.isSecureContext) {
-            try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; }
+    const imgId = getParam('id');
+    const fromVid = getParam('from_vid') || 'ORIGIN';
+    
+    // 初始化訪客 ID
+    let myVid = localStorage.getItem('v_id');
+    if (!myVid) { 
+        myVid = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
+        localStorage.setItem('v_id', myVid); 
+    }
+
+    function init() {
+        const img = document.getElementById('previewImg');
+        const loader = document.getElementById('loader');
+        const errDiv = document.getElementById('errorInfo');
+        const debugText = document.getElementById('debugText');
+        const btn = document.getElementById('shareBtn');
+
+        // 如果真的沒有 ID，顯示提示
+        if (!imgId) {
+            loader.style.display = 'none';
+            errDiv.style.display = 'block';
+            errDiv.querySelector('p').innerText = "連結似乎不完整 (ID 遺失)";
+            debugText.innerText = "目前的網址: " + window.location.href;
+            return;
+        }
+
+        // 設定圖片網址 (加入 Cloudinary 優化參數)
+        img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
+
+        img.onload = () => {
+            loader.style.display = 'none';
+            img.style.display = 'block';
+            btn.style.display = 'block';
+            
+            // 只有成功載入才發送 GA 數據
+            gtag('event', 'view_card', {
+                'image_id': imgId,
+                'visitor_id': myVid,
+                'from_vid': fromVid
+            });
+        };
+
+        img.onerror = () => {
+            loader.style.display = 'none';
+            errDiv.style.display = 'block';
+            errDiv.querySelector('p').innerText = "圖片已過期或無法讀取";
+        };
+    }
+
+    async function doShare() {
+        // 產生乾淨的分享連結，確保下次分享也是對的
+        // 這裡我們手動拼湊正確的路徑，避免因為瀏覽器跳轉導致路徑混亂
+        const cleanBase = window.location.href.split('?')[0].split('#')[0];
+        // 確保結尾是 index.html
+        let fixedBase = cleanBase;
+        if (!fixedBase.endsWith('index.html')) {
+            if (fixedBase.endsWith('/')) fixedBase += 'index.html';
+            else fixedBase += '/index.html';
+        }
+
+        const shareUrl = `${fixedBase}?id=${imgId}&from_vid=${myVid}`;
+        
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: '早安祝福',
+                    text: '送你一張我親手做的祝福圖！',
+                    url: shareUrl
+                });
+            } catch (e) { console.log("分享取消"); }
         } else {
-            const ta = document.createElement("textarea"); ta.value = t;
-            document.body.appendChild(ta); ta.select();
-            const res = document.execCommand("copy"); document.body.removeChild(ta);
-            return res;
+            prompt("請複製下方連結傳給好友：", shareUrl);
         }
     }
-    function manualCopyAction() { document.getElementById('hiddenText').select(); document.execCommand("copy"); alert("已複製！"); }
-    function reset() { items = [{ type: 'text', x: 300, y: 500 }]; draw(); }
-    function addEmoji(e) { items.push({ type: 'emoji', x: 300, y: 300, emoji: e }); draw(); }
-    function clearStickers() { items = items.filter(i => i.type === 'text'); draw(); }
 
-    initApp();
+    // 啟動程式
+    init();
 </script>
 </body>
 </html>
