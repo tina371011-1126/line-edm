@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>來自好友的祝福</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -8,105 +11,136 @@
       gtag('js', new Date());
       gtag('config', 'G-MQ0WMMRZH5');
     </script>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>來自好友的祝福</title>
     
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; }
         #mainContainer { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        #previewImg { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
-        .btn-share { position: absolute; bottom: 10%; width: 75%; max-width: 280px; padding: 18px; border-radius: 50px; border: none; background: linear-gradient(135deg, #62be36, #3672d9); color: white; font-size: 18px; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 10; }
-        .loader { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #62be36; border-radius: 50%; animation: spin 1s linear infinite; }
+        
+        /* 圖片容器：保證圖片在中間且不變形 */
+        #previewImg { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain; 
+            display: none; /* 載入完成前隱藏 */
+        }
+        
+        .btn-share { position: absolute; bottom: 8%; width: 70%; max-width: 280px; padding: 15px; border-radius: 50px; border: none; background: #06c755; color: white; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 100; }
+        .loader { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #06c755; border-radius: 50%; animation: spin 1s linear infinite; position: absolute; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* 除錯訊息樣式 */
-        #errMsg { color: #fff; font-size: 14px; text-align: center; display: none; padding: 20px; background: rgba(255,0,0,0.8); border-radius: 10px; max-width: 90%; word-break: break-all; }
-        #debugInfo { font-size: 10px; color: #ccc; margin-top: 10px; text-align: left; }
+        #errorInfo { color: #fff; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; display: none; text-align: center; max-width: 80%; }
     </style>
 </head>
 <body>
 
     <div id="mainContainer">
         <div id="loader" class="loader"></div>
-        <div id="errMsg">
-            ⚠️ 連結似乎不完整
-            <div id="debugInfo"></div>
-        </div>
+        
         <img id="previewImg" alt="早安圖">
-        <button id="shareBtn" class="btn-share" onclick="doShare()">🎁 轉傳這份祝福</button>
+        
+        <div id="errorInfo">
+            <p>圖片載入中...</p>
+            <small id="debugText" style="color:#aaa; font-size:10px;"></small>
+        </div>
+
+        <button id="shareBtn" class="btn-share" onclick="doShare()">🎁 轉傳這張圖</button>
     </div>
 
 <script>
-    const CLOUD_NAME = "dwdkxs8ot";
-
-    // 【暴力解析】直接搜尋整個網址字串，不論參數在哪都抓出來
+    const CLOUD_NAME = "dwdkxs8ot"; // 你的 Cloudinary 名稱
+    
+    // 【終極網址解析】
     function getParam(name) {
-        const currentUrl = window.location.href;
-        // 針對 id 和 from_vid 做全域搜尋
-        const regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
-        const match = currentUrl.match(regex);
+        const url = window.location.href;
+        // 1. 嘗試抓取標準參數 (?id=...)
+        let regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
+        let results = regex.exec(url);
         
-        // 如果上面沒抓到，嘗試抓 Hash 裡面的 (針對 LIFF 亂跳轉)
-        if (!match) {
-             const hashRegex = new RegExp('#.*[?&]' + name + '=([^&#]*)', 'i');
-             const hashMatch = currentUrl.match(hashRegex);
-             return hashMatch ? decodeURIComponent(hashMatch[1]) : null;
+        // 2. 如果沒抓到，嘗試抓取 Hash 中的參數 (針對 index.html#/?id=...)
+        if (!results) {
+            regex = new RegExp('#.*[?&]' + name + '=([^&#]*)', 'i');
+            results = regex.exec(url);
         }
-        
-        return match ? decodeURIComponent(match[1]) : null;
+
+        return results ? decodeURIComponent(results[1]) : null;
     }
 
-    // 取得參數
     const imgId = getParam('id');
     const fromVid = getParam('from_vid') || 'ORIGIN';
+    
+    // 初始化訪客 ID
     let myVid = localStorage.getItem('v_id');
-    if (!myVid) { myVid = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase(); localStorage.setItem('v_id', myVid); }
+    if (!myVid) { 
+        myVid = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
+        localStorage.setItem('v_id', myVid); 
+    }
 
     function init() {
         const img = document.getElementById('previewImg');
+        const loader = document.getElementById('loader');
+        const errDiv = document.getElementById('errorInfo');
+        const debugText = document.getElementById('debugText');
         const btn = document.getElementById('shareBtn');
-        const ld = document.getElementById('loader');
-        const err = document.getElementById('errMsg');
-        const debug = document.getElementById('debugInfo');
 
-        // 如果真的抓不到 ID，顯示除錯資訊給使用者看
-        if (!imgId || imgId === "undefined" || imgId === "null") {
-            ld.style.display = 'none';
-            err.style.display = 'block';
-            err.innerHTML = `⚠️ 連結不完整<br><br>系統診斷資訊 (請截圖)：<br>找不到 ID 參數<br><br>當前網址：<br>${window.location.href}`;
+        // 如果真的沒有 ID，顯示提示
+        if (!imgId) {
+            loader.style.display = 'none';
+            errDiv.style.display = 'block';
+            errDiv.querySelector('p').innerText = "連結似乎不完整 (ID 遺失)";
+            debugText.innerText = "目前的網址: " + window.location.href;
             return;
         }
 
+        // 設定圖片網址 (加入 Cloudinary 優化參數)
         img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
 
         img.onload = () => {
-            ld.style.display = 'none';
+            loader.style.display = 'none';
             img.style.display = 'block';
             btn.style.display = 'block';
-            gtag('event', 'view_card', { 'image_id': imgId, 'visitor_id': myVid, 'from_vid': fromVid });
+            
+            // 只有成功載入才發送 GA 數據
+            gtag('event', 'view_card', {
+                'image_id': imgId,
+                'visitor_id': myVid,
+                'from_vid': fromVid
+            });
         };
 
         img.onerror = () => {
-            ld.style.display = 'none';
-            err.style.display = 'block';
-            err.innerHTML = `⚠️ 圖片讀取失敗<br>ID: ${imgId}`;
+            loader.style.display = 'none';
+            errDiv.style.display = 'block';
+            errDiv.querySelector('p').innerText = "圖片已過期或無法讀取";
         };
     }
 
     async function doShare() {
-        // 重組乾淨的網址
-        const cleanPath = window.location.href.split('?')[0].split('#')[0];
-        const shareUrl = `${cleanPath}?id=${imgId}&from_vid=${myVid}`;
+        // 產生乾淨的分享連結，確保下次分享也是對的
+        // 這裡我們手動拼湊正確的路徑，避免因為瀏覽器跳轉導致路徑混亂
+        const cleanBase = window.location.href.split('?')[0].split('#')[0];
+        // 確保結尾是 index.html
+        let fixedBase = cleanBase;
+        if (!fixedBase.endsWith('index.html')) {
+            if (fixedBase.endsWith('/')) fixedBase += 'index.html';
+            else fixedBase += '/index.html';
+        }
+
+        const shareUrl = `${fixedBase}?id=${imgId}&from_vid=${myVid}`;
         
         if (navigator.share) {
-            try { await navigator.share({ title: '早安祝福', text: '送你一張祝福！', url: shareUrl }); } catch (e) {}
+            try {
+                await navigator.share({
+                    title: '早安祝福',
+                    text: '送你一張我親手做的祝福圖！',
+                    url: shareUrl
+                });
+            } catch (e) { console.log("分享取消"); }
         } else {
-            const ta = document.createElement("textarea"); ta.value = shareUrl; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); alert("連結已複製！");
+            prompt("請複製下方連結傳給好友：", shareUrl);
         }
     }
 
+    // 啟動程式
     init();
 </script>
 </body>
