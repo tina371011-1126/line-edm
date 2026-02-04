@@ -2,145 +2,135 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>來自好友的祝福</title>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQ0WMMRZH5"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-MQ0WMMRZH5');
-    </script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>圖片預覽分享</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: -apple-system, sans-serif; }
-        #mainContainer { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        
-        /* 圖片容器：保證圖片在中間且不變形 */
-        #previewImg { 
-            max-width: 100%; 
-            max-height: 100%; 
-            object-fit: contain; 
-            display: none; /* 載入完成前隱藏 */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+        #previewContainer { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        #previewImg { max-width: 95%; max-height: 95%; object-fit: contain; opacity: 0; transition: opacity 0.5s ease; border-radius: 8px; }
+        .ui-overlay { 
+            position: relative; width: 100%; padding: 20px 20px 50px; background: rgba(0,0,0,0.8); box-sizing: border-box; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        
-        .btn-share { position: absolute; bottom: 8%; width: 70%; max-width: 280px; padding: 15px; border-radius: 50px; border: none; background: #06c755; color: white; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 100; }
-        .loader { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #06c755; border-radius: 50%; animation: spin 1s linear infinite; position: absolute; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        #errorInfo { color: #fff; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; display: none; text-align: center; max-width: 80%; }
+        .btn { 
+            border: none; padding: 16px; font-size: 18px; border-radius: 50px; font-weight: bold; cursor: pointer; 
+            width: 100%; max-width: 320px; display: none; color: white; text-align: center; text-decoration: none;
+            background: linear-gradient(90deg, #d4c84a 0%, #62be36 50%, #3672d9 100%);
+            box-shadow: 0 4px 15px rgba(98, 190, 54, 0.4); 
+            transition: transform 0.1s ease, opacity 0.3s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active { transform: scale(0.96); opacity: 0.9; }
+        #msg { color: #ccc; font-size: 14px; margin-bottom: 15px; text-align: center; letter-spacing: 0.5px; }
+        .loader { position: absolute; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #62be36; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-
-    <div id="mainContainer">
+    <div id="previewContainer">
         <div id="loader" class="loader"></div>
-        
-        <img id="previewImg" alt="早安圖">
-        
-        <div id="errorInfo">
-            <p>圖片載入中...</p>
-            <small id="debugText" style="color:#aaa; font-size:10px;"></small>
-        </div>
-
-        <button id="shareBtn" class="btn-share" onclick="doShare()">🎁 轉傳這張圖</button>
+        <img id="previewImg" src="" alt="預覽圖片">
+    </div>
+    <div class="ui-overlay">
+        <div id="msg">正在確認系統狀態...</div>
+        <button id="actionBtn" class="btn" onclick="handleShare()">確認並傳送祝福</button>
     </div>
 
 <script>
-    const CLOUD_NAME = "dwdkxs8ot"; // 你的 Cloudinary 名稱
-    
-    // 【終極網址解析】
-    function getParam(name) {
+    const LIFF_ID = "2008941488-Phn5v50S"; 
+    const CLOUD_NAME = "dwdkxs8ot";
+    let imgUrl = ""; 
+    let userName = "好友";
+
+    // 加強版參數抓取：防止 LINE 轉址弄丟參數
+    function getQueryParam(name) {
         const url = window.location.href;
-        // 1. 嘗試抓取標準參數 (?id=...)
-        let regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
-        let results = regex.exec(url);
+        const regex = new RegExp('[?&]' + name + '=([^&#]*)', 'i');
+        const match = url.match(regex);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    async function init() {
+        const id = getQueryParam('id');
         
-        // 2. 如果沒抓到，嘗試抓取 Hash 中的參數 (針對 index.html#/?id=...)
-        if (!results) {
-            regex = new RegExp('#.*[?&]' + name + '=([^&#]*)', 'i');
-            results = regex.exec(url);
+        if (id) {
+            // 優化 Cloudinary 讀取網址
+            imgUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${id}`;
+            const pImg = document.getElementById('previewImg');
+            pImg.onload = () => { 
+                pImg.style.opacity = '1'; 
+                document.getElementById('loader').style.display = 'none'; 
+                document.getElementById('msg').innerText = "點擊下方按鈕分享給好友";
+            };
+            pImg.onerror = () => {
+                document.getElementById('msg').innerText = "圖片讀取失敗，請重新嘗試";
+                document.getElementById('loader').style.display = 'none';
+            };
+            pImg.src = imgUrl;
+        } else {
+            document.getElementById('msg').innerText = "連結似乎不完整，請向好友重新索取";
+            document.getElementById('loader').style.display = 'none';
         }
 
-        return results ? decodeURIComponent(results[1]) : null;
+        try {
+            await liff.init({ liffId: LIFF_ID });
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                userName = profile.displayName || "好友";
+                if (id) document.getElementById('actionBtn').style.display = 'block';
+            } else {
+                liff.login({ redirectUri: window.location.href });
+            }
+        } catch (e) {
+            console.error(e);
+            document.getElementById('msg').innerText = "LINE 系統初始化失敗";
+        }
     }
 
-    const imgId = getParam('id');
-    const fromVid = getParam('from_vid') || 'ORIGIN';
-    
-    // 初始化訪客 ID
-    let myVid = localStorage.getItem('v_id');
-    if (!myVid) { 
-        myVid = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase(); 
-        localStorage.setItem('v_id', myVid); 
-    }
+    async function handleShare() {
+        const id = getQueryParam('id');
+        if (!id) return alert("缺少圖片 ID，無法分享");
 
-    function init() {
-        const img = document.getElementById('previewImg');
-        const loader = document.getElementById('loader');
-        const errDiv = document.getElementById('errorInfo');
-        const debugText = document.getElementById('debugText');
-        const btn = document.getElementById('shareBtn');
+        // 構造點擊圖片後會開啟的連結 (確保路徑乾淨)
+        const myLiffUrl = `https://liff.line.me/${LIFF_ID}/?id=${id}`;
 
-        // 如果真的沒有 ID，顯示提示
-        if (!imgId) {
-            loader.style.display = 'none';
-            errDiv.style.display = 'block';
-            errDiv.querySelector('p').innerText = "連結似乎不完整 (ID 遺失)";
-            debugText.innerText = "目前的網址: " + window.location.href;
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+            alert("此版本 LINE 不支援分享功能");
             return;
         }
 
-        // 設定圖片網址 (加入 Cloudinary 優化參數)
-        img.src = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/f_auto,q_auto/${imgId}`;
+        try {
+            const result = await liff.shareTargetPicker([{
+                "type": "flex",
+                "altText": `${userName} 送來了一張早安圖！`,
+                "contents": {
+                    "type": "bubble",
+                    "size": "mega",
+                    "body": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "paddingAll": "0px",
+                        "contents": [{
+                            "type": "image",
+                            "url": imgUrl,
+                            "size": "full",
+                            "aspectMode": "cover",
+                            "aspectRatio": "1:1",
+                            "action": { "type": "uri", "uri": myLiffUrl }
+                        }]
+                    }
+                }
+            }]);
 
-        img.onload = () => {
-            loader.style.display = 'none';
-            img.style.display = 'block';
-            btn.style.display = 'block';
-            
-            // 只有成功載入才發送 GA 數據
-            gtag('event', 'view_card', {
-                'image_id': imgId,
-                'visitor_id': myVid,
-                'from_vid': fromVid
-            });
-        };
-
-        img.onerror = () => {
-            loader.style.display = 'none';
-            errDiv.style.display = 'block';
-            errDiv.querySelector('p').innerText = "圖片已過期或無法讀取";
-        };
-    }
-
-    async function doShare() {
-        // 產生乾淨的分享連結，確保下次分享也是對的
-        // 這裡我們手動拼湊正確的路徑，避免因為瀏覽器跳轉導致路徑混亂
-        const cleanBase = window.location.href.split('?')[0].split('#')[0];
-        // 確保結尾是 index.html
-        let fixedBase = cleanBase;
-        if (!fixedBase.endsWith('index.html')) {
-            if (fixedBase.endsWith('/')) fixedBase += 'index.html';
-            else fixedBase += '/index.html';
-        }
-
-        const shareUrl = `${fixedBase}?id=${imgId}&from_vid=${myVid}`;
-        
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: '早安祝福',
-                    text: '送你一張我親手做的祝福圖！',
-                    url: shareUrl
-                });
-            } catch (e) { console.log("分享取消"); }
-        } else {
-            prompt("請複製下方連結傳給好友：", shareUrl);
+            if (result) {
+                liff.closeWindow();
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 
-    // 啟動程式
     init();
 </script>
 </body>
