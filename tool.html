@@ -1,51 +1,105 @@
+// --- 請確保這些全域變數已定義 ---
+const CLOUD_NAME = "dwdkxs8ot";
+const UPLOAD_PRESET = "morning picture";
+const LIFF_ID = "2008941488-Phn5v50S"; 
+
+/**
+ * 核心產生函數：處理上傳、生成連結、複製到剪貼簿
+ */
 async function fastGenerate() {
-        const btn = document.getElementById('genBtn'); 
-        btn.disabled = true; 
-        btn.innerText = "⏳ 處理中...";
+    const btn = document.getElementById('genBtn');
+    if (!btn) return;
+    
+    // 1. 防止重複點擊
+    btn.disabled = true;
+    btn.innerText = "⏳ 處理中...";
+
+    // 2. 處理訪客 ID (v_id)
+    let myVid = localStorage.getItem('v_id');
+    if (!myVid) {
+        myVid = 'U-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+        localStorage.setItem('v_id', myVid);
+    }
+
+    try {
+        // 3. 將 Canvas 轉為 Base64
+        const canvas = document.getElementById('mainCanvas'); // 請確認你的 Canvas ID 是這個
+        if (!canvas) throw new Error("找不到畫布");
         
-        // 產生訪客 ID
-        let myVid = localStorage.getItem('v_id');
-        if(!myVid) {
-            myVid = 'U-' + Math.random().toString(36).substr(2,6).toUpperCase();
-            localStorage.setItem('v_id', myVid);
-        }
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        const fd = new FormData();
+        fd.append("file", base64);
+        fd.append("upload_preset", UPLOAD_PRESET);
 
-        try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
-            const fd = new FormData();
-            fd.append("file", base64); 
-            fd.append("upload_preset", UPLOAD_PRESET);
+        // 4. 上傳至 Cloudinary
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: fd
+        });
+        const data = await res.json();
+
+        if (data.public_id) {
+            // 5. 【關鍵修正】構建連結
+            // 使用 ? 直接接在 LIFF ID 後面，並確保參數被完全編碼
+            const shareUrl = `https://liff.line.me/${LIFF_ID}?id=${encodeURIComponent(data.public_id)}&from_vid=${myVid}`;
+
+            const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
             
-            // 上傳到 Cloudinary
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
-            const data = await res.json();
-            
-            if (data.public_id) {
-                // 【核心修正】在網址中間強制加入 /index.html
-                // 舊寫法：https://liff.line.me/ID?id=... (會被吃參數)
-                // 新寫法：https://liff.line.me/ID/index.html?id=... (參數安全)
-                const shareUrl = `https://liff.line.me/${LIFF_ID}/index.html?id=${encodeURIComponent(data.public_id)}&from_vid=${myVid}`;
-                
-                const finalMsg = `🔔 送你一張早安祝福：${shareUrl}`;
-                document.getElementById('hiddenText').value = finalMsg;
+            // 寫入隱藏欄位供後續使用
+            const hiddenInput = document.getElementById('hiddenText');
+            if (hiddenInput) hiddenInput.value = finalMsg;
 
-                // GA4 追蹤
-                gtag('event', 'share_generated', { 'image_id': data.public_id, 'vid': myVid });
-
-                if (await copyToClipboard(finalMsg)) {
-                    document.getElementById('successMsg').style.display = 'block';
-                    btn.innerText = "✨ 連結已複製";
-                } else {
-                    document.getElementById('manualArea').style.display = 'block';
-                    btn.innerText = "完成";
-                }
-            } else { 
-                throw new Error("No Public ID");
+            // 6. GA4 事件追蹤
+            if (typeof gtag === 'function') {
+                gtag('event', 'share_generated', {
+                    'image_id': data.public_id,
+                    'vid': myVid
+                });
             }
-        } catch (e) { 
-            alert("上傳失敗，請稍後再試"); 
-            console.error(e);
-            btn.innerText = "❌ 失敗";
+
+            // 7. 複製到剪貼簿
+            const success = await copyToClipboard(finalMsg);
+            
+            if (success) {
+                const successEl = document.getElementById('successMsg');
+                if (successEl) successEl.style.display = 'block';
+                btn.innerText = "✨ 連結已複製";
+            } else {
+                const manualEl = document.getElementById('manualArea');
+                if (manualEl) manualEl.style.display = 'block';
+                btn.innerText = "✅ 生成完成";
+            }
+        } else {
+            throw new Error(data.error ? data.error.message : "上傳失敗");
         }
+    } catch (e) {
+        console.error("Debug Error:", e);
+        alert("上傳失敗，請確認網路或 Cloudinary 設定");
+        btn.innerText = "❌ 失敗，重試";
+    } finally {
         btn.disabled = false;
     }
+}
+
+/**
+ * 輔助函數：複製文字到剪貼簿 (相容性增強版)
+ */
+async function copyToClipboard(text) {
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } else {
+            // 備用方案：傳統 execCommand 寫法
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return successful;
+        }
+    } catch (err) {
+        return false;
+    }
+}
